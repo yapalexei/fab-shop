@@ -3,6 +3,7 @@
 use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\EquipmentController;
+use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuoteController;
@@ -56,6 +57,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/team', [TeamController::class, 'index'])->name('team.index');
     Route::patch('/team/{member}', [TeamController::class, 'update'])->name('team.update');
+
+    Route::get('/markup-defaults', [MarkupDefaultController::class, 'index'])
+        ->name('markup-defaults.index')
+        ->middleware('feature:quote-builder');
+    Route::patch('/markup-defaults', [MarkupDefaultController::class, 'update'])
+        ->name('markup-defaults.update')
+        ->middleware('feature:quote-builder');
 });
 
 require __DIR__.'/auth.php';

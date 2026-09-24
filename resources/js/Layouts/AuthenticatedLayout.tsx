@@ -127,6 +127,12 @@ export default function Authenticated({
                                     active={route().current('equipment.*')}
                                     label="Equipment"
                                 />
+                                <GatedNavLink
+                                    enabled={quoteBuilderEnabled}
+                                    href={route('markup-defaults.index')}
+                                    active={route().current('markup-defaults.*')}
+                                    label="Markup"
+                                />
                                 <NavLink
                                     href={route('team.index')}
                                     active={route().current('team.*')}
@@ -272,6 +278,12 @@ export default function Authenticated({
                             href={route('equipment.index')}
                             active={route().current('equipment.*')}
                             label="Equipment"
+                        />
+                        <GatedResponsiveNavLink
+                            enabled={quoteBuilderEnabled}
+                            href={route('markup-defaults.index')}
+                            active={route().current('markup-defaults.*')}
+                            label="Markup"
                         />
                         <ResponsiveNavLink
                             href={route('team.index')}
