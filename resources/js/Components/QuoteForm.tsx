@@ -52,7 +52,6 @@ export type MarkupDefaults = Record<'material' | 'labor' | 'equipment', number>;
 
 export interface QuoteFormData {
     customer_id: number | string;
-    status: string;
     notes: string;
     line_items: LineItem[];
 }
@@ -164,22 +163,6 @@ export default function QuoteForm({
                     ))}
                 </select>
                 <InputError message={errors.customer_id} className="mt-2" />
-            </div>
-
-            <div className="mt-4">
-                <InputLabel htmlFor="status" value="Status" />
-                <select
-                    id="status"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    value={data.status}
-                    onChange={(e) => setData('status', e.target.value)}
-                >
-                    <option value="draft">Draft</option>
-                    <option value="sent">Sent</option>
-                    <option value="won">Won</option>
-                    <option value="lost">Lost</option>
-                </select>
-                <InputError message={errors.status} className="mt-2" />
             </div>
 
             <div className="mt-6">

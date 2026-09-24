@@ -49,7 +49,6 @@ export default function Create({
                             method="post"
                             initialData={{
                                 customer_id: '',
-                                status: 'draft',
                                 notes: '',
                                 line_items: [createEmptyLineItem(markupDefaults)],
                             }}

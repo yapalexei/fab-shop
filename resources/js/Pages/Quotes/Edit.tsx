@@ -6,6 +6,7 @@ import QuoteForm, {
     MaterialOption,
     ServiceOption,
 } from '@/Components/QuoteForm';
+import QuoteWorkflowPanel from '@/Components/QuoteWorkflowPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
@@ -14,6 +15,8 @@ interface QuoteDetail {
     id: number;
     customer_id: number;
     status: string;
+    is_archived: boolean;
+    job_id: number | null;
     notes: string | null;
     line_items: LineItem[];
 }
@@ -48,6 +51,13 @@ export default function Edit({
             <div className="py-12">
                 <div className="mx-auto max-w-5xl sm:px-6 lg:px-8">
                     <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                        <QuoteWorkflowPanel
+                            quoteId={quote.id}
+                            status={quote.status}
+                            isArchived={quote.is_archived}
+                            jobId={quote.job_id}
+                        />
+
                         <QuoteForm
                             customers={customers}
                             materials={materials}
@@ -59,7 +69,6 @@ export default function Edit({
                             method="put"
                             initialData={{
                                 customer_id: quote.customer_id,
-                                status: quote.status,
                                 notes: quote.notes ?? '',
                                 line_items: quote.line_items,
                             }}

@@ -88,7 +88,6 @@ test('updating a quote replaces its line items', function () {
 
     $this->actingAs($user)->put(route('quotes.update', $quote), [
         'customer_id' => $customer->id,
-        'status' => 'sent',
         'line_items' => [
             ['type' => 'labor', 'description' => 'New item', 'quantity' => 2, 'unit_cost' => 30, 'markup_percent' => 10],
         ],
@@ -96,9 +95,30 @@ test('updating a quote replaces its line items', function () {
 
     $quote->refresh();
 
-    expect($quote->status)->toBe(QuoteStatus::Sent)
+    expect($quote->status)->toBe(QuoteStatus::Draft)
         ->and($quote->lineItems)->toHaveCount(1)
         ->and($quote->lineItems->first()->description)->toBe('New item');
+});
+
+test('a quote cannot have its status changed through the generic update endpoint', function () {
+    $shop = Shop::factory()->create();
+    $customer = Customer::factory()->for($shop)->create();
+    $quote = Quote::factory()->for($shop)->create(['customer_id' => $customer->id]);
+    $quote->lineItems()->create([
+        'type' => 'material', 'description' => 'Item',
+        'quantity' => 1, 'unit_cost' => 1, 'markup_percent' => 0,
+    ]);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->put(route('quotes.update', $quote), [
+        'customer_id' => $customer->id,
+        'status' => 'won',
+        'line_items' => [
+            ['type' => 'material', 'description' => 'Item', 'quantity' => 1, 'unit_cost' => 1, 'markup_percent' => 0],
+        ],
+    ])->assertRedirect(route('quotes.edit', $quote));
+
+    expect($quote->refresh()->status)->toBe(QuoteStatus::Draft);
 });
 
 test('a quote requires at least one line item', function () {

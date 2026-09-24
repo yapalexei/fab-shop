@@ -10,20 +10,39 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Quote extends Model
+class Quote extends Model implements HasMedia
 {
     /** @use HasFactory<QuoteFactory> */
-    use BelongsToShop, HasFactory;
+    use BelongsToShop, HasFactory, InteractsWithMedia;
 
-    protected $fillable = ['customer_id', 'status', 'notes', 'sent_at'];
+    protected $fillable = ['customer_id', 'status', 'notes', 'sent_at', 'archived_at'];
 
     protected function casts(): array
     {
         return [
             'status' => QuoteStatus::class,
             'sent_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The generated quote PDF - one per quote, replaced (not versioned) each
+     * time it's regenerated, since only the latest sent version matters.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('pdf')->singleFile();
+    }
+
+    public function pdf(): ?Media
+    {
+        return $this->getFirstMedia('pdf');
     }
 
     public function customer(): BelongsTo
@@ -34,6 +53,16 @@ class Quote extends Model
     public function lineItems(): HasMany
     {
         return $this->hasMany(QuoteLineItem::class)->orderBy('sort_order');
+    }
+
+    public function job(): HasOne
+    {
+        return $this->hasOne(Job::class);
+    }
+
+    protected function isArchived(): Attribute
+    {
+        return Attribute::get(fn (): bool => $this->archived_at !== null);
     }
 
     /**

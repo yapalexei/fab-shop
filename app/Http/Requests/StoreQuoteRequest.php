@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Enums\LineItemType;
-use App\Enums\QuoteStatus;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -27,7 +26,6 @@ class StoreQuoteRequest extends FormRequest
                 Rule::exists('customers', 'id')
                     ->where('shop_id', $this->user()->current_shop_id),
             ],
-            'status' => ['nullable', Rule::enum(QuoteStatus::class)],
             'notes' => ['nullable', 'string', 'max:5000'],
             'line_items' => ['required', 'array', 'min:1'],
             'line_items.*.type' => ['required', Rule::enum(LineItemType::class)],

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LineItemType;
+use App\Enums\QuoteStatus;
 use App\Http\Requests\StoreQuoteRequest;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\Models\Customer;
@@ -46,7 +47,10 @@ class QuoteController extends Controller
     public function store(StoreQuoteRequest $request): RedirectResponse
     {
         $quote = DB::transaction(function () use ($request) {
-            $quote = Quote::create($request->safe()->only(['customer_id', 'status', 'notes']));
+            $quote = Quote::create([
+                ...$request->safe()->only(['customer_id', 'notes']),
+                'status' => QuoteStatus::Draft,
+            ]);
 
             $this->syncLineItems($quote, $request->validated('line_items'));
 
@@ -63,6 +67,8 @@ class QuoteController extends Controller
                 'id' => $quote->id,
                 'customer_id' => $quote->customer_id,
                 'status' => $quote->status->value,
+                'is_archived' => $quote->is_archived,
+                'job_id' => $quote->job?->id,
                 'notes' => $quote->notes,
                 'line_items' => $quote->lineItems->map(fn ($item) => [
                     'id' => $item->id,
@@ -87,7 +93,7 @@ class QuoteController extends Controller
     public function update(UpdateQuoteRequest $request, Quote $quote): RedirectResponse
     {
         DB::transaction(function () use ($request, $quote) {
-            $quote->update($request->safe()->only(['customer_id', 'status', 'notes']));
+            $quote->update($request->safe()->only(['customer_id', 'notes']));
 
             $this->syncLineItems($quote, $request->validated('line_items'));
         });

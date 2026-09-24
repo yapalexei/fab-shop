@@ -12,4 +12,7 @@ export type PageProps<
         user: User;
     };
     enabledFeatures: string[];
+    flash: {
+        status: string | null;
+    };
 };

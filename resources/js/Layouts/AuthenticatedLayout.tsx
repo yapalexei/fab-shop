@@ -64,10 +64,11 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth, enabledFeatures } = usePage().props;
+    const { auth, enabledFeatures, flash } = usePage().props;
     const user = auth.user;
     const customersEnabled = enabledFeatures.includes('customers');
     const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
+    const jobBoardEnabled = enabledFeatures.includes('job-board');
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -132,6 +133,12 @@ export default function Authenticated({
                                     href={route('markup-defaults.index')}
                                     active={route().current('markup-defaults.*')}
                                     label="Markup"
+                                />
+                                <GatedNavLink
+                                    enabled={jobBoardEnabled}
+                                    href={route('jobs.index')}
+                                    active={route().current('jobs.*')}
+                                    label="Jobs"
                                 />
                                 <NavLink
                                     href={route('team.index')}
@@ -285,6 +292,12 @@ export default function Authenticated({
                             active={route().current('markup-defaults.*')}
                             label="Markup"
                         />
+                        <GatedResponsiveNavLink
+                            enabled={jobBoardEnabled}
+                            href={route('jobs.index')}
+                            active={route().current('jobs.*')}
+                            label="Jobs"
+                        />
                         <ResponsiveNavLink
                             href={route('team.index')}
                             active={route().current('team.*')}
@@ -325,6 +338,14 @@ export default function Authenticated({
                         {header}
                     </div>
                 </header>
+            )}
+
+            {flash?.status && (
+                <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <div className="rounded-md bg-green-50 p-4 text-sm text-green-700">
+                        {flash.status}
+                    </div>
+                </div>
             )}
 
             <main>{children}</main>

@@ -3,10 +3,12 @@
 use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\EquipmentController;
+use App\Http\Controllers\JobController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Foundation\Application;
@@ -38,6 +40,23 @@ Route::middleware('auth')->group(function () {
     Route::resource('quotes', QuoteController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
+
+    Route::middleware('feature:quote-builder')->prefix('quotes/{quote}')->name('quotes.')->group(function () {
+        Route::post('send', [QuoteWorkflowController::class, 'send'])->name('send');
+        Route::post('mark-won', [QuoteWorkflowController::class, 'markWon'])->name('mark-won');
+        Route::post('mark-lost', [QuoteWorkflowController::class, 'markLost'])->name('mark-lost');
+        Route::post('archive', [QuoteWorkflowController::class, 'archive'])->name('archive');
+        Route::post('reopen', [QuoteWorkflowController::class, 'reopen'])->name('reopen');
+        Route::get('pdf', [QuoteWorkflowController::class, 'downloadPdf'])->name('pdf');
+    });
+
+    Route::post('quotes/{quote}/convert', [QuoteWorkflowController::class, 'convert'])
+        ->name('quotes.convert')
+        ->middleware(['feature:quote-builder', 'feature:job-board']);
+
+    Route::resource('jobs', JobController::class)
+        ->only(['index', 'show'])
+        ->middleware('feature:job-board');
 
     Route::resource('materials', MaterialController::class)
         ->except('show')
