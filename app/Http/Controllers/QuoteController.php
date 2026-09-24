@@ -2,11 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\LineItemType;
 use App\Http\Requests\StoreQuoteRequest;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\Models\Customer;
+use App\Models\Equipment;
+use App\Models\MarkupDefault;
+use App\Models\Material;
 use App\Models\Quote;
+use App\Models\Service;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,6 +39,7 @@ class QuoteController extends Controller
     {
         return Inertia::render('Quotes/Create', [
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
+            ...$this->catalogProps(),
         ]);
     }
 
@@ -65,9 +72,15 @@ class QuoteController extends Controller
                     'unit_cost' => (float) $item->unit_cost,
                     'markup_percent' => (float) $item->markup_percent,
                     'override_total' => $item->override_total !== null ? (float) $item->override_total : null,
+                    'material_id' => $item->material_id,
+                    'service_id' => $item->service_id,
+                    'business_partner_id' => $item->business_partner_id,
+                    'user_id' => $item->user_id,
+                    'equipment_id' => $item->equipment_id,
                 ]),
             ],
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
+            ...$this->catalogProps(),
         ]);
     }
 
@@ -87,6 +100,57 @@ class QuoteController extends Controller
         $quote->delete();
 
         return redirect()->route('quotes.index');
+    }
+
+    /**
+     * Shared data the quote builder needs to offer catalog-backed line items:
+     * which materials/services each business partner supplies (with price),
+     * equipment costs, employees with their hourly rate, and this shop's
+     * default markup per line-item type.
+     *
+     * @return array<string, mixed>
+     */
+    private function catalogProps(): array
+    {
+        $shop = Auth::user()->currentShop;
+
+        return [
+            'materials' => Material::query()->with('businessPartners:id,name')->orderBy('name')->get()
+                ->map(fn (Material $material) => [
+                    'id' => $material->id,
+                    'name' => $material->name,
+                    'partners' => $material->businessPartners->map(fn ($partner) => [
+                        'business_partner_id' => $partner->id,
+                        'name' => $partner->name,
+                        'price' => (float) $partner->pivot->price,
+                    ]),
+                ]),
+            'services' => Service::query()->with('businessPartners:id,name')->orderBy('name')->get()
+                ->map(fn (Service $service) => [
+                    'id' => $service->id,
+                    'name' => $service->name,
+                    'partners' => $service->businessPartners->map(fn ($partner) => [
+                        'business_partner_id' => $partner->id,
+                        'name' => $partner->name,
+                        'price' => (float) $partner->pivot->price,
+                    ]),
+                ]),
+            'equipmentList' => Equipment::query()->orderBy('name')->get(['id', 'name', 'billing_method', 'rate'])
+                ->map(fn (Equipment $item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'billing_method' => $item->billing_method->value,
+                    'rate' => (float) $item->rate,
+                ]),
+            'employees' => $shop->members()->get()->map(fn ($member) => [
+                'user_id' => $member->id,
+                'name' => $member->name,
+                'hourly_rate' => $member->pivot->hourly_rate !== null ? (float) $member->pivot->hourly_rate : null,
+            ]),
+            'markupDefaults' => collect(LineItemType::cases())->mapWithKeys(
+                fn (LineItemType $type) => [$type->value => MarkupDefault::forType($type)],
+            ),
+        ];
     }
 
     /**

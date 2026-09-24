@@ -2,19 +2,53 @@ import FormErrorSummary from '@/Components/FormErrorSummary';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
+import QuoteLineItemRow, {
+    lineTotal,
+} from '@/Components/QuoteLineItemRow';
 import SecondaryButton from '@/Components/SecondaryButton';
-import TextInput from '@/Components/TextInput';
 import { useForm } from '@inertiajs/react';
-import { Fragment, FormEventHandler } from 'react';
+import { FormEventHandler } from 'react';
 
 export interface LineItem {
-    type: 'material' | 'labor';
+    type: 'material' | 'labor' | 'equipment';
     description: string;
     quantity: number | string;
     unit_cost: number | string;
     markup_percent: number | string;
     override_total: number | string | null;
+    material_id: number | string | null;
+    service_id: number | string | null;
+    business_partner_id: number | string | null;
+    user_id: number | string | null;
+    equipment_id: number | string | null;
 }
+
+export interface MaterialOption {
+    id: number;
+    name: string;
+    partners: { business_partner_id: number; name: string; price: number }[];
+}
+
+export interface ServiceOption {
+    id: number;
+    name: string;
+    partners: { business_partner_id: number; name: string; price: number }[];
+}
+
+export interface EquipmentOption {
+    id: number;
+    name: string;
+    billing_method: 'hourly' | 'flat';
+    rate: number;
+}
+
+export interface EmployeeOption {
+    user_id: number;
+    name: string;
+    hourly_rate: number | null;
+}
+
+export type MarkupDefaults = Record<'material' | 'labor' | 'equipment', number>;
 
 export interface QuoteFormData {
     customer_id: number | string;
@@ -28,33 +62,39 @@ const currency = new Intl.NumberFormat('en-US', {
     currency: 'USD',
 });
 
-const emptyLineItem: LineItem = {
-    type: 'material',
-    description: '',
-    quantity: 1,
-    unit_cost: 0,
-    markup_percent: 0,
-    override_total: null,
-};
-
-function lineTotal(item: LineItem): number {
-    const quantity = Number(item.quantity) || 0;
-    const unitCost = Number(item.unit_cost) || 0;
-    const markup = Number(item.markup_percent) || 0;
-    const computed = quantity * unitCost * (1 + markup / 100);
-
-    return item.override_total !== null && item.override_total !== ''
-        ? Number(item.override_total)
-        : computed;
+export function createEmptyLineItem(markupDefaults: MarkupDefaults): LineItem {
+    return {
+        type: 'material',
+        description: '',
+        quantity: 1,
+        unit_cost: 0,
+        markup_percent: markupDefaults.material,
+        override_total: null,
+        material_id: null,
+        service_id: null,
+        business_partner_id: null,
+        user_id: null,
+        equipment_id: null,
+    };
 }
 
 export default function QuoteForm({
     customers,
+    materials,
+    services,
+    equipmentList,
+    employees,
+    markupDefaults,
     initialData,
     submitUrl,
     method,
 }: {
     customers: { id: number; name: string }[];
+    materials: MaterialOption[];
+    services: ServiceOption[];
+    equipmentList: EquipmentOption[];
+    employees: EmployeeOption[];
+    markupDefaults: MarkupDefaults;
     initialData: QuoteFormData;
     submitUrl: string;
     method: 'post' | 'put';
@@ -71,24 +111,17 @@ export default function QuoteForm({
         (method === 'post' ? post : put)(submitUrl);
     };
 
-    const lineItemError = (index: number, field: keyof LineItem) =>
-        errorMap[`line_items.${index}.${field}`];
-
-    const lineItemErrorClass = (index: number, field: keyof LineItem) =>
-        lineItemError(index, field) ? 'border-red-400' : '';
-
-    const updateLineItem = (
-        index: number,
-        field: keyof LineItem,
-        value: string,
-    ) => {
+    const patchLineItem = (index: number, patch: Partial<LineItem>) => {
         const lineItems = [...data.line_items];
-        lineItems[index] = { ...lineItems[index], [field]: value };
+        lineItems[index] = { ...lineItems[index], ...patch };
         setData('line_items', lineItems);
     };
 
     const addLineItem = () => {
-        setData('line_items', [...data.line_items, { ...emptyLineItem }]);
+        setData('line_items', [
+            ...data.line_items,
+            createEmptyLineItem(markupDefaults),
+        ]);
     };
 
     const removeLineItem = (index: number) => {
@@ -160,7 +193,7 @@ export default function QuoteForm({
                                     Type
                                 </th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                                    Description
+                                    Source / description
                                 </th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
                                     Qty
@@ -181,155 +214,23 @@ export default function QuoteForm({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
-                            {data.line_items.map((item, index) => {
-                                const rowErrors = (
-                                    [
-                                        'type',
-                                        'description',
-                                        'quantity',
-                                        'unit_cost',
-                                        'markup_percent',
-                                        'override_total',
-                                    ] as (keyof LineItem)[]
-                                )
-                                    .map((field) => lineItemError(index, field))
-                                    .filter(Boolean) as string[];
-
-                                return (
-                                    <Fragment key={index}>
-                                        <tr>
-                                            <td className="px-3 py-2">
-                                                <select
-                                                    className="block w-28 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                                    value={item.type}
-                                                    onChange={(e) =>
-                                                        updateLineItem(
-                                                            index,
-                                                            'type',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                >
-                                                    <option value="material">
-                                                        Material
-                                                    </option>
-                                                    <option value="labor">
-                                                        Labor
-                                                    </option>
-                                                </select>
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                <TextInput
-                                                    className={`block w-48 ${lineItemErrorClass(index, 'description')}`}
-                                                    value={item.description}
-                                                    onChange={(e) =>
-                                                        updateLineItem(
-                                                            index,
-                                                            'description',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    required
-                                                />
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                <TextInput
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0.01"
-                                                    className={`block w-20 ${lineItemErrorClass(index, 'quantity')}`}
-                                                    value={item.quantity}
-                                                    onChange={(e) =>
-                                                        updateLineItem(
-                                                            index,
-                                                            'quantity',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    required
-                                                />
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                <TextInput
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    className={`block w-24 ${lineItemErrorClass(index, 'unit_cost')}`}
-                                                    value={item.unit_cost}
-                                                    onChange={(e) =>
-                                                        updateLineItem(
-                                                            index,
-                                                            'unit_cost',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    required
-                                                />
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                <TextInput
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    className={`block w-20 ${lineItemErrorClass(index, 'markup_percent')}`}
-                                                    value={item.markup_percent}
-                                                    onChange={(e) =>
-                                                        updateLineItem(
-                                                            index,
-                                                            'markup_percent',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    required
-                                                />
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                <TextInput
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    className={`block w-24 ${lineItemErrorClass(index, 'override_total')}`}
-                                                    placeholder="auto"
-                                                    value={item.override_total ?? ''}
-                                                    onChange={(e) =>
-                                                        updateLineItem(
-                                                            index,
-                                                            'override_total',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                />
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-2 text-right text-sm text-gray-900">
-                                                {currency.format(
-                                                    lineTotal(item),
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        removeLineItem(index)
-                                                    }
-                                                    className="text-sm text-red-600 hover:text-red-900"
-                                                >
-                                                    Remove
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        {rowErrors.length > 0 && (
-                                            <tr>
-                                                <td
-                                                    colSpan={8}
-                                                    className="bg-red-50 px-3 py-1 text-sm text-red-600"
-                                                >
-                                                    {rowErrors.join(' ')}
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </Fragment>
-                                );
-                            })}
+                            {data.line_items.map((item, index) => (
+                                <QuoteLineItemRow
+                                    key={index}
+                                    item={item}
+                                    index={index}
+                                    materials={materials}
+                                    services={services}
+                                    equipmentList={equipmentList}
+                                    employees={employees}
+                                    markupDefaults={markupDefaults}
+                                    onChange={patchLineItem}
+                                    onRemove={removeLineItem}
+                                    getError={(field) =>
+                                        errorMap[`line_items.${index}.${field}`]
+                                    }
+                                />
+                            ))}
                         </tbody>
                     </table>
                 </div>
@@ -385,5 +286,3 @@ export default function QuoteForm({
         </form>
     );
 }
-
-export { emptyLineItem };

@@ -16,6 +16,7 @@ class QuoteLineItem extends Model
 
     protected $fillable = [
         'type', 'description', 'quantity', 'unit_cost', 'markup_percent', 'override_total', 'sort_order',
+        'material_id', 'service_id', 'business_partner_id', 'user_id', 'equipment_id',
     ];
 
     protected function casts(): array
@@ -32,6 +33,31 @@ class QuoteLineItem extends Model
     public function quote(): BelongsTo
     {
         return $this->belongsTo(Quote::class);
+    }
+
+    public function material(): BelongsTo
+    {
+        return $this->belongsTo(Material::class);
+    }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function businessPartner(): BelongsTo
+    {
+        return $this->belongsTo(BusinessPartner::class);
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function equipment(): BelongsTo
+    {
+        return $this->belongsTo(Equipment::class);
     }
 
     /**

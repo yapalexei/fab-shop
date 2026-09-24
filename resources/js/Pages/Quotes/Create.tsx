@@ -1,11 +1,30 @@
-import QuoteForm, { emptyLineItem } from '@/Components/QuoteForm';
+import QuoteForm, {
+    createEmptyLineItem,
+    EmployeeOption,
+    EquipmentOption,
+    MarkupDefaults,
+    MaterialOption,
+    ServiceOption,
+} from '@/Components/QuoteForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
 
 export default function Create({
     customers,
-}: PageProps<{ customers: { id: number; name: string }[] }>) {
+    materials,
+    services,
+    equipmentList,
+    employees,
+    markupDefaults,
+}: PageProps<{
+    customers: { id: number; name: string }[];
+    materials: MaterialOption[];
+    services: ServiceOption[];
+    equipmentList: EquipmentOption[];
+    employees: EmployeeOption[];
+    markupDefaults: MarkupDefaults;
+}>) {
     return (
         <AuthenticatedLayout
             header={
@@ -21,13 +40,18 @@ export default function Create({
                     <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
                         <QuoteForm
                             customers={customers}
+                            materials={materials}
+                            services={services}
+                            equipmentList={equipmentList}
+                            employees={employees}
+                            markupDefaults={markupDefaults}
                             submitUrl={route('quotes.store')}
                             method="post"
                             initialData={{
                                 customer_id: '',
                                 status: 'draft',
                                 notes: '',
-                                line_items: [{ ...emptyLineItem }],
+                                line_items: [createEmptyLineItem(markupDefaults)],
                             }}
                         />
                     </div>

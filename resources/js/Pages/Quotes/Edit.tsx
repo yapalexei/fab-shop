@@ -1,4 +1,11 @@
-import QuoteForm, { LineItem } from '@/Components/QuoteForm';
+import QuoteForm, {
+    EmployeeOption,
+    EquipmentOption,
+    LineItem,
+    MarkupDefaults,
+    MaterialOption,
+    ServiceOption,
+} from '@/Components/QuoteForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
@@ -14,9 +21,19 @@ interface QuoteDetail {
 export default function Edit({
     quote,
     customers,
+    materials,
+    services,
+    equipmentList,
+    employees,
+    markupDefaults,
 }: PageProps<{
     quote: QuoteDetail;
     customers: { id: number; name: string }[];
+    materials: MaterialOption[];
+    services: ServiceOption[];
+    equipmentList: EquipmentOption[];
+    employees: EmployeeOption[];
+    markupDefaults: MarkupDefaults;
 }>) {
     return (
         <AuthenticatedLayout
@@ -33,6 +50,11 @@ export default function Edit({
                     <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
                         <QuoteForm
                             customers={customers}
+                            materials={materials}
+                            services={services}
+                            equipmentList={equipmentList}
+                            employees={employees}
+                            markupDefaults={markupDefaults}
                             submitUrl={route('quotes.update', quote.id)}
                             method="put"
                             initialData={{
