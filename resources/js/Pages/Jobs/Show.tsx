@@ -1,3 +1,6 @@
+import JobStatusActions, {
+    JobTransition,
+} from '@/Components/JobStatusActions';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
@@ -10,18 +13,33 @@ interface JobLineItem {
     total: number;
 }
 
+interface HistoryEntry {
+    id: number;
+    description: string;
+    causer: string | null;
+    created_at: string;
+}
+
 interface JobDetail {
     id: number;
     job_number: string;
     status: string;
+    status_label: string;
+    available_transitions: JobTransition[];
     total: number;
     customer: { name: string; email: string | null };
     line_items: JobLineItem[];
+    history: HistoryEntry[];
 }
 
 const currency = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+});
+
+const dateTime = new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
 });
 
 export default function Show({ job }: PageProps<{ job: JobDetail }>) {
@@ -51,8 +69,8 @@ export default function Show({ job }: PageProps<{ job: JobDetail }>) {
                                 <dt className="text-sm text-gray-500">
                                     Status
                                 </dt>
-                                <dd className="text-sm font-medium capitalize text-gray-900">
-                                    {job.status.replace('_', ' ')}
+                                <dd className="text-sm font-medium text-gray-900">
+                                    {job.status_label}
                                 </dd>
                             </div>
                             <div>
@@ -64,6 +82,13 @@ export default function Show({ job }: PageProps<{ job: JobDetail }>) {
                                 </dd>
                             </div>
                         </dl>
+
+                        <div className="mt-4 border-t border-gray-100 pt-4">
+                            <JobStatusActions
+                                jobId={job.id}
+                                transitions={job.available_transitions}
+                            />
+                        </div>
                     </div>
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
@@ -103,6 +128,40 @@ export default function Show({ job }: PageProps<{ job: JobDetail }>) {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+
+                    <div className="bg-white p-6 shadow sm:rounded-lg">
+                        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+                            History
+                        </h3>
+                        {job.history.length === 0 ? (
+                            <p className="text-sm text-gray-500">
+                                No status changes yet.
+                            </p>
+                        ) : (
+                            <ul className="space-y-3">
+                                {job.history.map((entry) => (
+                                    <li
+                                        key={entry.id}
+                                        className="flex items-start justify-between text-sm"
+                                    >
+                                        <div>
+                                            <p className="text-gray-900">
+                                                {entry.description}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {entry.causer ?? 'System'}
+                                            </p>
+                                        </div>
+                                        <span className="whitespace-nowrap text-xs text-gray-400">
+                                            {dateTime.format(
+                                                new Date(entry.created_at),
+                                            )}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 </div>
             </div>

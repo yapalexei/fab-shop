@@ -4,6 +4,7 @@ use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\JobController;
+use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProfileController;
@@ -56,6 +57,10 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('jobs', JobController::class)
         ->only(['index', 'show'])
+        ->middleware('feature:job-board');
+
+    Route::patch('jobs/{job}/status', [JobStatusController::class, 'update'])
+        ->name('jobs.status')
         ->middleware('feature:job-board');
 
     Route::resource('materials', MaterialController::class)

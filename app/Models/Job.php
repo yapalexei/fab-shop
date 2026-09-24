@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Job extends Model
 {
     /** @use HasFactory<JobFactory> */
-    use BelongsToShop, HasFactory;
+    use BelongsToShop, HasFactory, LogsActivity;
 
     protected $table = 'fabrication_jobs';
 
@@ -54,5 +56,51 @@ class Job extends Model
     public static function nextNumber(): string
     {
         return 'J-'.str_pad((string) (static::count() + 1), 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * The traveler board's state machine: single-step forward is always
+     * legal (the normal path through every station), a job can be cancelled
+     * from anywhere it isn't already cancelled, and a backward correction is
+     * only legal while the job is still "in hand" on the shop floor -
+     * Finishing/Shipped/Invoiced can't be walked back, only cancelled.
+     */
+    public function canTransitionTo(JobStatus $target): bool
+    {
+        if ($target === JobStatus::Cancelled) {
+            return $this->status !== JobStatus::Cancelled;
+        }
+
+        if ($this->status === JobStatus::Cancelled || $this->status === JobStatus::Invoiced) {
+            return false;
+        }
+
+        $currentOrder = $this->status->order();
+        $targetOrder = $target->order();
+
+        if ($targetOrder === $currentOrder + 1) {
+            return true;
+        }
+
+        return $targetOrder < $currentOrder && $this->status->isInShop();
+    }
+
+    /**
+     * @return array<int, JobStatus>
+     */
+    public function availableTransitions(): array
+    {
+        return array_values(array_filter(
+            JobStatus::cases(),
+            fn (JobStatus $target) => $this->canTransitionTo($target),
+        ));
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        // Transitions are logged manually with a human-readable message
+        // (see JobStatusController) - this only grants the `activities()`
+        // relation without Eloquent's own generic attribute-diff logging.
+        return LogOptions::defaults()->logOnly([])->dontLogEmptyChanges();
     }
 }
