@@ -10,6 +10,7 @@ Core features, in plain terms (full dependency table is below):
 
 - **Customers** - contact records that quotes and jobs attach to
 - **Quote builder (F1)** - custom quoting with material, labor, and markup
+- **Quote builder catalog (F1.1)** - materials and services priced per business partner, equipment costs, per-line-item-type markup defaults
 - **Quote-to-job conversion (F2)** - turns a won quote into a trackable job, generates and sends the PDF
 - **Job/traveler status board (F3)** - live tracking from cut through ship
 - **QuickBooks Online sync (F4)** - customers and invoices sync automatically
@@ -63,6 +64,22 @@ Starting proposal, mapped to the pricing in the Product & Launch Plan tab - adju
 
 Build F0.9 (this) right after F0.8 (billing) and before F1 - every feature from F1 onward should call `Shop::hasFeature()` as part of its own build, not receive gating bolted on afterward.
 
+## Quote builder catalog: Materials, Services, Business Partners & Equipment
+
+F1.1, built after F1 shipped with only freeform line items. Gives quote line items real cost sources instead of only freeform description/cost - gated under the same `quote-builder` feature flag as F1, no new `Feature` enum entries.
+
+- **`BusinessPartner`** - name, contact info, notes. One entity for any outside company the shop works with - the same business can both supply materials and perform services, so this isn't split into separate Vendor/Supplier entities.
+- **`Material`** - name, unit, notes. Catalog of material types (e.g. "1/4in steel plate"). No price of its own - price only exists in the context of a specific partner.
+- **`Service`** - name, notes. Catalog of service types (e.g. "Anodizing", "Powder coating") - mirrors `Material` but for outsourced labor.
+- **`material_business_partner`** pivot - `material_id`, `business_partner_id`, `price`. A partner's material-supply capability.
+- **`service_business_partner`** pivot - `service_id`, `business_partner_id`, `price`. A partner's service capability.
+- **Capability management** lives on the `BusinessPartner` edit page: add/remove "materials supplied" and "services offered" rows, each with its own price. A partner shows up as an option on a quote's material line only if it supplies that material; same for a service line.
+- **`Equipment`** - name, `billing_method` (hourly or flat), `rate`, notes. Standalone, not partner-linked.
+- **`shop_user.hourly_rate`** - nullable rate added to the existing membership pivot. An "employee" for costing purposes is just a `User` with a rate, not a new entity - avoids duplicating name/contact fields `User` already has.
+- **`MarkupDefault`** - per shop, per line-item type (`material`/`labor`/`equipment`), a default markup percentage. No default recorded for a type means 0. User-editable (needs a small settings UI), applied automatically the moment a line item's type is set, always overridable per line - same "computed, not stored, but overridable" pattern as everything else in this app.
+- **`QuoteLineItem` gains nullable**: `material_id` + `business_partner_id` (material line - partner picks whose price), `service_id` + `business_partner_id` (outsourced labor line), `user_id` (internal labor line - mutually exclusive with service/partner), `equipment_id` (equipment line). Selecting any of these pre-fills `unit_cost`; everything stays editable/overridable per line - still "live/manual pricing," just with a smarter default than typing from scratch every time.
+- Setting a user's `hourly_rate` needs some UI even though the full staff-invite flow (F0's deferred "Invite staff" step) doesn't exist yet - add a minimal team-members list scoped to just this, not the full invite flow.
+
 ## Feature build order (dependency hierarchy)
 
 Each feature lists what it needs already built. Build strictly top-to-bottom within a chain; features on the same row of the parallel table below can run out of order relative to each other.
@@ -74,7 +91,8 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F0.8 | Subscription billing (Stripe Cashier: the shop subscribes to your product) | F0 | Needed before you can actually charge anyone - independent of the fabrication-specific features, so it's a parallel candidate (see below) |
 | F0.9 | Feature gating / entitlements (Plan/Tier model, feature registry, trial handling) | F0.8 | Backend + frontend plumbing to lock/unlock features by tier - build before F1 so every feature after it is gated from the start, not retrofitted |
 | F1 | Quote builder: material + labor + markup, live/manual pricing, margin calc | F0, F0.5, F0.9 | The #1 pain point from the research - the core wedge feature |
-| F2 | Quote -> job conversion, PDF generation, email send | F1 | Turns a won quote into a trackable job |
+| F1.1 | Quote builder catalog: Material/Service/BusinessPartner + pricing pivots, Equipment, employee hourly rates, per-type markup defaults | F1 | Real cost sources instead of only freeform line items - land before F2 since it changes QuoteLineItem's schema, even though F2 doesn't strictly need it |
+| F2 | Quote -> job conversion, PDF generation, email send | F1, F1.1 | Turns a won quote into a trackable job |
 | F3 | Job/traveler status board (cut -> fit -> weld -> finish -> ship), live updates via broadcasting | F2 | Replaces the whiteboard; the daily-use screen for the shop floor |
 | F4 | QuickBooks Online sync (customers, invoices) | F0.5, F1 (data model needs to be stable; doesn't strictly need F2/F3) | Removes the QuickBooks re-entry pain flagged repeatedly in research |
 | F5 | Material/scrap tracking tied to job cost | F3 | Real per-job margin - the natural upsell after F1's estimate vs. actual |
