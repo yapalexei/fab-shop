@@ -9,7 +9,9 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const user = usePage().props.auth.user;
+    const { auth, enabledFeatures } = usePage().props;
+    const user = auth.user;
+    const customersEnabled = enabledFeatures.includes('customers');
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -33,12 +35,21 @@ export default function Authenticated({
                                 >
                                     Dashboard
                                 </NavLink>
-                                <NavLink
-                                    href={route('customers.index')}
-                                    active={route().current('customers.*')}
-                                >
-                                    Customers
-                                </NavLink>
+                                {customersEnabled ? (
+                                    <NavLink
+                                        href={route('customers.index')}
+                                        active={route().current('customers.*')}
+                                    >
+                                        Customers
+                                    </NavLink>
+                                ) : (
+                                    <span
+                                        className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-300"
+                                        title="Upgrade your plan to unlock Customers"
+                                    >
+                                        Customers
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -143,12 +154,18 @@ export default function Authenticated({
                         >
                             Dashboard
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink
-                            href={route('customers.index')}
-                            active={route().current('customers.*')}
-                        >
-                            Customers
-                        </ResponsiveNavLink>
+                        {customersEnabled ? (
+                            <ResponsiveNavLink
+                                href={route('customers.index')}
+                                active={route().current('customers.*')}
+                            >
+                                Customers
+                            </ResponsiveNavLink>
+                        ) : (
+                            <span className="block py-2 pe-4 ps-3 text-base font-medium text-gray-300">
+                                Customers
+                            </span>
+                        )}
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4">

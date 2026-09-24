@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -52,6 +53,8 @@ class RegisteredUserController extends Controller
             $shop = Shop::create([
                 'name' => $request->shop_name,
                 'owner_id' => $user->id,
+                'plan_id' => Plan::where('key', 'free')->value('id'),
+                'trial_ends_at' => now()->addDays(14),
             ]);
 
             $shop->members()->attach($user);

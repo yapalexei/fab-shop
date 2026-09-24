@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -18,6 +19,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(PlanSeeder::class);
+
         $user = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -26,6 +29,8 @@ class DatabaseSeeder extends Seeder
         $shop = Shop::create([
             'name' => "Test User's Shop",
             'owner_id' => $user->id,
+            'plan_id' => Plan::where('key', 'free')->value('id'),
+            'trial_ends_at' => now()->addDays(14),
         ]);
 
         $shop->members()->attach($user);

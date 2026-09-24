@@ -21,6 +21,7 @@ class ShopFactory extends Factory
         return [
             'owner_id' => User::factory(),
             'name' => fake()->company(),
+            'trial_ends_at' => now()->addDays(14),
         ];
     }
 

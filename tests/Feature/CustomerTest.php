@@ -2,15 +2,6 @@
 
 use App\Models\Customer;
 use App\Models\Shop;
-use App\Models\User;
-
-function actingAsShopMember(Shop $shop): User
-{
-    $user = User::factory()->create(['current_shop_id' => $shop->id]);
-    $shop->members()->attach($user);
-
-    return $user;
-}
 
 test('a user only sees customers belonging to their current shop', function () {
     $shopA = Shop::factory()->create();

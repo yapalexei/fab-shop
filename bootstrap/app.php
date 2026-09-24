@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetPermissionsTeamFromCurrentShop;
 use Illuminate\Foundation\Application;
@@ -21,7 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             SetPermissionsTeamFromCurrentShop::class,
         ]);
 
-        //
+        $middleware->alias([
+            'feature' => EnsureFeatureEnabled::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

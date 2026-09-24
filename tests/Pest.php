@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Shop;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +46,10 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function actingAsShopMember(Shop $shop): User
 {
-    // ..
+    $user = User::factory()->create(['current_shop_id' => $shop->id]);
+    $shop->members()->attach($user);
+
+    return $user;
 }
