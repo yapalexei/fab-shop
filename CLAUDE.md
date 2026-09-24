@@ -12,7 +12,7 @@ Vertical SaaS for quoting, job-tracking, and invoicing for small custom/ornament
 
 The app runs via Laravel Sail (Docker), not the host PHP — `.env`'s `DB_HOST=pgsql`/`MAIL_HOST=mailpit` only resolve inside Sail's Docker network, so bare `php artisan` / `npm` on the host will fail to connect. Use `./vendor/bin/sail artisan ...`, `./vendor/bin/sail npm ...`, `./vendor/bin/sail test`, etc. (alias `sail` to `./vendor/bin/sail` for less typing). Bring the stack up with `./vendor/bin/sail up -d`.
 
-Services: `pgsql` (Postgres, matches production) and `mailpit` (catches all outgoing mail — inbox UI on `FORWARD_MAILPIT_DASHBOARD_PORT`, default 8025). Host ports are remapped in this machine's `.env` (not `.env.example`) because another project's Docker stack already holds Sail's defaults (80/5432/1025/8025) — check `.env` for the actual ports before assuming the defaults.
+Services: `pgsql` (Postgres, matches production, default port 5432) and `mailpit` (catches all outgoing mail — inbox UI at `http://localhost:8025`). App runs at `http://localhost` (port 80).
 
 The test suite also runs against a real Postgres `testing` database (via `phpunit.xml`), not sqlite — so `./vendor/bin/sail test` needs the `pgsql` container up.
 
