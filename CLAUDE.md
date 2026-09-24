@@ -80,6 +80,12 @@ Everything is stored in UTC. Anything that depends on the shop's calendar (month
 - Call `->utc()` before assigning a shop-local Carbon to a model attribute - Eloquent stores the wall-clock digits and drops the offset.
 - Call `->copy()` before `->setTimezone()` on a model's date attribute - Carbon dates are mutable, so converting in place changes the attribute and a later `save()` writes the local time as if it were UTC.
 
+## Marketing page (F8a)
+
+`/` (`MarketingController`, page component `Welcome.tsx`) is the public marketing/pricing page — not the authenticated `/dashboard`. Tier contents are read live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`), never hardcoded copy, so what a tier claims to include can't drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks F5–F7 (`material-tracking`, `weld-records`, `mobile-api`) as "Coming soon" on the page regardless of which plan grants them, since nothing in the app implements them yet — flip it to `true` per feature the day each one ships, or the page will start silently overclaiming. The Free plan is rendered specially ("every feature, free for 14 days") rather than as a checklist of all-false rows, since its real access comes from `Shop::onTrial()`, not from any features attached to the `free` Plan row itself.
+
+This is only F8a from `docs/product-desc.md`'s F8 spec (the public page). F8b (deferred shop creation behind email verification) and F8c (the onboarding wizard) are still just spec, not built — don't assume `MustVerifyEmail` is active or that signup creates anything but the shop it does today.
+
 ## Current stage
 
 Greenfield build. Feature build order: Foundation → Customers → (Subscription billing / Feature gating, in parallel) → Quote builder → Quote-to-job conversion → Job/traveler board → QuickBooks sync → (Material tracking / Mobile+API / Weld records, in parallel).

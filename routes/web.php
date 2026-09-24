@@ -7,6 +7,7 @@ use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobStatusController;
+use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialTypeController;
@@ -21,18 +22,9 @@ use App\Http\Controllers\ShopSwitchController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeamMemberAccessController;
 use App\Http\Controllers\ToolController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::get('/', MarketingController::class)->name('marketing');
 
 Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified'])->name('dashboard');
 
