@@ -16,6 +16,8 @@ Core features, in plain terms (full dependency table is below):
 - **QuickBooks Online sync (F4)** - customers and invoices sync automatically
 - **Subscription billing (F0.8)** - the shop pays for the product itself
 - **Material/scrap tracking (F5), mobile/PWA + API (F6), weld/qualification records (F7)** - the Scenario C follow-on
+- **Marketing site, tier comparison & guided onboarding (F8)** - planned, not started; see [Planned: Marketing site, tier comparison & guided onboarding](#planned-marketing-site-tier-comparison--guided-onboarding-f8) below
+- **CSV import for catalog data (F9)** - planned, not started; see [Planned: CSV import for catalog data](#planned-csv-import-for-catalog-data-f9) below
 
 **Dependency shape, in plain terms:** Foundation (accounts, shops, roles) has to exist before anything else - nothing else can start until it's done. Customers have to exist before Quotes can be created. Quotes have to exist before a Quote can become a Job. Jobs have to exist before the status board, material tracking, weld records, or mobile status views have anything to show. Subscription billing and QuickBooks sync are the two features that don't block, or get blocked by, that chain - each can be built independently once its own light prerequisite (the Shop model; stable Customer/Quote data shapes) is in place.
 
@@ -80,6 +82,62 @@ F1.1, built after F1 shipped with only freeform line items. Gives quote line ite
 - **`QuoteLineItem` gains nullable**: `material_id` + `business_partner_id` (material line - partner picks whose price), `service_id` + `business_partner_id` (outsourced labor line), `user_id` (internal labor line - mutually exclusive with service/partner), `equipment_id` (equipment line). Selecting any of these pre-fills `unit_cost`; everything stays editable/overridable per line - still "live/manual pricing," just with a smarter default than typing from scratch every time.
 - Setting a user's `hourly_rate` needs some UI even though the full staff-invite flow (F0's deferred "Invite staff" step) doesn't exist yet - add a minimal team-members list scoped to just this, not the full invite flow.
 
+## Planned: Marketing site, tier comparison & guided onboarding (F8)
+
+**Not started - defined here for review. Do not begin implementation until explicitly told to.**
+
+Three pieces, one feature. Today `/` is still Breeze's stock `Welcome.tsx`, and signup (`RegisteredUserController::store()`) creates the `User` *and* the `Shop` in a single request, logs straight in, and never asks for email verification even though `MustVerifyEmail` is scaffolded-but-commented-out on `User` and Breeze's verify-email routes/views/mailable already exist unused. That's the gap this closes.
+
+### F8a. Public marketing page
+
+- Replaces `Welcome.tsx` at `/` with real content: what the product does (quoting, job board, QuickBooks sync, tooling/material tracking) and a tier comparison (Free / Start-up / Pro).
+- The tier comparison reads live from `Plan`/`Feature`/`plan_feature` (already seeded by `PlanSeeder`) instead of hardcoded marketing copy - so what a tier lists as included can never drift from what `Shop::hasFeature()` actually enforces.
+- An existing signed-in shop on a lower tier should link to the same comparison content for "Upgrade" rather than a duplicate pricing view.
+- CTAs go to the existing `/register`. Keep `/login`/`/register` as separate routes rather than folding them into the marketing page - simpler, and the marketing page stays static-ish.
+
+### F8b. Verified signup, deferred shop creation
+
+- Signup collects only name/email/password - no `shop_name` field, no `Shop` row created yet.
+- Enable `MustVerifyEmail` on `User` (currently commented out); Breeze's verification mailable/routes already exist and just need to be switched on.
+- After verifying, a user with no shop (`current_shop_id` null, `ownedShops` empty) is routed into onboarding instead of the Dashboard, which already sits behind `auth`+`verified` middleware.
+- **Open decision:** shop name/timezone move to onboarding step 1 rather than staying on the signup form (keeps signup to just credentials) - flag if you'd rather keep it on `/register`.
+
+### F8c. Onboarding wizard
+
+Runs once, right after first verified login, before the real Dashboard is reachable.
+
+- New `shops.onboarded_at` nullable timestamp, backfilled to `created_at` for every existing/demo shop in the migration so nobody already using the app gets routed into it retroactively. A shop with it null is redirected to the wizard from any route except the wizard itself and logout.
+- Steps, each saved as it's completed (not one final submit, so a refresh mid-wizard resumes rather than loses progress):
+  1. **Shop & plan** - name, timezone, pick a tier. F0.8 (Stripe/Cashier) isn't built yet, so picking Start-up/Pro here can only record `plan_id` and start the normal 14-day trial - it can't actually charge anyone. Say so plainly in the UI rather than implying a card is being collected.
+  2. **Invite your team** (skippable) - the "Invite staff" step the original F0 flow diagram always called for but the build never implemented; today adding a teammate means creating them directly (the demo commands' approach), with no invite-by-email path anywhere in the app. Needs: an `Invitation` model (`shop_id`, `email`, `role`, `token`, `expires_at`, `accepted_at`), a mailable, and an accept-invite route that creates or attaches the `User` and the `shop_user` row. Substantial enough to scope/estimate as its own unit of work inside F8.
+  3. **Starter catalog** (skippable) - a light "add a few things to get going" form touching Materials, Services, Business Partners, Equipment, Tooling, Material types, and Markup defaults, or "Import from CSV" straight into F9's importer if that's built by then, or "Skip - I'll add these later." Keep it to a handful of quick-add rows, not the full CRUD forms - the goal is one buildable quote, not a populated catalog.
+  4. **Done** - sets `onboarded_at = now()`, redirects to the Dashboard.
+- Acceptance cases to test once built: a verified user with no shop is redirected to the wizard from any URL; a shop with `onboarded_at` set is never sent back even if a later step looks incomplete; refreshing mid-wizard resumes at the right step; skipping steps 2-3 still reaches a working, empty-catalog Dashboard identical to today's.
+
+**Dependencies:** F0.9 (gating/Plan model - built). Ideally F0.8 (Stripe billing - not built; ship F8 first only if the plan-picking step is honest that paid tiers aren't charged yet). The team-invite sub-piece needs nothing beyond F0 (Owner role, `shop_user` pivot - built).
+
+## Planned: CSV import for catalog data (F9)
+
+**Not started - defined here for review, same as F8.**
+
+Owner-only for v1 (could later become its own `{resource}.import` shop permission, consistent with the per-resource permission model already built, but start Owner-gated like `manage-shop`). Covers Customers, Materials, Services, Business Partners, and Equipment as named; Tooling and Material types fit the same shape and are natural to include too - flag if v1 should stay limited to the original five. ("Clients" in the request is read as the same entity as Customers - there's one contact-record model in the app.)
+
+- **A downloadable CSV template per resource** (`GET /{resource}/import/template`) with the exact header row that resource's importer expects - e.g. Customers: `name,email,phone,address,notes`; Materials: `name,unit,material_type,notes`; Tooling: `name,cuts,cost,unit,notes` with `cuts` as a `;`-separated list of material type names. The template and the validator are generated from one column-definition list per resource so they can't drift apart.
+- **Upload dialog** on each resource's Index page, next to "Add X": a file picker plus an **"Overwrite existing records with the same name"** checkbox, unchecked by default - skip-on-conflict is the safer default, not silent overwrite. Name is the only match key, per the request, since it's the only thing an import row reliably carries.
+- **Processing, queued from the start** (a few hundred rows parses fast, but do it as a job so a much larger file doesn't time out the request): store the upload via the existing filesystem abstraction, dispatch an import job per shop/resource/file/overwrite-flag.
+  1. Parse and validate every row against that resource's existing `Store{X}Request` rules (reused, not duplicated) before writing anything - a file that fails validation wholesale writes nothing and returns a row-by-row error report.
+  2. Per valid row, look up an existing record in the current shop by case-insensitive name match (same pattern `MaterialType` already uses):
+     - No match -> create.
+     - Match, checkbox unchecked -> skip, tally as "already exists."
+     - Match, checkbox checked -> update the existing record's fields from the row; its id/`shop_id` untouched.
+  3. Return created/updated/skipped counts plus a downloadable per-row error report, so a shop can fix just the bad rows and re-upload instead of redoing the whole file.
+- **Tenant scoping inside the job**: filter by the importing shop's id explicitly - a queued job has no session, same caveat already documented for the demo commands and `NotifyExpiredTrials`, never rely on the global scope there.
+- **Name-based relational fields** (Materials' `material_type` column, Tooling's `cuts` column) resolve by case-insensitive name lookup within the shop at import time. An unrecognized name is a per-row validation failure naming the row/column - never a silent drop, and never an auto-created type (auto-creating would bypass the 20-custom-type cap and defeat the point of it).
+
+**Acceptance cases:** a row whose name matches an existing record, once with the checkbox off (skipped, unchanged) and once on (fields replaced); a file with the wrong headers is rejected before any row is touched; a valid file with one bad row imports everything else and reports just that row; two rows in the same file with the same name differing only in case are treated as duplicates of each other, not as two new records.
+
+**Dependencies:** Customers needs F0.5; Materials/Services/Business Partners/Equipment need F1.1; Tooling/Material types need the tooling work already shipped. No dependency on F8 - buildable independently, in either order.
+
 ## Feature build order (dependency hierarchy)
 
 Each feature lists what it needs already built. Build strictly top-to-bottom within a chain; features on the same row of the parallel table below can run out of order relative to each other.
@@ -98,6 +156,8 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F5 | Material/scrap tracking tied to job cost | F3 | Real per-job margin - the natural upsell after F1's estimate vs. actual |
 | F6 | Mobile/PWA shell + Sanctum-based API endpoints for job status | F3 (for the data it displays), Sanctum scaffolding from F0 | First real use of the API-readiness groundwork from F0 |
 | F7 | Weld/qualification record tracking (WPS/PQR, certs tied to jobs) | F3 | Compliance/liability differentiator vs. generic tools |
+| F8 | Marketing site, tier comparison & guided onboarding (public page; verified signup; onboarding wizard incl. staff invite-by-email) | F0.9 (built); ideally F0.8 (not built - see spec) | Prospects can evaluate tiers before signing up; new shops get walked through setup instead of landing on an empty dashboard. **Not started - see spec above.** |
+| F9 | CSV import for catalog data (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) | F0.5; F1.1; tooling work (built) | Bulk-loads an existing shop's records instead of one-at-a-time entry. **Not started - see spec above.** |
 
 F1 through F7 should each check their own entitlement via F0.9's feature gate before exposing their UI/API - this is a cross-cutting concern like tenant scoping, not a per-feature afterthought.
 
@@ -182,6 +242,8 @@ flowchart TD
 
 Acceptance cases this implies: signup with an existing email, invite acceptance with an expired token, a Staff role attempting an Owner-only action.
 
+As built, F0 shipped without the invite/accept steps (D and H connect directly - an owner adds teammates directly rather than by email invite) and without email verification gating the Dashboard. F8 below is where those catch up to this original diagram, plus the marketing/tier-pick/wizard steps this diagram didn't anticipate.
+
 ### Quote to job lifecycle (F1-F2)
 
 ```mermaid
@@ -229,3 +291,39 @@ sequenceDiagram
 ```
 
 Acceptance cases: OAuth token expiry mid-sync, a customer that already exists in QuickBooks (dedupe, not duplicate), a push that fails and needs retry rather than silently dropping the invoice.
+
+### Marketing, signup & onboarding, revised (F8, planned)
+
+```mermaid
+flowchart TD
+    A[Visit marketing page /] --> B[Compare tiers, click Start free trial]
+    B --> C[Register: name, email, password]
+    C --> D[Verify email]
+    D --> E{Has a shop?}
+    E -->|No| F[Onboarding: shop name, timezone, plan]
+    F --> G[Onboarding: invite team - skippable]
+    G --> H[Onboarding: starter catalog - skippable]
+    H --> I[Mark onboarded_at, Dashboard]
+    E -->|Yes, onboarded_at set| I
+```
+
+Acceptance cases: an unverified user cannot reach onboarding or the Dashboard; a verified user with no shop is routed to onboarding from any URL; refreshing mid-wizard resumes at the same step; skipping the invite/catalog steps still reaches a working Dashboard; picking a paid tier during onboarding never triggers a charge before F0.8 ships.
+
+### CSV import (F9, planned)
+
+```mermaid
+flowchart TD
+    A[Download CSV template for a resource] --> B[Fill in rows, upload file]
+    B --> C[Choose: overwrite existing name matches?]
+    C --> D[Queued job validates every row]
+    D -->|Any row invalid| E[Nothing written - row-by-row error report]
+    D -->|All rows valid| F{Name already exists in shop?}
+    F -->|No| G[Create record]
+    F -->|Yes, overwrite off| H[Skip - tallied]
+    F -->|Yes, overwrite on| I[Update existing record]
+    G --> J[Summary: created / updated / skipped]
+    H --> J
+    I --> J
+```
+
+Acceptance cases: wrong headers reject the whole file before any row is touched; a matching name is skipped with the checkbox off and updated with it on; two same-named rows (case-different) within one file resolve as duplicates of each other; an unrecognized name in a relational column (e.g. a material type) fails just that row rather than auto-creating the type or silently dropping the reference.
