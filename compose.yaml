@@ -11,7 +11,6 @@ services:
         ports:
             - '${APP_PORT:-80}:80'
             - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
-            - '${REVERB_PORT:-8080}:${REVERB_PORT:-8080}'
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -75,6 +74,33 @@ services:
         # Schedule::command(...) entries (e.g. app:notify-expired-trials)
         # otherwise have nothing evaluating them, cron-less or not.
         entrypoint: ['php', '/var/www/html/artisan', 'schedule:work']
+    reverb:
+        build:
+            context: './vendor/laravel/sail/runtimes/8.4'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.4/app'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${REVERB_PORT:-8080}:${REVERB_PORT:-8080}'
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - pgsql
+        # Overrides the Sail entrypoint to run only `artisan reverb:start`,
+        # not the full nginx/php-fpm stack - the job board's live updates
+        # (F3) have nowhere to go without a WebSocket server actually
+        # listening on this port. Unlike horizon/scheduler this isn't a
+        # queue consumer or schedule poller, just a persistent listener, so
+        # it can't be folded into either of those.
+        entrypoint: ['php', '/var/www/html/artisan', 'reverb:start']
     pgsql:
         image: 'postgres:18-alpine'
         ports:

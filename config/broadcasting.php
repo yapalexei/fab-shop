@@ -36,7 +36,14 @@ return [
             'secret' => env('REVERB_APP_SECRET'),
             'app_id' => env('REVERB_APP_ID'),
             'options' => [
-                'host' => env('REVERB_HOST'),
+                // Server-to-server push (this app calling out to Reverb to
+                // publish an event) needs a different host than the browser
+                // does when Reverb runs in its own container - REVERB_HOST
+                // is "localhost" for the browser's benefit (VITE_REVERB_HOST
+                // shares it), which doesn't resolve to anything from inside
+                // the laravel.test/horizon containers. REVERB_INTERNAL_HOST
+                // defaults to REVERB_HOST so this is a no-op outside Sail.
+                'host' => env('REVERB_INTERNAL_HOST', env('REVERB_HOST')),
                 'port' => env('REVERB_PORT', 443),
                 'scheme' => env('REVERB_SCHEME', 'https'),
                 'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
