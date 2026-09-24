@@ -64,11 +64,14 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth, enabledFeatures, flash } = usePage().props;
+    const { auth, enabledFeatures, availableShops, flash } = usePage().props;
     const user = auth.user;
     const customersEnabled = enabledFeatures.includes('customers');
     const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
     const jobBoardEnabled = enabledFeatures.includes('job-board');
+    const currentShop = availableShops.find(
+        (shop) => shop.id === user.current_shop_id,
+    );
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -150,6 +153,59 @@ export default function Authenticated({
                         </div>
 
                         <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                            {availableShops.length > 1 && (
+                                <div className="relative">
+                                    <Dropdown>
+                                        <Dropdown.Trigger>
+                                            <span className="inline-flex rounded-md">
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                >
+                                                    {currentShop?.name ??
+                                                        'Select a shop'}
+
+                                                    <svg
+                                                        className="-me-0.5 ms-2 h-4 w-4"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor"
+                                                    >
+                                                        <path
+                                                            fillRule="evenodd"
+                                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                            clipRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </span>
+                                        </Dropdown.Trigger>
+
+                                        <Dropdown.Content align="left">
+                                            {availableShops.map((shop) => (
+                                                <Dropdown.Link
+                                                    key={shop.id}
+                                                    href={route(
+                                                        'current-shop.update',
+                                                        shop.id,
+                                                    )}
+                                                    method="post"
+                                                    as="button"
+                                                    className={
+                                                        shop.id ===
+                                                        user.current_shop_id
+                                                            ? 'font-semibold'
+                                                            : ''
+                                                    }
+                                                >
+                                                    {shop.name}
+                                                </Dropdown.Link>
+                                            ))}
+                                        </Dropdown.Content>
+                                    </Dropdown>
+                                </div>
+                            )}
+
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -305,6 +361,32 @@ export default function Authenticated({
                             Team
                         </ResponsiveNavLink>
                     </div>
+
+                    {availableShops.length > 1 && (
+                        <div className="border-t border-gray-200 pb-1 pt-4">
+                            <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                Shop
+                            </div>
+                            <div className="mt-1 space-y-1">
+                                {availableShops.map((shop) => (
+                                    <ResponsiveNavLink
+                                        key={shop.id}
+                                        href={route(
+                                            'current-shop.update',
+                                            shop.id,
+                                        )}
+                                        method="post"
+                                        as="button"
+                                        active={
+                                            shop.id === user.current_shop_id
+                                        }
+                                    >
+                                        {shop.name}
+                                    </ResponsiveNavLink>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="border-t border-gray-200 pb-1 pt-4">
                         <div className="px-4">

@@ -13,6 +13,7 @@ export type PageProps<
         user: User;
     };
     enabledFeatures: string[];
+    availableShops: { id: number; name: string }[];
     flash: {
         status: string | null;
     };

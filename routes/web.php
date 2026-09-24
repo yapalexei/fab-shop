@@ -12,6 +12,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ShopSwitchController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::post('/current-shop/{shop}', [ShopSwitchController::class, 'update'])->name('current-shop.update');
 
     Route::resource('customers', CustomerController::class)
         ->except('show')

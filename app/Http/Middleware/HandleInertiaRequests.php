@@ -39,6 +39,9 @@ class HandleInertiaRequests extends Middleware
             'enabledFeatures' => $shop
                 ? $shop->enabledFeatures()->map(fn ($feature) => $feature->value)->values()
                 : [],
+            'availableShops' => $request->user()
+                ? $request->user()->shops()->orderBy('name')->get(['shops.id', 'shops.name'])
+                : [],
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
             ],
