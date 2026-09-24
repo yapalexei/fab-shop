@@ -103,6 +103,24 @@ export default function Authenticated({
                                     active={route().current('quotes.*')}
                                     label="Quotes"
                                 />
+                                <GatedNavLink
+                                    enabled={quoteBuilderEnabled}
+                                    href={route('materials.index')}
+                                    active={route().current('materials.*')}
+                                    label="Materials"
+                                />
+                                <GatedNavLink
+                                    enabled={quoteBuilderEnabled}
+                                    href={route('services.index')}
+                                    active={route().current('services.*')}
+                                    label="Services"
+                                />
+                                <GatedNavLink
+                                    enabled={quoteBuilderEnabled}
+                                    href={route('business-partners.index')}
+                                    active={route().current('business-partners.*')}
+                                    label="Business partners"
+                                />
                             </div>
                         </div>
 
@@ -218,6 +236,24 @@ export default function Authenticated({
                             href={route('quotes.index')}
                             active={route().current('quotes.*')}
                             label="Quotes"
+                        />
+                        <GatedResponsiveNavLink
+                            enabled={quoteBuilderEnabled}
+                            href={route('materials.index')}
+                            active={route().current('materials.*')}
+                            label="Materials"
+                        />
+                        <GatedResponsiveNavLink
+                            enabled={quoteBuilderEnabled}
+                            href={route('services.index')}
+                            active={route().current('services.*')}
+                            label="Services"
+                        />
+                        <GatedResponsiveNavLink
+                            enabled={quoteBuilderEnabled}
+                            href={route('business-partners.index')}
+                            active={route().current('business-partners.*')}
+                            label="Business partners"
                         />
                     </div>
 

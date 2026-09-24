@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\ServiceController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -30,6 +33,18 @@ Route::middleware('auth')->group(function () {
         ->middleware('feature:customers');
 
     Route::resource('quotes', QuoteController::class)
+        ->except('show')
+        ->middleware('feature:quote-builder');
+
+    Route::resource('materials', MaterialController::class)
+        ->except('show')
+        ->middleware('feature:quote-builder');
+
+    Route::resource('services', ServiceController::class)
+        ->except('show')
+        ->middleware('feature:quote-builder');
+
+    Route::resource('business-partners', BusinessPartnerController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
 });
