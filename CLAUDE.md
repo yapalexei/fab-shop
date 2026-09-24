@@ -18,7 +18,7 @@ The test suite also runs against a real Postgres `testing` database (via `phpuni
 
 **Queue worker:** the `horizon` service runs `artisan horizon` as its own container (overriding Sail's default entrypoint, same image) and starts automatically with `./vendor/bin/sail up -d` — quote PDF generation/email (F2) and any future queued work just processes on its own, no manual `queue:work` needed. Dashboard at `http://localhost/horizon` (gated by `HorizonServiceProvider::gate()` outside local env). `QUEUE_CONNECTION=redis` — Horizon only supports Redis.
 
-**Scheduler:** the `scheduler` service runs `artisan schedule:work` the same way (own container, overridden entrypoint) so `routes/console.php`'s `Schedule::command(...)` entries (currently just `app:notify-expired-trials`, hourly - trials end at midnight on each shop's own calendar) actually fire without a real cron. `schedule:work` polls once a minute and re-evaluates every registered schedule; check what's due with `./vendor/bin/sail artisan schedule:list`.
+**Scheduler:** the `scheduler` service runs `artisan schedule:work` the same way (own container, overridden entrypoint) so `routes/console.php`'s `Schedule::command(...)` entries (currently just `app:notify-expired-trials`, hourly - a trial ends 14 x 24h after signup, at any time of day) actually fire without a real cron. `schedule:work` polls once a minute and re-evaluates every registered schedule; check what's due with `./vendor/bin/sail artisan schedule:list`.
 
 **Reverb** (job board live updates, F3) runs the same way — its own `reverb` container (entrypoint overridden to `artisan reverb:start`), port 8080. Job board broadcasts use `ShouldBroadcastNow` specifically so they don't *need* a queue worker, but Reverb itself still has to be running to accept the WebSocket connection, which it now is by default.
 
@@ -58,7 +58,7 @@ Gate financial data on the server, not just in the UI - e.g. the dashboard omits
 
 Per-shop settings (`shops.timezone`, `stale_quote_days`, `win_rate_window_days`) are nullable; null means "use `config('shop.defaults.*')`", read through `Shop::localTimezone()` / `staleQuoteDays()` / `winRateWindowDays()` - never the raw column.
 
-Everything is stored in UTC. Anything that depends on the shop's calendar (month boundaries, "today", dates shown to people, invoice dates, trial end) goes through `Shop::localNow()` / `localTimezone()`; the frontend formats timestamps with `useShopDateTime()` (`resources/js/lib/datetime.ts`), which uses the shared `shop.timezone` rather than the viewer's browser. Two traps, both hit while building this:
+Everything is stored in UTC. Anything that depends on the shop's calendar (month boundaries, "today", dates shown to people, invoice dates) goes through `Shop::localNow()` / `localTimezone()`; the frontend formats timestamps with `useShopDateTime()` (`resources/js/lib/datetime.ts`), which uses the shared `shop.timezone` rather than the viewer's browser. The trial window is the deliberate exception: `trial_started_at`/`trial_ends_at` are fixed UTC instants set at signup (`Shop::TRIAL_DAYS` x 24h), never derived from the timezone, so changing timezone can't lengthen a trial. Two traps, both hit while building this:
 - Call `->utc()` before assigning a shop-local Carbon to a model attribute - Eloquent stores the wall-clock digits and drops the offset.
 - Call `->copy()` before `->setTimezone()` on a model's date attribute - Carbon dates are mutable, so converting in place changes the attribute and a later `save()` writes the local time as if it were UTC.
 

@@ -17,14 +17,17 @@ class Shop extends Model
     /** @use HasFactory<ShopFactory> */
     use HasFactory;
 
+    public const TRIAL_DAYS = 14;
+
     protected $fillable = [
-        'name', 'owner_id', 'plan_id', 'trial_ends_at', 'trial_ended_notified_at',
+        'name', 'owner_id', 'plan_id', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
         'timezone', 'stale_quote_days', 'win_rate_window_days',
     ];
 
     protected function casts(): array
     {
         return [
+            'trial_started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'trial_ended_notified_at' => 'datetime',
             'stale_quote_days' => 'integer',
@@ -57,8 +60,9 @@ class Shop extends Model
     /**
      * Where the shop physically is. Timestamps are stored in UTC across the
      * app; anything that depends on the shop's calendar (what "this month"
-     * or "today" means, dates shown to people, when a trial ends) converts
-     * through this.
+     * or "today" means, dates shown to people) converts through this.
+     * Deliberately *not* used for the trial window, which is fixed UTC
+     * instants so a timezone change can't lengthen it.
      */
     public function localTimezone(): string
     {

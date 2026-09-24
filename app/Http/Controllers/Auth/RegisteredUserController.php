@@ -58,18 +58,17 @@ class RegisteredUserController extends Controller
                 'password' => Hash::make($request->password),
             ]);
 
-            $shop = new Shop([
+            // The trial is a fixed UTC window from the moment of signup -
+            // never derived from the shop's timezone, so changing timezone
+            // later can't add (or cost) hours.
+            $shop = Shop::create([
                 'name' => $request->shop_name,
                 'owner_id' => $user->id,
                 'plan_id' => Plan::where('key', 'free')->value('id'),
                 'timezone' => $timezone,
+                'trial_started_at' => now(),
+                'trial_ends_at' => now()->addDays(Shop::TRIAL_DAYS),
             ]);
-            // The trial runs through the end of the 14th day on the shop's
-            // own calendar, not a UTC instant that could land mid-afternoon.
-            // Converted back to UTC before assigning: Eloquent stores a date's
-            // wall-clock digits as-is, dropping its offset.
-            $shop->trial_ends_at = $shop->localNow()->addDays(14)->endOfDay()->utc();
-            $shop->save();
 
             $shop->members()->attach($user);
             $user->current_shop_id = $shop->id;

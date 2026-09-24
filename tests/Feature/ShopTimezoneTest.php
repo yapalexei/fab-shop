@@ -8,9 +8,9 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
-test('signup records the browser\'s timezone and ends the trial at local midnight', function () {
+test('signup records the browser\'s timezone and a fixed 14-day UTC trial window', function () {
     $this->seed(PlanSeeder::class);
-    Carbon::setTestNow('2026-09-24 22:00:00'); // 3pm in Los Angeles
+    Carbon::setTestNow('2026-09-24 22:00:00');
 
     $this->post('/register', [
         'name' => 'Pat', 'email' => 'pat@example.com',
@@ -21,8 +21,30 @@ test('signup records the browser\'s timezone and ends the trial at local midnigh
     $shop = auth()->user()->currentShop;
 
     expect($shop->timezone)->toBe('America/Los_Angeles')
-        // Oct 8, 23:59:59 Pacific (PDT, UTC-7) = Oct 9, 06:59:59 UTC
-        ->and($shop->trial_ends_at->toIso8601String())->toBe('2026-10-09T06:59:59+00:00');
+        ->and($shop->trial_started_at->toIso8601String())->toBe('2026-09-24T22:00:00+00:00')
+        ->and($shop->trial_ends_at->toIso8601String())->toBe('2026-10-08T22:00:00+00:00');
+});
+
+test('changing the shop\'s timezone does not move the trial window', function () {
+    Carbon::setTestNow('2026-10-08 21:30:00'); // 30 minutes of trial left
+    $shop = Shop::factory()->create([
+        'timezone' => 'Pacific/Kiritimati', // UTC+14
+        'trial_started_at' => Carbon::parse('2026-09-24 22:00:00'),
+        'trial_ends_at' => Carbon::parse('2026-10-08 22:00:00'),
+    ]);
+    $owner = actingAsShopRole($shop, 'Owner');
+
+    $this->actingAs($owner)->patch(route('shop.settings.update'), [
+        'name' => $shop->name,
+        'timezone' => 'Pacific/Pago_Pago', // UTC-11
+    ])->assertSessionHasNoErrors();
+
+    $shop->refresh();
+    expect($shop->timezone)->toBe('Pacific/Pago_Pago')
+        ->and($shop->trial_ends_at->toIso8601String())->toBe('2026-10-08T22:00:00+00:00');
+
+    Carbon::setTestNow('2026-10-08 22:00:01');
+    expect($shop->onTrial())->toBeFalse();
 });
 
 test('signup with an unrecognisable timezone falls back to the default instead of failing', function () {
