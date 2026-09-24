@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\JobStatus;
 use App\Events\JobBoardUpdated;
+use App\Jobs\PushJobInvoiceToQuickBooks;
 use App\Models\Job;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,10 @@ class JobStatusController extends Controller
             ->log($description);
 
         broadcast(new JobBoardUpdated($job->shop_id))->toOthers();
+
+        if ($target === JobStatus::Invoiced) {
+            PushJobInvoiceToQuickBooks::dispatch($job);
+        }
 
         return back()->with('status', $description.'.');
     }

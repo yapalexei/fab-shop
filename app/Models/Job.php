@@ -29,6 +29,7 @@ class Job extends Model implements HasMedia
     {
         return [
             'status' => JobStatus::class,
+            'quickbooks_synced_at' => 'datetime',
         ];
     }
 

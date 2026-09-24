@@ -69,6 +69,7 @@ export default function Authenticated({
     const customersEnabled = enabledFeatures.includes('customers');
     const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
     const jobBoardEnabled = enabledFeatures.includes('job-board');
+    const quickbooksEnabled = enabledFeatures.includes('quickbooks-sync');
     const currentShop = availableShops.find(
         (shop) => shop.id === user.current_shop_id,
     );
@@ -142,6 +143,12 @@ export default function Authenticated({
                                     href={route('jobs.index')}
                                     active={route().current('jobs.*')}
                                     label="Jobs"
+                                />
+                                <GatedNavLink
+                                    enabled={quickbooksEnabled}
+                                    href={route('quickbooks.show')}
+                                    active={route().current('quickbooks.*')}
+                                    label="QuickBooks"
                                 />
                                 <NavLink
                                     href={route('team.index')}
@@ -353,6 +360,12 @@ export default function Authenticated({
                             href={route('jobs.index')}
                             active={route().current('jobs.*')}
                             label="Jobs"
+                        />
+                        <GatedResponsiveNavLink
+                            enabled={quickbooksEnabled}
+                            href={route('quickbooks.show')}
+                            active={route().current('quickbooks.*')}
+                            label="QuickBooks"
                         />
                         <ResponsiveNavLink
                             href={route('team.index')}

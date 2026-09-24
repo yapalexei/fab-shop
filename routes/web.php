@@ -9,6 +9,7 @@ use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\ServiceController;
@@ -99,6 +100,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/markup-defaults', [MarkupDefaultController::class, 'update'])
         ->name('markup-defaults.update')
         ->middleware('feature:quote-builder');
+
+    Route::middleware('feature:quickbooks-sync')->prefix('quickbooks')->name('quickbooks.')->group(function () {
+        Route::get('/', [QuickBooksConnectionController::class, 'show'])->name('show');
+        Route::get('/connect', [QuickBooksConnectionController::class, 'connect'])->name('connect');
+        Route::get('/callback', [QuickBooksConnectionController::class, 'callback'])->name('callback');
+        Route::delete('/', [QuickBooksConnectionController::class, 'destroy'])->name('destroy');
+    });
 });
 
 require __DIR__.'/auth.php';

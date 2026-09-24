@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'quickbooks' => [
+        'client_id' => env('QUICKBOOKS_CLIENT_ID'),
+        'client_secret' => env('QUICKBOOKS_CLIENT_SECRET'),
+        'redirect_uri' => env('QUICKBOOKS_REDIRECT_URI'),
+        // Intuit's sandbox and production APIs live at different base URLs
+        // (sandbox company data isn't reachable at the production one, and
+        // vice versa) - not just a query param or header switch.
+        'environment' => env('QUICKBOOKS_ENVIRONMENT', 'sandbox'),
+    ],
+
 ];
