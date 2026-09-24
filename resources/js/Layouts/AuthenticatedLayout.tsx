@@ -127,6 +127,12 @@ export default function Authenticated({
                                     active={route().current('equipment.*')}
                                     label="Equipment"
                                 />
+                                <NavLink
+                                    href={route('team.index')}
+                                    active={route().current('team.*')}
+                                >
+                                    Team
+                                </NavLink>
                             </div>
                         </div>
 
@@ -267,6 +273,12 @@ export default function Authenticated({
                             active={route().current('equipment.*')}
                             label="Equipment"
                         />
+                        <ResponsiveNavLink
+                            href={route('team.index')}
+                            active={route().current('team.*')}
+                        >
+                            Team
+                        </ResponsiveNavLink>
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4">

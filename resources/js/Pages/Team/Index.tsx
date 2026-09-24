@@ -1,0 +1,132 @@
+import TextInput from '@/Components/TextInput';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PageProps } from '@/types';
+import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+
+interface Member {
+    id: number;
+    name: string;
+    email: string;
+    role: string | null;
+    hourly_rate: number | null;
+}
+
+function RateCell({
+    member,
+    canManageTeam,
+}: {
+    member: Member;
+    canManageTeam: boolean;
+}) {
+    const [rate, setRate] = useState(member.hourly_rate?.toString() ?? '');
+    const [saved, setSaved] = useState(false);
+
+    if (!canManageTeam) {
+        return (
+            <span className="text-sm text-gray-500">
+                {member.hourly_rate !== null
+                    ? `$${member.hourly_rate.toFixed(2)}/hr`
+                    : '—'}
+            </span>
+        );
+    }
+
+    const save = () => {
+        router.patch(
+            route('team.update', member.id),
+            { hourly_rate: rate === '' ? null : rate },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setSaved(true);
+                    setTimeout(() => setSaved(false), 1500);
+                },
+            },
+        );
+    };
+
+    return (
+        <div className="flex items-center gap-2">
+            <TextInput
+                type="number"
+                step="0.01"
+                min="0"
+                className="w-24"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+            />
+            <button
+                type="button"
+                onClick={save}
+                className="text-sm text-indigo-600 hover:text-indigo-900"
+            >
+                Save
+            </button>
+            {saved && <span className="text-sm text-green-600">Saved</span>}
+        </div>
+    );
+}
+
+export default function Index({
+    members,
+    canManageTeam,
+}: PageProps<{ members: Member[]; canManageTeam: boolean }>) {
+    return (
+        <AuthenticatedLayout
+            header={
+                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    Team
+                </h2>
+            }
+        >
+            <Head title="Team" />
+
+            <div className="py-12">
+                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                        Name
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                        Email
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                        Role
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                        Hourly rate
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 bg-white">
+                                {members.map((member) => (
+                                    <tr key={member.id}>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                                            {member.name}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                            {member.email}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                            {member.role}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4">
+                                            <RateCell
+                                                member={member}
+                                                canManageTeam={canManageTeam}
+                                            />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </AuthenticatedLayout>
+    );
+}

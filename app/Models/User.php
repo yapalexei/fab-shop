@@ -14,6 +14,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
+// current_shop_id is deliberately not fillable - mass-assigning it would let
+// a request switch a user into a shop they aren't a member of. Set it via
+// direct property assignment + save() after checking membership, not update().
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -48,7 +51,7 @@ class User extends Authenticatable
      */
     public function shops(): BelongsToMany
     {
-        return $this->belongsToMany(Shop::class);
+        return $this->belongsToMany(Shop::class)->withPivot('hourly_rate');
     }
 
     /**

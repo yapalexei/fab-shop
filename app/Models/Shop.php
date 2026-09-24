@@ -32,7 +32,7 @@ class Shop extends Model
 
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(User::class);
+        return $this->belongsToMany(User::class)->withPivot('hourly_rate');
     }
 
     public function plan(): BelongsTo

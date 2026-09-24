@@ -7,6 +7,7 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\TeamController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -52,6 +53,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('equipment', EquipmentController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
+
+    Route::get('/team', [TeamController::class, 'index'])->name('team.index');
+    Route::patch('/team/{member}', [TeamController::class, 'update'])->name('team.update');
 });
 
 require __DIR__.'/auth.php';

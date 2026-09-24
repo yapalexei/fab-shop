@@ -3,6 +3,7 @@
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /*
@@ -18,6 +19,14 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        // RefreshDatabase resets tables via transactions, which bypasses the
+        // model events Spatie relies on to invalidate its role/permission
+        // cache - without this, a role assigned in one test can leak into
+        // the next since the array cache store persists for the whole
+        // process, not per test.
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+    })
     ->in('Feature');
 
 /*
