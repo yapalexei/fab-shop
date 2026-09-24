@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Feature;
+use Carbon\CarbonImmutable;
 use Database\Factories\ShopFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,13 +17,18 @@ class Shop extends Model
     /** @use HasFactory<ShopFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'owner_id', 'plan_id', 'trial_ends_at', 'trial_ended_notified_at'];
+    protected $fillable = [
+        'name', 'owner_id', 'plan_id', 'trial_ends_at', 'trial_ended_notified_at',
+        'timezone', 'stale_quote_days', 'win_rate_window_days',
+    ];
 
     protected function casts(): array
     {
         return [
             'trial_ends_at' => 'datetime',
             'trial_ended_notified_at' => 'datetime',
+            'stale_quote_days' => 'integer',
+            'win_rate_window_days' => 'integer',
         ];
     }
 
@@ -33,7 +39,9 @@ class Shop extends Model
 
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)->withPivot('hourly_rate');
+        return $this->belongsToMany(User::class)
+            ->using(ShopMember::class)
+            ->withPivot('hourly_rate', 'permission_overrides');
     }
 
     public function plan(): BelongsTo
@@ -44,6 +52,35 @@ class Shop extends Model
     public function quickBooksConnection(): HasOne
     {
         return $this->hasOne(QuickBooksConnection::class);
+    }
+
+    /**
+     * Where the shop physically is. Timestamps are stored in UTC across the
+     * app; anything that depends on the shop's calendar (what "this month"
+     * or "today" means, dates shown to people, when a trial ends) converts
+     * through this.
+     */
+    public function localTimezone(): string
+    {
+        return $this->timezone ?? config('shop.defaults.timezone');
+    }
+
+    /**
+     * The current moment on the shop's wall clock.
+     */
+    public function localNow(): CarbonImmutable
+    {
+        return CarbonImmutable::now($this->localTimezone());
+    }
+
+    public function staleQuoteDays(): int
+    {
+        return $this->stale_quote_days ?? config('shop.defaults.stale_quote_days');
+    }
+
+    public function winRateWindowDays(): int
+    {
+        return $this->win_rate_window_days ?? config('shop.defaults.win_rate_window_days');
     }
 
     public function onTrial(): bool

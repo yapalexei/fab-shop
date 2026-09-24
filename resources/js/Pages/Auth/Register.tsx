@@ -13,6 +13,8 @@ export default function Register() {
         password: '',
         password_confirmation: '',
         shop_name: '',
+        // Becomes the shop's timezone - changeable later in Shop settings.
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
     const submit: FormEventHandler = (e) => {

@@ -13,9 +13,12 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\QuoteWorkflowController;
+use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ShopSettingsController;
 use App\Http\Controllers\ShopSwitchController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TeamMemberAccessController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -90,8 +93,25 @@ Route::middleware('auth')->group(function () {
         ->except('show')
         ->middleware('feature:quote-builder');
 
-    Route::get('/team', [TeamController::class, 'index'])->name('team.index');
-    Route::patch('/team/{member}', [TeamController::class, 'update'])->name('team.update');
+    // Everything about the shop itself (as opposed to its catalog) lives
+    // under /shop - settings, who's on the team, and what each role can do.
+    Route::prefix('shop')->group(function () {
+        Route::get('/team', [TeamController::class, 'index'])->name('team.index');
+        Route::patch('/team/{member}', [TeamController::class, 'update'])->name('team.update');
+
+        Route::middleware('can:manage-shop')->group(function () {
+            Route::get('/team/{member}/access', [TeamMemberAccessController::class, 'edit'])->name('team.access.edit');
+            Route::put('/team/{member}/access', [TeamMemberAccessController::class, 'update'])->name('team.access.update');
+
+            Route::get('/permissions', [RolePermissionController::class, 'edit'])->name('shop.permissions.edit');
+            Route::put('/permissions', [RolePermissionController::class, 'update'])->name('shop.permissions.update');
+        });
+
+        Route::middleware('can:manage-shop-settings')->group(function () {
+            Route::get('/settings', [ShopSettingsController::class, 'edit'])->name('shop.settings.edit');
+            Route::patch('/settings', [ShopSettingsController::class, 'update'])->name('shop.settings.update');
+        });
+    });
 
     Route::get('/markup-defaults', [MarkupDefaultController::class, 'index'])
         ->name('markup-defaults.index')

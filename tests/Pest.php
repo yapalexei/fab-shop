@@ -3,6 +3,7 @@
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -59,6 +60,19 @@ function actingAsShopMember(Shop $shop): User
 {
     $user = User::factory()->create(['current_shop_id' => $shop->id]);
     $shop->members()->attach($user);
+
+    return $user;
+}
+
+/**
+ * A shop member holding $role (Owner/Admin/Staff) in that shop.
+ */
+function actingAsShopRole(Shop $shop, string $role): User
+{
+    $user = actingAsShopMember($shop);
+
+    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
+    $user->assignRole(Role::findOrCreate($role));
 
     return $user;
 }

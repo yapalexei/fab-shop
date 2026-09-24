@@ -43,19 +43,33 @@ class RegisteredUserController extends Controller
             'shop_name' => 'required|string|max:255',
         ]);
 
-        $user = DB::transaction(function () use ($request) {
+        // Sent silently by the signup form from the browser's own timezone.
+        // Something unrecognisable is dropped (falls back to the global
+        // default, changeable later in Shop settings) rather than failing
+        // signup over a field the person never saw.
+        $timezone = in_array($request->input('timezone'), \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)
+            ? $request->input('timezone')
+            : null;
+
+        $user = DB::transaction(function () use ($request, $timezone) {
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
             ]);
 
-            $shop = Shop::create([
+            $shop = new Shop([
                 'name' => $request->shop_name,
                 'owner_id' => $user->id,
                 'plan_id' => Plan::where('key', 'free')->value('id'),
-                'trial_ends_at' => now()->addDays(14),
+                'timezone' => $timezone,
             ]);
+            // The trial runs through the end of the 14th day on the shop's
+            // own calendar, not a UTC instant that could land mid-afternoon.
+            // Converted back to UTC before assigning: Eloquent stores a date's
+            // wall-clock digits as-is, dropping its offset.
+            $shop->trial_ends_at = $shop->localNow()->addDays(14)->endOfDay()->utc();
+            $shop->save();
 
             $shop->members()->attach($user);
             $user->current_shop_id = $shop->id;

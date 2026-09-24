@@ -1,21 +1,24 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { PageProps } from '@/types';
-import { Head, Link } from '@inertiajs/react';
-import { ReactNode } from 'react';
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import { PageProps } from "@/types";
+import { Head, Link } from "@inertiajs/react";
+import { ReactNode } from "react";
 
-interface CountAndValue {
-    count: number;
-    value: number;
+interface Counts {
+    work_in_progress: number;
+    ready_to_invoice: number;
+    open_quotes: number;
 }
 
-interface Kpis {
+// Only sent to people with the "See financials" permission.
+interface Financials {
     invoiced_this_month: number;
     invoiced_last_month: number;
-    work_in_progress: CountAndValue;
-    ready_to_invoice: CountAndValue;
-    open_quotes: CountAndValue;
+    work_in_progress: number;
+    ready_to_invoice: number;
+    open_quotes: number;
     win_rate: number | null;
     win_rate_window_days: number;
+    revenue_trend: RevenueMonth[];
 }
 
 interface RevenueMonth {
@@ -31,10 +34,10 @@ interface PipelineStage {
 }
 
 interface AttentionItem {
-    kind: 'ready_to_invoice' | 'sync_error' | 'stale_quote';
+    kind: "ready_to_invoice" | "sync_error" | "stale_quote";
     title: string;
     subtitle: string | null;
-    amount: number;
+    amount: number | null;
     href: string;
 }
 
@@ -47,26 +50,26 @@ interface ActivityEntry {
     created_at: string;
 }
 
-const currency = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+const currency = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
     maximumFractionDigits: 0,
 });
 
-const attentionStyles: Record<AttentionItem['kind'], string> = {
-    sync_error: 'bg-red-500',
-    ready_to_invoice: 'bg-green-500',
-    stale_quote: 'bg-yellow-400',
+const attentionStyles: Record<AttentionItem["kind"], string> = {
+    sync_error: "bg-red-500",
+    ready_to_invoice: "bg-green-500",
+    stale_quote: "bg-yellow-400",
 };
 
 function timeAgo(iso: string): string {
     const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
     const units: [Intl.RelativeTimeFormatUnit, number][] = [
-        ['day', 86400],
-        ['hour', 3600],
-        ['minute', 60],
+        ["day", 86400],
+        ["hour", 3600],
+        ["minute", 60],
     ];
-    const format = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+    const format = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
     for (const [unit, size] of units) {
         if (seconds >= size) {
@@ -74,7 +77,7 @@ function timeAgo(iso: string): string {
         }
     }
 
-    return 'just now';
+    return "just now";
 }
 
 function Panel({
@@ -128,14 +131,14 @@ function monthOverMonth(current: number, previous: number): ReactNode {
     }
 
     const change = Math.round(((current - previous) / previous) * 100);
-    const colour = change >= 0 ? 'text-green-600' : 'text-red-600';
+    const colour = change >= 0 ? "text-green-600" : "text-red-600";
 
     return (
         <>
             <span className={colour}>
-                {change >= 0 ? '+' : ''}
+                {change >= 0 ? "+" : ""}
                 {change}%
-            </span>{' '}
+            </span>{" "}
             vs {currency.format(previous)} last month
         </>
     );
@@ -155,18 +158,20 @@ function RevenueChart({ months }: { months: RevenueMonth[] }) {
                         className="flex h-full flex-1 flex-col items-center justify-end gap-1"
                     >
                         <span className="text-xs text-gray-500">
-                            {month.total > 0 ? currency.format(month.total) : ''}
+                            {month.total > 0
+                                ? currency.format(month.total)
+                                : ""}
                         </span>
                         <div
-                            className={`w-full rounded-t ${isCurrent ? 'bg-indigo-500' : 'bg-indigo-200'}`}
+                            className={`w-full rounded-t ${isCurrent ? "bg-indigo-500" : "bg-indigo-200"}`}
                             style={{
                                 height: `${(month.total / max) * 100}%`,
-                                minHeight: month.total > 0 ? '4px' : '1px',
+                                minHeight: month.total > 0 ? "4px" : "1px",
                             }}
                             title={`${month.label}: ${currency.format(month.total)}`}
                         />
                         <span
-                            className={`text-xs ${isCurrent ? 'font-semibold text-gray-900' : 'text-gray-500'}`}
+                            className={`text-xs ${isCurrent ? "font-semibold text-gray-900" : "text-gray-500"}`}
                         >
                             {month.label}
                         </span>
@@ -183,11 +188,11 @@ function Pipeline({ stages }: { stages: PipelineStage[] }) {
             {stages.map((stage) => (
                 <Link
                     key={stage.status}
-                    href={route('jobs.index')}
-                    className={`rounded-md p-3 text-center transition hover:ring-2 hover:ring-indigo-200 ${stage.count > 0 ? 'bg-indigo-50' : 'bg-gray-50'}`}
+                    href={route("jobs.index")}
+                    className={`rounded-md p-3 text-center transition hover:ring-2 hover:ring-indigo-200 ${stage.count > 0 ? "bg-indigo-50" : "bg-gray-50"}`}
                 >
                     <p
-                        className={`text-2xl font-semibold ${stage.count > 0 ? 'text-indigo-700' : 'text-gray-300'}`}
+                        className={`text-2xl font-semibold ${stage.count > 0 ? "text-indigo-700" : "text-gray-300"}`}
                     >
                         {stage.count}
                     </p>
@@ -198,15 +203,90 @@ function Pipeline({ stages }: { stages: PipelineStage[] }) {
     );
 }
 
+function plural(count: number, word: string): string {
+    return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+function FinancialKpis({
+    financials,
+    counts,
+}: {
+    financials: Financials;
+    counts: Counts;
+}) {
+    return (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+                label="Invoiced this month"
+                value={currency.format(financials.invoiced_this_month)}
+                detail={monthOverMonth(
+                    financials.invoiced_this_month,
+                    financials.invoiced_last_month,
+                )}
+                href={route("jobs.index")}
+            />
+            <KpiCard
+                label="Ready to invoice"
+                value={currency.format(financials.ready_to_invoice)}
+                detail={plural(counts.ready_to_invoice, "shipped job")}
+                href={route("jobs.index")}
+            />
+            <KpiCard
+                label="Work in progress"
+                value={currency.format(financials.work_in_progress)}
+                detail={`${plural(counts.work_in_progress, "job")} in the shop`}
+                href={route("jobs.index")}
+            />
+            <KpiCard
+                label="Open quotes"
+                value={currency.format(financials.open_quotes)}
+                detail={
+                    <>
+                        {counts.open_quotes} awaiting reply
+                        {financials.win_rate !== null &&
+                            ` · ${financials.win_rate}% win rate (${financials.win_rate_window_days}d)`}
+                    </>
+                }
+                href={route("quotes.index")}
+            />
+        </div>
+    );
+}
+
+function CountKpis({ counts }: { counts: Counts }) {
+    return (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <KpiCard
+                label="In the shop"
+                value={counts.work_in_progress.toString()}
+                detail="Not started through Finishing"
+                href={route("jobs.index")}
+            />
+            <KpiCard
+                label="Shipped, not yet invoiced"
+                value={counts.ready_to_invoice.toString()}
+                detail={plural(counts.ready_to_invoice, "job")}
+                href={route("jobs.index")}
+            />
+            <KpiCard
+                label="Open quotes"
+                value={counts.open_quotes.toString()}
+                detail="Sent and awaiting a reply"
+                href={route("quotes.index")}
+            />
+        </div>
+    );
+}
+
 export default function Dashboard({
-    kpis,
-    revenueTrend,
+    counts,
+    financials,
     pipeline,
     attention,
     recentActivity,
 }: PageProps<{
-    kpis: Kpis;
-    revenueTrend: RevenueMonth[];
+    counts: Counts;
+    financials: Financials | null;
     pipeline: PipelineStage[];
     attention: AttentionItem[];
     recentActivity: ActivityEntry[];
@@ -223,91 +303,76 @@ export default function Dashboard({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <KpiCard
-                            label="Invoiced this month"
-                            value={currency.format(kpis.invoiced_this_month)}
-                            detail={monthOverMonth(
-                                kpis.invoiced_this_month,
-                                kpis.invoiced_last_month,
-                            )}
-                            href={route('jobs.index')}
+                    {financials ? (
+                        <FinancialKpis
+                            financials={financials}
+                            counts={counts}
                         />
-                        <KpiCard
-                            label="Ready to invoice"
-                            value={currency.format(kpis.ready_to_invoice.value)}
-                            detail={`${kpis.ready_to_invoice.count} shipped job${kpis.ready_to_invoice.count === 1 ? '' : 's'}`}
-                            href={route('jobs.index')}
-                        />
-                        <KpiCard
-                            label="Work in progress"
-                            value={currency.format(kpis.work_in_progress.value)}
-                            detail={`${kpis.work_in_progress.count} job${kpis.work_in_progress.count === 1 ? '' : 's'} in the shop`}
-                            href={route('jobs.index')}
-                        />
-                        <KpiCard
-                            label="Open quotes"
-                            value={currency.format(kpis.open_quotes.value)}
-                            detail={
-                                <>
-                                    {kpis.open_quotes.count} awaiting reply
-                                    {kpis.win_rate !== null &&
-                                        ` · ${kpis.win_rate}% win rate (${kpis.win_rate_window_days}d)`}
-                                </>
-                            }
-                            href={route('quotes.index')}
-                        />
-                    </div>
+                    ) : (
+                        <CountKpis counts={counts} />
+                    )}
 
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        <div className="lg:col-span-2">
-                            <Panel title="Invoiced revenue">
-                                <RevenueChart months={revenueTrend} />
-                            </Panel>
-                        </div>
+                        {financials && (
+                            <div className="lg:col-span-2">
+                                <Panel title="Invoiced revenue">
+                                    <RevenueChart
+                                        months={financials.revenue_trend}
+                                    />
+                                </Panel>
+                            </div>
+                        )}
 
-                        <Panel title="Needs attention">
-                            {attention.length === 0 ? (
-                                <p className="text-sm text-gray-500">
-                                    Nothing waiting on you right now.
-                                </p>
-                            ) : (
-                                <ul className="-my-2 max-h-56 divide-y divide-gray-100 overflow-y-auto">
-                                    {attention.map((item) => (
-                                        <li key={`${item.kind}-${item.href}`}>
-                                            <Link
-                                                href={item.href}
-                                                className="flex items-start gap-3 py-2 hover:bg-gray-50"
+                        <div className={financials ? "" : "lg:col-span-3"}>
+                            <Panel title="Needs attention">
+                                {attention.length === 0 ? (
+                                    <p className="text-sm text-gray-500">
+                                        Nothing waiting on you right now.
+                                    </p>
+                                ) : (
+                                    <ul className="-my-2 max-h-56 divide-y divide-gray-100 overflow-y-auto">
+                                        {attention.map((item) => (
+                                            <li
+                                                key={`${item.kind}-${item.href}`}
                                             >
-                                                <span
-                                                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${attentionStyles[item.kind]}`}
-                                                />
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-medium text-gray-900">
-                                                        {item.title}
+                                                <Link
+                                                    href={item.href}
+                                                    className="flex items-start gap-3 py-2 hover:bg-gray-50"
+                                                >
+                                                    <span
+                                                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${attentionStyles[item.kind]}`}
+                                                    />
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block text-sm font-medium text-gray-900">
+                                                            {item.title}
+                                                        </span>
+                                                        {item.subtitle && (
+                                                            <span className="block truncate text-xs text-gray-500">
+                                                                {item.subtitle}
+                                                            </span>
+                                                        )}
                                                     </span>
-                                                    {item.subtitle && (
-                                                        <span className="block truncate text-xs text-gray-500">
-                                                            {item.subtitle}
+                                                    {item.amount !== null && (
+                                                        <span className="text-sm text-gray-500">
+                                                            {currency.format(
+                                                                item.amount,
+                                                            )}
                                                         </span>
                                                     )}
-                                                </span>
-                                                <span className="text-sm text-gray-500">
-                                                    {currency.format(item.amount)}
-                                                </span>
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </Panel>
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </Panel>
+                        </div>
                     </div>
 
                     <Panel
                         title="Jobs by stage"
                         action={
                             <Link
-                                href={route('jobs.index')}
+                                href={route("jobs.index")}
                                 className="text-sm text-indigo-600 hover:text-indigo-900"
                             >
                                 Open board
@@ -344,7 +409,7 @@ export default function Dashboard({
                                             : {entry.description}
                                             {entry.causer && (
                                                 <span className="text-gray-500">
-                                                    {' '}
+                                                    {" "}
                                                     by {entry.causer}
                                                 </span>
                                             )}

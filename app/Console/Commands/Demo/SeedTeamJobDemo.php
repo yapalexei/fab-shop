@@ -5,6 +5,7 @@ namespace App\Console\Commands\Demo;
 use App\Enums\JobStatus;
 use App\Enums\LineItemType;
 use App\Enums\QuoteStatus;
+use App\Enums\ShopPermission;
 use App\Models\BusinessPartner;
 use App\Models\Customer;
 use App\Models\Equipment;
@@ -72,7 +73,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
 
             $this->printCredentials([
                 ['name' => $owner->name, 'email' => $owner->email, 'role' => 'Owner'],
-                ['name' => $admin->name, 'email' => $admin->email, 'role' => 'Admin'],
+                ['name' => $admin->name, 'email' => $admin->email, 'role' => 'Admin (sees financials + settings)'],
                 ['name' => $welder->name, 'email' => $welder->email, 'role' => 'Staff (welder, $32/hr)'],
                 ['name' => $fitter->name, 'email' => $fitter->email, 'role' => 'Staff (fitter, $28/hr)'],
             ]);
@@ -92,6 +93,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             'owner_id' => $owner->id,
             'plan_id' => Plan::where('key', 'pro')->value('id'),
             'trial_ends_at' => null,
+            'timezone' => 'America/Los_Angeles',
         ]);
 
         $owner->current_shop_id = $shop->id;
@@ -127,6 +129,13 @@ class SeedTeamJobDemo extends DemoSeedCommand
         $welder->assignRole('Staff');
         $fitter->assignRole('Staff');
         $admin->assignRole('Admin');
+
+        // Shows delegation off: log in as admin@ to see financials and shop
+        // settings, as welder@/fitter@ (Staff) to see the counts-only dashboard.
+        Role::findOrCreate('Admin')->syncPermissions([
+            ShopPermission::ViewFinancials->value,
+            ShopPermission::ManageShopSettings->value,
+        ]);
 
         return [$owner, $welder, $fitter, $admin];
     }

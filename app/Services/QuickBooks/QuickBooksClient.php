@@ -146,6 +146,9 @@ class QuickBooksClient
 
         $response = $this->apiRequest($connection, 'POST', 'invoice', [
             'CustomerRef' => ['value' => $quickbooksCustomerId],
+            // The invoice date as the shop's own calendar has it - a job
+            // invoiced at 7pm Pacific is still that day, not "tomorrow" UTC.
+            'TxnDate' => ($job->invoiced_at ?? now())->copy()->setTimezone($job->shop->localTimezone())->toDateString(),
             'Line' => $lines,
         ]);
 

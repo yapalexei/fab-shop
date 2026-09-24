@@ -56,8 +56,8 @@ class SeedMultiShopDemo extends DemoSeedCommand
         $this->call(PlanSeeder::class);
 
         DB::transaction(function () {
-            $shopA = $this->createShopWithData(self::SHOP_A_NAME, 'bayview-owner@demo.test', 'Taylor Brooks', 'Northshore Fencing Co', 'Aluminum fence panel repair');
-            $shopB = $this->createShopWithData(self::SHOP_B_NAME, 'summit-owner@demo.test', 'Casey Nguyen', 'Ridgeline HOA', 'Custom wrought iron gate');
+            $shopA = $this->createShopWithData(self::SHOP_A_NAME, 'bayview-owner@demo.test', 'Taylor Brooks', 'Northshore Fencing Co', 'Aluminum fence panel repair', 'America/Los_Angeles');
+            $shopB = $this->createShopWithData(self::SHOP_B_NAME, 'summit-owner@demo.test', 'Casey Nguyen', 'Ridgeline HOA', 'Custom wrought iron gate', 'America/Denver');
 
             $roamer = User::factory()->create([
                 'name' => 'Robin Ortiz',
@@ -85,7 +85,7 @@ class SeedMultiShopDemo extends DemoSeedCommand
         return self::SUCCESS;
     }
 
-    private function createShopWithData(string $shopName, string $ownerEmail, string $ownerName, string $customerName, string $lineDescription): Shop
+    private function createShopWithData(string $shopName, string $ownerEmail, string $ownerName, string $customerName, string $lineDescription, string $timezone): Shop
     {
         $owner = User::factory()->create(['name' => $ownerName, 'email' => $ownerEmail]);
 
@@ -94,6 +94,7 @@ class SeedMultiShopDemo extends DemoSeedCommand
             'owner_id' => $owner->id,
             'plan_id' => Plan::where('key', 'start-up')->value('id'),
             'trial_ends_at' => null,
+            'timezone' => $timezone,
         ]);
 
         $owner->current_shop_id = $shop->id;

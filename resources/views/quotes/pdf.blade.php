@@ -16,7 +16,7 @@
 </head>
 <body>
     <h1>{{ $quote->shop->name }}</h1>
-    <p class="muted">Quote #{{ $quote->id }} &middot; {{ $quote->created_at->format('M j, Y') }}</p>
+    <p class="muted">Quote #{{ $quote->id }} &middot; {{ $quote->created_at->copy()->setTimezone($quote->shop->localTimezone())->format('M j, Y') }}</p>
 
     <p>
         <strong>Customer:</strong> {{ $quote->customer->name }}<br>

@@ -8,4 +8,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('app:notify-expired-trials')->daily();
+// Hourly rather than daily: trials end at midnight on each shop's own
+// calendar, so a once-a-day UTC run would notify some shops most of a day late.
+Schedule::command('app:notify-expired-trials')->hourly();

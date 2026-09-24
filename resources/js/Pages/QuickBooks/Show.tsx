@@ -1,6 +1,7 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useShopDateTime } from '@/lib/datetime';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
 
@@ -9,14 +10,11 @@ interface Connection {
     connected_at: string;
 }
 
-const dateTime = new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-});
-
 export default function Show({
     connection,
 }: PageProps<{ connection: Connection | null }>) {
+    const formatDateTime = useShopDateTime();
+
     const disconnect = () => {
         if (
             !confirm(
@@ -54,9 +52,7 @@ export default function Show({
                                 </div>
                                 <p className="text-sm text-gray-600">
                                     Connected{' '}
-                                    {dateTime.format(
-                                        new Date(connection.connected_at),
-                                    )}
+                                    {formatDateTime(connection.connected_at)}
                                     . Jobs automatically push an invoice to
                                     QuickBooks when they're marked Invoiced,
                                     reusing a matching customer if one

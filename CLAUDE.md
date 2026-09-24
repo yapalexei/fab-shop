@@ -18,7 +18,7 @@ The test suite also runs against a real Postgres `testing` database (via `phpuni
 
 **Queue worker:** the `horizon` service runs `artisan horizon` as its own container (overriding Sail's default entrypoint, same image) and starts automatically with `./vendor/bin/sail up -d` — quote PDF generation/email (F2) and any future queued work just processes on its own, no manual `queue:work` needed. Dashboard at `http://localhost/horizon` (gated by `HorizonServiceProvider::gate()` outside local env). `QUEUE_CONNECTION=redis` — Horizon only supports Redis.
 
-**Scheduler:** the `scheduler` service runs `artisan schedule:work` the same way (own container, overridden entrypoint) so `routes/console.php`'s `Schedule::command(...)` entries (currently just `app:notify-expired-trials`, daily) actually fire without a real cron. `schedule:work` polls once a minute and re-evaluates every registered schedule; check what's due with `./vendor/bin/sail artisan schedule:list`.
+**Scheduler:** the `scheduler` service runs `artisan schedule:work` the same way (own container, overridden entrypoint) so `routes/console.php`'s `Schedule::command(...)` entries (currently just `app:notify-expired-trials`, hourly - trials end at midnight on each shop's own calendar) actually fire without a real cron. `schedule:work` polls once a minute and re-evaluates every registered schedule; check what's due with `./vendor/bin/sail artisan schedule:list`.
 
 **Reverb** (job board live updates, F3) runs the same way — its own `reverb` container (entrypoint overridden to `artisan reverb:start`), port 8080. Job board broadcasts use `ShouldBroadcastNow` specifically so they don't *need* a queue worker, but Reverb itself still has to be running to accept the WebSocket connection, which it now is by default.
 
@@ -47,6 +47,20 @@ To wire up real credentials: register a free app at [developer.intuit.com](https
 Every tenant-owned table carries a `shop_id`. Tenant isolation is enforced exclusively through the `BelongsToShop` trait + Eloquent global scope, keyed off the authenticated user's *current* shop (`users.current_shop_id`) — never their full membership list. Never add `->where('shop_id', ...)` manually at a call site — the global scope is the only thing that guarantees no cross-tenant leak. Every new tenant-owned model needs a cross-tenant-isolation test (a user from Shop A must not be able to read/write Shop B's records).
 
 Shop membership is many-to-many (`shop_user` pivot) — a user can belong to several shops, a shop can have several users, and each shop has exactly one owner (`shops.owner_id`). Roles (Owner/Admin/Staff) are assigned per shop via Spatie permission's teams feature, keyed on `shop_id`, so the same user can hold different roles in different shops. A member of more than one shop gets a shop switcher in the nav (`ShopSwitchController`, `POST /current-shop/{shop}`) that flips `current_shop_id` after checking membership — nothing else about tenant scoping changes, since everything already keys off that column.
+
+## Permissions (per shop)
+
+Beyond the three roles, the owner decides what Admin and Staff can do via `App\Enums\ShopPermission` (currently `view-financials`, `manage-shop-settings`). Each case is a Gate ability of the same name. Resolution order in `User::hasShopPermission()`: the Owner role always passes → a per-member override on that member's `shop_user.permission_overrides` (true = allow, false = deny, absent = inherit) → the member's role in the current shop (Spatie role permissions - roles are per shop, so grants never leak across shops). Admin/Staff start with nothing. Managing permissions and roles themselves stays behind the Owner-only `manage-shop` gate, so it can't be delegated (an Admin could otherwise grant themselves everything). Add a new capability by adding an enum case plus a migration inserting its `permissions` row.
+
+Gate financial data on the server, not just in the UI - e.g. the dashboard omits the `financials` prop entirely without `view-financials`, since Inertia props are readable in page source. `SetPermissionsTeamFromCurrentShop` must run before `HandleInertiaRequests` (it does, in `bootstrap/app.php`) so the shared `auth.can` flags are resolved against the current shop.
+
+## Shop settings and timezones
+
+Per-shop settings (`shops.timezone`, `stale_quote_days`, `win_rate_window_days`) are nullable; null means "use `config('shop.defaults.*')`", read through `Shop::localTimezone()` / `staleQuoteDays()` / `winRateWindowDays()` - never the raw column.
+
+Everything is stored in UTC. Anything that depends on the shop's calendar (month boundaries, "today", dates shown to people, invoice dates, trial end) goes through `Shop::localNow()` / `localTimezone()`; the frontend formats timestamps with `useShopDateTime()` (`resources/js/lib/datetime.ts`), which uses the shared `shop.timezone` rather than the viewer's browser. Two traps, both hit while building this:
+- Call `->utc()` before assigning a shop-local Carbon to a model attribute - Eloquent stores the wall-clock digits and drops the offset.
+- Call `->copy()` before `->setTimezone()` on a model's date attribute - Carbon dates are mutable, so converting in place changes the attribute and a later `save()` writes the local time as if it were UTC.
 
 ## Current stage
 

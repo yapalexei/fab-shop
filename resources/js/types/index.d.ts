@@ -11,7 +11,17 @@ export type PageProps<
 > = T & {
     auth: {
         user: User;
+        can: {
+            manageShop: boolean;
+            viewFinancials: boolean;
+            manageShopSettings: boolean;
+        } | null;
     };
+    shop: {
+        id: number;
+        name: string;
+        timezone: string;
+    } | null;
     enabledFeatures: string[];
     availableShops: { id: number; name: string }[];
     flash: {

@@ -17,10 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // SetPermissionsTeamFromCurrentShop must run before Inertia shares
+        // props - the shared `auth.can` flags check roles, which need
+        // Spatie's team id already pointed at the current shop.
         $middleware->web(append: [
+            SetPermissionsTeamFromCurrentShop::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
-            SetPermissionsTeamFromCurrentShop::class,
         ]);
 
         $middleware->alias([

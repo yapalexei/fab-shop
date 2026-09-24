@@ -4,27 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Enums\JobStatus;
 use App\Enums\QuoteStatus;
+use App\Enums\ShopPermission;
 use App\Models\Job;
 use App\Models\Quote;
+use App\Models\Shop;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Activitylog\Models\Activity;
 
 class DashboardController extends Controller
 {
-    /**
-     * Quotes sent longer ago than this without a won/lost decision get
-     * flagged for a follow-up call.
-     */
-    private const STALE_QUOTE_DAYS = 7;
-
-    private const WIN_RATE_WINDOW_DAYS = 90;
-
     private const REVENUE_TREND_MONTHS = 6;
 
     public function __invoke(): Response
     {
+        $shop = Auth::user()->currentShop;
+        $canSeeFinancials = Gate::allows(ShopPermission::ViewFinancials->value);
+
         // Totals are derived from quote line items rather than stored, so
         // aggregation happens here in PHP - fine at the 1-8 person shop
         // scale this is built for, where job counts stay in the hundreds.
@@ -37,10 +37,12 @@ class DashboardController extends Controller
             ->get();
 
         return Inertia::render('Dashboard', [
-            'kpis' => $this->kpis($jobs, $openQuotes),
-            'revenueTrend' => $this->revenueTrend($jobs),
+            'counts' => $this->counts($jobs, $openQuotes),
+            // Omitted entirely (not just hidden in the UI) for anyone without
+            // the permission - Inertia props are readable in page source.
+            'financials' => $canSeeFinancials ? $this->financials($shop, $jobs, $openQuotes) : null,
             'pipeline' => $this->pipeline($jobs),
-            'attention' => $this->attention($jobs, $openQuotes),
+            'attention' => $this->attention($shop, $jobs, $openQuotes, $canSeeFinancials),
             'recentActivity' => $this->recentActivity(),
         ]);
     }
@@ -48,33 +50,46 @@ class DashboardController extends Controller
     /**
      * @param  Collection<int, Job>  $jobs
      * @param  Collection<int, Quote>  $openQuotes
+     * @return array<string, int>
+     */
+    private function counts(Collection $jobs, Collection $openQuotes): array
+    {
+        return [
+            'work_in_progress' => $this->workInProgress($jobs)->count(),
+            'ready_to_invoice' => $jobs->where('status', JobStatus::Shipped)->count(),
+            'open_quotes' => $openQuotes->count(),
+        ];
+    }
+
+    /**
+     * Money figures, all bucketed by the shop's own calendar - "this month"
+     * starts at midnight on the 1st where the shop is, not in UTC.
+     *
+     * @param  Collection<int, Job>  $jobs
+     * @param  Collection<int, Quote>  $openQuotes
      * @return array<string, mixed>
      */
-    private function kpis(Collection $jobs, Collection $openQuotes): array
+    private function financials(Shop $shop, Collection $jobs, Collection $openQuotes): array
     {
-        $invoiced = $jobs->where('status', JobStatus::Invoiced);
-        $thisMonth = now()->startOfMonth();
-        $lastMonth = now()->subMonthNoOverflow()->startOfMonth();
-
-        $wip = $jobs->filter(fn (Job $job) => $job->status->order() !== null
-            && $job->status->order() <= JobStatus::Finishing->order());
-        $readyToInvoice = $jobs->where('status', JobStatus::Shipped);
+        $invoiced = $jobs->where('status', JobStatus::Invoiced)->whereNotNull('invoiced_at');
+        $thisMonth = $shop->localNow()->startOfMonth();
 
         $decided = Quote::query()
             ->whereIn('status', [QuoteStatus::Won, QuoteStatus::Lost])
-            ->where('sent_at', '>=', now()->subDays(self::WIN_RATE_WINDOW_DAYS))
+            ->where('sent_at', '>=', now()->subDays($shop->winRateWindowDays()))
             ->pluck('status');
 
         return [
-            'invoiced_this_month' => $this->sumTotals($invoiced->filter(fn (Job $job) => $job->invoiced_at?->gte($thisMonth))),
-            'invoiced_last_month' => $this->sumTotals($invoiced->filter(fn (Job $job) => $job->invoiced_at?->gte($lastMonth) && $job->invoiced_at->lt($thisMonth))),
-            'work_in_progress' => ['count' => $wip->count(), 'value' => $this->sumTotals($wip)],
-            'ready_to_invoice' => ['count' => $readyToInvoice->count(), 'value' => $this->sumTotals($readyToInvoice)],
-            'open_quotes' => ['count' => $openQuotes->count(), 'value' => $this->sumTotals($openQuotes)],
+            'invoiced_this_month' => $this->sumTotals($this->invoicedDuring($invoiced, $thisMonth)),
+            'invoiced_last_month' => $this->sumTotals($this->invoicedDuring($invoiced, $thisMonth->subMonthNoOverflow())),
+            'work_in_progress' => $this->sumTotals($this->workInProgress($jobs)),
+            'ready_to_invoice' => $this->sumTotals($jobs->where('status', JobStatus::Shipped)),
+            'open_quotes' => $this->sumTotals($openQuotes),
             'win_rate' => $decided->isEmpty()
                 ? null
                 : round($decided->filter(fn (QuoteStatus $status) => $status === QuoteStatus::Won)->count() / $decided->count() * 100),
-            'win_rate_window_days' => self::WIN_RATE_WINDOW_DAYS,
+            'win_rate_window_days' => $shop->winRateWindowDays(),
+            'revenue_trend' => $this->revenueTrend($invoiced, $thisMonth),
         ];
     }
 
@@ -82,24 +97,45 @@ class DashboardController extends Controller
      * Invoiced revenue per calendar month, oldest first, including months
      * with nothing invoiced so the chart has no gaps.
      *
-     * @param  Collection<int, Job>  $jobs
+     * @param  Collection<int, Job>  $invoiced
      * @return array<int, array{month: string, label: string, total: float}>
      */
-    private function revenueTrend(Collection $jobs): array
+    private function revenueTrend(Collection $invoiced, CarbonImmutable $thisMonth): array
     {
-        $invoiced = $jobs->where('status', JobStatus::Invoiced)->whereNotNull('invoiced_at');
-
         return collect(range(self::REVENUE_TREND_MONTHS - 1, 0))
-            ->map(function (int $monthsAgo) use ($invoiced) {
-                $month = now()->subMonthsNoOverflow($monthsAgo)->startOfMonth();
+            ->map(function (int $monthsAgo) use ($invoiced, $thisMonth) {
+                $month = $thisMonth->subMonthsNoOverflow($monthsAgo);
 
                 return [
                     'month' => $month->format('Y-m'),
                     'label' => $month->format('M'),
-                    'total' => $this->sumTotals($invoiced->filter(fn (Job $job) => $job->invoiced_at->isSameMonth($month))),
+                    'total' => $this->sumTotals($this->invoicedDuring($invoiced, $month)),
                 ];
             })
             ->all();
+    }
+
+    /**
+     * @param  Collection<int, Job>  $invoiced
+     * @return Collection<int, Job>
+     */
+    private function invoicedDuring(Collection $invoiced, CarbonImmutable $monthStart): Collection
+    {
+        $monthEnd = $monthStart->addMonthNoOverflow();
+
+        return $invoiced->filter(fn (Job $job) => $job->invoiced_at->gte($monthStart) && $job->invoiced_at->lt($monthEnd));
+    }
+
+    /**
+     * Jobs still being worked on - Not started through Finishing.
+     *
+     * @param  Collection<int, Job>  $jobs
+     * @return Collection<int, Job>
+     */
+    private function workInProgress(Collection $jobs): Collection
+    {
+        return $jobs->filter(fn (Job $job) => $job->status->order() !== null
+            && $job->status->order() <= JobStatus::Finishing->order());
     }
 
     /**
@@ -125,13 +161,14 @@ class DashboardController extends Controller
     /**
      * Things someone should act on: shipped work nobody has billed yet,
      * invoices that failed to reach QuickBooks, and quotes waiting on the
-     * customer long enough to deserve a follow-up.
+     * customer long enough (per the shop's own threshold) to deserve a
+     * follow-up. Amounts are left off for anyone who can't see financials.
      *
      * @param  Collection<int, Job>  $jobs
      * @param  Collection<int, Quote>  $openQuotes
      * @return array<int, array<string, mixed>>
      */
-    private function attention(Collection $jobs, Collection $openQuotes): array
+    private function attention(Shop $shop, Collection $jobs, Collection $openQuotes, bool $canSeeFinancials): array
     {
         $readyToInvoice = $jobs->where('status', JobStatus::Shipped)->map(fn (Job $job) => [
             'kind' => 'ready_to_invoice',
@@ -150,17 +187,20 @@ class DashboardController extends Controller
         ]);
 
         $staleQuotes = $openQuotes
-            ->filter(fn (Quote $quote) => $quote->sent_at?->lte(now()->subDays(self::STALE_QUOTE_DAYS)))
+            ->filter(fn (Quote $quote) => $quote->sent_at?->lte(now()->subDays($shop->staleQuoteDays())))
             ->sortBy('sent_at')
             ->map(fn (Quote $quote) => [
                 'kind' => 'stale_quote',
                 'title' => "Quote for {$quote->customer->name} - no reply in ".(int) $quote->sent_at->diffInDays(now()).' days',
-                'subtitle' => 'Sent '.$quote->sent_at->format('M j').' - worth a follow-up call',
+                'subtitle' => 'Sent '.$quote->sent_at->copy()->setTimezone($shop->localTimezone())->format('M j').' - worth a follow-up call',
                 'amount' => $quote->total,
                 'href' => route('quotes.edit', $quote),
             ]);
 
-        return $syncErrors->concat($readyToInvoice)->concat($staleQuotes)->values()->all();
+        return $syncErrors->concat($readyToInvoice)->concat($staleQuotes)
+            ->map(fn (array $item) => $canSeeFinancials ? $item : [...$item, 'amount' => null])
+            ->values()
+            ->all();
     }
 
     /**

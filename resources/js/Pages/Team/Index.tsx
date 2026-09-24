@@ -1,14 +1,15 @@
-import TextInput from '@/Components/TextInput';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { PageProps } from '@/types';
-import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import TextInput from "@/Components/TextInput";
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import { PageProps } from "@/types";
+import { Head, Link, router } from "@inertiajs/react";
+import { useState } from "react";
 
 interface Member {
     id: number;
     name: string;
     email: string;
     role: string | null;
+    is_owner: boolean;
     hourly_rate: number | null;
 }
 
@@ -19,7 +20,7 @@ function RateCell({
     member: Member;
     canManageTeam: boolean;
 }) {
-    const [rate, setRate] = useState(member.hourly_rate?.toString() ?? '');
+    const [rate, setRate] = useState(member.hourly_rate?.toString() ?? "");
     const [saved, setSaved] = useState(false);
 
     if (!canManageTeam) {
@@ -27,15 +28,15 @@ function RateCell({
             <span className="text-sm text-gray-500">
                 {member.hourly_rate !== null
                     ? `$${member.hourly_rate.toFixed(2)}/hr`
-                    : '—'}
+                    : "—"}
             </span>
         );
     }
 
     const save = () => {
         router.patch(
-            route('team.update', member.id),
-            { hourly_rate: rate === '' ? null : rate },
+            route("team.update", member.id),
+            { hourly_rate: rate === "" ? null : rate },
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -100,6 +101,9 @@ export default function Index({
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                         Hourly rate
                                     </th>
+                                    {canManageTeam && (
+                                        <th className="px-6 py-3" />
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 bg-white">
@@ -120,6 +124,25 @@ export default function Index({
                                                 canManageTeam={canManageTeam}
                                             />
                                         </td>
+                                        {canManageTeam && (
+                                            <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
+                                                {member.is_owner ? (
+                                                    <span className="text-gray-400">
+                                                        Full access
+                                                    </span>
+                                                ) : (
+                                                    <Link
+                                                        href={route(
+                                                            "team.access.edit",
+                                                            member.id,
+                                                        )}
+                                                        className="text-indigo-600 hover:text-indigo-900"
+                                                    >
+                                                        Role & access
+                                                    </Link>
+                                                )}
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

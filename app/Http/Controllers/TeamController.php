@@ -22,6 +22,7 @@ class TeamController extends Controller
                 'name' => $member->name,
                 'email' => $member->email,
                 'role' => $member->getRoleNames()->first(),
+                'is_owner' => $member->id === $shop->owner_id,
                 'hourly_rate' => $member->pivot->hourly_rate !== null
                     ? (float) $member->pivot->hourly_rate
                     : null,

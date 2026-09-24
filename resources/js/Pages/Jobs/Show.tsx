@@ -3,6 +3,7 @@ import JobStatusActions, {
     JobTransition,
 } from '@/Components/JobStatusActions';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useShopDateTime } from '@/lib/datetime';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
 
@@ -39,12 +40,9 @@ const currency = new Intl.NumberFormat('en-US', {
     currency: 'USD',
 });
 
-const dateTime = new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-});
-
 export default function Show({ job }: PageProps<{ job: JobDetail }>) {
+    const formatDateTime = useShopDateTime();
+
     return (
         <AuthenticatedLayout
             header={
@@ -158,9 +156,7 @@ export default function Show({ job }: PageProps<{ job: JobDetail }>) {
                                             </p>
                                         </div>
                                         <span className="whitespace-nowrap text-xs text-gray-400">
-                                            {dateTime.format(
-                                                new Date(entry.created_at),
-                                            )}
+                                            {formatDateTime(entry.created_at)}
                                         </span>
                                     </li>
                                 ))}
