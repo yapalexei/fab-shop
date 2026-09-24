@@ -3,7 +3,8 @@ import JobStatusActions, {
 } from '@/Components/JobStatusActions';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 
 interface JobRow {
     id: number;
@@ -54,6 +55,23 @@ export default function Index({
 }: PageProps<{ jobs: JobRow[]; statuses: StatusOption[] }>) {
     const boardStatuses = statuses.filter((s) => s.value !== 'cancelled');
     const cancelledJobs = jobs.filter((j) => j.status === 'cancelled');
+    const shopId = usePage().props.auth.user.current_shop_id;
+
+    // Another user moving a job refetches the board instead of polling -
+    // the broadcast itself carries no data, it's just a "go fetch" signal.
+    useEffect(() => {
+        if (!shopId) return;
+
+        const channel = window.Echo.private(`shop.${shopId}.jobs`).listen(
+            '.JobBoardUpdated',
+            () => router.reload({ only: ['jobs'] }),
+        );
+
+        return () => {
+            channel.stopListening('.JobBoardUpdated');
+            window.Echo.leave(`shop.${shopId}.jobs`);
+        };
+    }, [shopId]);
 
     return (
         <AuthenticatedLayout

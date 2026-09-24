@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\JobStatus;
+use App\Events\JobBoardUpdated;
 use App\Models\Job;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,8 @@ class JobStatusController extends Controller
             ->performedOn($job)
             ->causedBy(Auth::user())
             ->log($description);
+
+        broadcast(new JobBoardUpdated($job->shop_id))->toOthers();
 
         return back()->with('status', $description.'.');
     }

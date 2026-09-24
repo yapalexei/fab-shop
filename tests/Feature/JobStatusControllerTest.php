@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\JobStatus;
+use App\Events\JobBoardUpdated;
 use App\Models\Shop;
+use Illuminate\Support\Facades\Event;
 
 test('a valid transition updates the status and logs it', function () {
     $shop = Shop::factory()->create();
@@ -17,6 +19,20 @@ test('a valid transition updates the status and logs it', function () {
     $entry = $job->activitiesAsSubject()->latest()->first();
     expect($entry->description)->toBe('Status changed from Not started to Cutting')
         ->and($entry->causer_id)->toBe($user->id);
+});
+
+test('a valid transition broadcasts a job board update for the job\'s shop', function () {
+    Event::fake([JobBoardUpdated::class]);
+
+    $shop = Shop::factory()->create();
+    $job = jobForShop($shop, JobStatus::NotStarted);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->patch(route('jobs.status', $job), [
+        'status' => 'cutting',
+    ])->assertRedirect();
+
+    Event::assertDispatched(JobBoardUpdated::class, fn (JobBoardUpdated $event) => $event->shopId === $shop->id);
 });
 
 test('an invalid transition is rejected', function () {

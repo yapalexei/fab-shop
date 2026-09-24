@@ -29,6 +29,8 @@
         "@laravel/multiplex": "^0.4.1"
     },
     "dependencies": {
-        "axios": "^1.20.0"
+        "axios": "^1.20.0",
+        "laravel-echo": "^2.5.0",
+        "pusher-js": "^8.6.0"
     }
 }

@@ -16,6 +16,12 @@ Services: `pgsql` (Postgres, matches production, default port 5432) and `mailpit
 
 The test suite also runs against a real Postgres `testing` database (via `phpunit.xml`), not sqlite — so `./vendor/bin/sail test` needs the `pgsql` container up.
 
+Two background processes aren't started automatically and need their own terminal when testing anything that depends on them:
+- `./vendor/bin/sail artisan queue:work` — quote PDF generation/email (F2) queue through the `database` queue connection; nothing sends until a worker is running.
+- `./vendor/bin/sail artisan reverb:start` — the job board's live updates (F3) over Reverb, port 8080 (also exposed in `compose.yaml`). Job board broadcasts use `ShouldBroadcastNow` specifically so they don't *need* a worker, but Reverb itself still has to be running to accept the WebSocket connection.
+
+`./vendor/bin/sail artisan storage:link` is required once per environment for anything served off the `public` disk (job photos) — quote PDFs don't need it since they're streamed through a controller route instead.
+
 ## Multi-tenancy (critical)
 
 Every tenant-owned table carries a `shop_id`. Tenant isolation is enforced exclusively through the `BelongsToShop` trait + Eloquent global scope, keyed off the authenticated user's *current* shop (`users.current_shop_id`) — never their full membership list. Never add `->where('shop_id', ...)` manually at a call site — the global scope is the only thing that guarantees no cross-tenant leak. Every new tenant-owned model needs a cross-tenant-isolation test (a user from Shop A must not be able to read/write Shop B's records).
