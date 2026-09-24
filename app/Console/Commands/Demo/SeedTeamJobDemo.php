@@ -1,0 +1,254 @@
+<?php
+
+namespace App\Console\Commands\Demo;
+
+use App\Enums\JobStatus;
+use App\Enums\LineItemType;
+use App\Enums\QuoteStatus;
+use App\Models\BusinessPartner;
+use App\Models\Customer;
+use App\Models\Equipment;
+use App\Models\Job;
+use App\Models\MarkupDefault;
+use App\Models\Material;
+use App\Models\Plan;
+use App\Models\Quote;
+use App\Models\Service;
+use App\Models\Shop;
+use App\Models\User;
+use Database\Seeders\PlanSeeder;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+
+/**
+ * One shop, a full team, and a full catalog - everything a quote line item
+ * can reference (materials + suppliers, services + outsourced partners,
+ * equipment, an internal employee with an hourly rate), used on a quote
+ * that's already been won and converted to a job mid-progress. Log in as
+ * any of the printed users to explore the same shop from a different role.
+ */
+class SeedTeamJobDemo extends DemoSeedCommand
+{
+    protected $signature = 'demo:seed-team {--fresh : Delete this demo shop first if it already exists}';
+
+    protected $description = '[DEMO] Seed one shop with a full team, catalog, and an in-progress job';
+
+    private const SHOP_NAME = 'Ironclad Fabrication (Demo)';
+
+    public function handle(): int
+    {
+        if (! $this->guardDemoMode()) {
+            return self::FAILURE;
+        }
+
+        $existing = Shop::where('name', self::SHOP_NAME)->first();
+
+        if ($existing && ! $this->option('fresh')) {
+            $this->components->error('"'.self::SHOP_NAME.'" already exists. Re-run with --fresh to replace it.');
+
+            return self::FAILURE;
+        }
+
+        if ($existing) {
+            $this->components->task('Removing previous demo data', fn () => $this->deleteShopAndMembers($existing));
+        }
+
+        $this->call(PlanSeeder::class);
+
+        DB::transaction(function () {
+            $shop = $this->createShop();
+            [$owner, $welder, $fitter, $admin] = $this->createTeam($shop);
+            $customer = $this->createCustomer($shop);
+            [$material, $partner] = $this->createMaterialCatalog($shop);
+            [$service] = $this->createServiceCatalog($shop);
+            $equipment = $this->createEquipment($shop);
+            $this->createMarkupDefaults($shop);
+            $quote = $this->createWonQuote($shop, $customer, $material, $partner, $service, $welder, $equipment);
+            $this->createInProgressJob($shop, $quote, $customer);
+
+            $this->printCredentials([
+                ['name' => $owner->name, 'email' => $owner->email, 'role' => 'Owner'],
+                ['name' => $admin->name, 'email' => $admin->email, 'role' => 'Admin'],
+                ['name' => $welder->name, 'email' => $welder->email, 'role' => 'Staff (welder, $32/hr)'],
+                ['name' => $fitter->name, 'email' => $fitter->email, 'role' => 'Staff (fitter, $28/hr)'],
+            ]);
+        });
+
+        $this->components->info('Seeded "'.self::SHOP_NAME.'" with a full catalog and an in-progress job.');
+
+        return self::SUCCESS;
+    }
+
+    private function createShop(): Shop
+    {
+        $owner = User::factory()->create(['name' => 'Alex Rivera', 'email' => 'owner@ironclad.demo']);
+
+        $shop = Shop::create([
+            'name' => self::SHOP_NAME,
+            'owner_id' => $owner->id,
+            'plan_id' => Plan::where('key', 'pro')->value('id'),
+            'trial_ends_at' => null,
+        ]);
+
+        $owner->current_shop_id = $shop->id;
+        $owner->save();
+
+        $shop->members()->attach($owner);
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
+        foreach (['Owner', 'Admin', 'Staff'] as $role) {
+            Role::findOrCreate($role);
+        }
+        $owner->assignRole('Owner');
+
+        return $shop;
+    }
+
+    /**
+     * @return array{0: User, 1: User, 2: User, 3: User} owner, welder, fitter, admin
+     */
+    private function createTeam(Shop $shop): array
+    {
+        $owner = $shop->owner;
+
+        $welder = User::factory()->create(['name' => 'Jamie Chen', 'email' => 'welder@ironclad.demo', 'current_shop_id' => $shop->id]);
+        $fitter = User::factory()->create(['name' => 'Morgan Lee', 'email' => 'fitter@ironclad.demo', 'current_shop_id' => $shop->id]);
+        $admin = User::factory()->create(['name' => 'Sam Patel', 'email' => 'admin@ironclad.demo', 'current_shop_id' => $shop->id]);
+
+        $shop->members()->attach($welder, ['hourly_rate' => 32]);
+        $shop->members()->attach($fitter, ['hourly_rate' => 28]);
+        $shop->members()->attach($admin);
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
+        $welder->assignRole('Staff');
+        $fitter->assignRole('Staff');
+        $admin->assignRole('Admin');
+
+        return [$owner, $welder, $fitter, $admin];
+    }
+
+    private function createCustomer(Shop $shop): Customer
+    {
+        return Customer::factory()->for($shop)->create([
+            'name' => 'Harbor Point Marine',
+            'email' => 'orders@harborpointmarine.test',
+            'phone' => '555-0142',
+        ]);
+    }
+
+    /**
+     * @return array{0: Material, 1: BusinessPartner}
+     */
+    private function createMaterialCatalog(Shop $shop): array
+    {
+        $material = Material::factory()->for($shop)->create(['name' => '1/4in Steel Plate', 'unit' => 'sheet']);
+        Material::factory()->for($shop)->create(['name' => '2in Square Tube', 'unit' => 'ft']);
+
+        $partner = BusinessPartner::factory()->for($shop)->create(['name' => 'Coastal Metal Supply']);
+        $partner->materials()->attach($material->id, ['price' => 45.00]);
+
+        return [$material, $partner];
+    }
+
+    /**
+     * @return array{0: Service}
+     */
+    private function createServiceCatalog(Shop $shop): array
+    {
+        $service = Service::factory()->for($shop)->create(['name' => 'Powder Coating']);
+        Service::factory()->for($shop)->create(['name' => 'Anodizing']);
+
+        $partner = BusinessPartner::factory()->for($shop)->create(['name' => 'ProCoat Finishing']);
+        $partner->services()->attach($service->id, ['price' => 85.00]);
+
+        return [$service];
+    }
+
+    private function createEquipment(Shop $shop): Equipment
+    {
+        Equipment::factory()->for($shop)->create(['name' => 'Box Brake', 'billing_method' => 'flat', 'rate' => 75]);
+
+        return Equipment::factory()->for($shop)->create(['name' => 'CNC Plasma Table', 'billing_method' => 'hourly', 'rate' => 45]);
+    }
+
+    private function createMarkupDefaults(Shop $shop): void
+    {
+        $defaults = [LineItemType::Material->value => 25, LineItemType::Labor->value => 40, LineItemType::Equipment->value => 15];
+
+        foreach ($defaults as $type => $percent) {
+            (new MarkupDefault)->forceFill([
+                'shop_id' => $shop->id,
+                'line_item_type' => $type,
+                'default_markup_percent' => $percent,
+            ])->save();
+        }
+    }
+
+    private function createWonQuote(
+        Shop $shop,
+        Customer $customer,
+        Material $material,
+        BusinessPartner $materialPartner,
+        Service $service,
+        User $welder,
+        Equipment $equipment,
+    ): Quote {
+        $servicePartner = BusinessPartner::where('shop_id', $shop->id)->where('name', 'ProCoat Finishing')->firstOrFail();
+
+        $quote = Quote::factory()->for($shop)->create([
+            'customer_id' => $customer->id,
+            'status' => QuoteStatus::Won,
+            'sent_at' => now()->subDays(3),
+        ]);
+
+        $lines = [
+            [
+                'type' => LineItemType::Material, 'description' => $material->name,
+                'quantity' => 10, 'unit_cost' => 45.00, 'markup_percent' => 25,
+                'material_id' => $material->id, 'business_partner_id' => $materialPartner->id, 'sort_order' => 0,
+            ],
+            [
+                'type' => LineItemType::Labor, 'description' => 'Welding - hull bracket assembly',
+                'quantity' => 8, 'unit_cost' => 32.00, 'markup_percent' => 40,
+                'user_id' => $welder->id, 'sort_order' => 1,
+            ],
+            [
+                'type' => LineItemType::Labor, 'description' => $service->name,
+                'quantity' => 1, 'unit_cost' => 85.00, 'markup_percent' => 40,
+                'service_id' => $service->id, 'business_partner_id' => $servicePartner->id, 'sort_order' => 2,
+            ],
+            [
+                'type' => LineItemType::Equipment, 'description' => 'CNC Plasma Table',
+                'quantity' => 3, 'unit_cost' => 45.00, 'markup_percent' => 15,
+                'equipment_id' => $equipment->id, 'sort_order' => 3,
+            ],
+        ];
+
+        foreach ($lines as $line) {
+            $quote->lineItems()->create($line);
+        }
+
+        return $quote;
+    }
+
+    private function createInProgressJob(Shop $shop, Quote $quote, Customer $customer): Job
+    {
+        $jobNumber = 'J-'.str_pad((string) (Job::where('shop_id', $shop->id)->count() + 1), 4, '0', STR_PAD_LEFT);
+
+        $job = new Job;
+        $job->forceFill([
+            'shop_id' => $shop->id,
+            'quote_id' => $quote->id,
+            'customer_id' => $customer->id,
+            'job_number' => $jobNumber,
+            'status' => JobStatus::Fitting,
+        ])->save();
+
+        foreach ([JobStatus::Cutting, JobStatus::Fitting] as $to) {
+            activity()->performedOn($job)->causedBy($shop->owner)->log("Status changed to {$to->label()}");
+        }
+
+        return $job;
+    }
+}

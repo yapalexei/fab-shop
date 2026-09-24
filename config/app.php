@@ -30,6 +30,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Mode
+    |--------------------------------------------------------------------------
+    |
+    | A separate opt-in switch from APP_ENV, checked by the `demo:*` Artisan
+    | commands before they touch the database. Set APP_MODE=demo (on top of
+    | APP_ENV=local) to allow them to run - this is a second, explicit gate
+    | so a stray env misconfiguration can't run demo-data commands somewhere
+    | real data lives.
+    |
+    */
+
+    'mode' => env('APP_MODE'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |
