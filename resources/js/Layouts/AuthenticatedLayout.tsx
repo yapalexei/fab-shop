@@ -147,6 +147,13 @@ export default function Authenticated({
             visible: can('tooling.view'),
         },
         {
+            label: 'Material types',
+            href: route('material-types.index'),
+            active: route().current('material-types.*'),
+            enabled: quoteBuilderEnabled,
+            visible: can('material-types.view'),
+        },
+        {
             label: 'Markup',
             href: route('markup-defaults.index'),
             active: route().current('markup-defaults.*'),

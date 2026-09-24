@@ -9,7 +9,7 @@ import { useState } from 'react';
 interface ToolRow {
     id: number;
     name: string;
-    cuts: string[];
+    cuts: number[];
     cost: number;
     unit: string;
 }
@@ -24,9 +24,9 @@ export default function Index({
     materialOptions,
 }: PageProps<{ tools: ToolRow[]; materialOptions: MaterialOption[] }>) {
     const can = useCan();
-    const [material, setMaterial] = useState<string | null>(null);
+    const [material, setMaterial] = useState<number | null>(null);
 
-    const labelFor = (value: string) =>
+    const labelFor = (value: number) =>
         materialOptions.find((m) => m.value === value)?.label ?? value;
     const visible = material
         ? tools.filter((tool) => tool.cuts.includes(material))
@@ -84,7 +84,7 @@ export default function Index({
                             <div className="p-6 text-gray-500">
                                 {tools.length === 0
                                     ? 'No tooling yet - add drill bits, hole saws, cut-off wheels and the like to bill them on quotes.'
-                                    : `No tooling rated for ${labelFor(material ?? '')}.`}
+                                    : `No tooling rated for ${labelFor(material ?? 0)}.`}
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

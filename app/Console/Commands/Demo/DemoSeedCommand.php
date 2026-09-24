@@ -8,9 +8,11 @@ use App\Models\Equipment;
 use App\Models\Job;
 use App\Models\MarkupDefault;
 use App\Models\Material;
+use App\Models\MaterialType;
 use App\Models\Quote;
 use App\Models\Service;
 use App\Models\Shop;
+use App\Models\Tool;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Spatie\Activitylog\Models\Activity;
@@ -68,6 +70,8 @@ abstract class DemoSeedCommand extends Command
         Service::where('shop_id', $shop->id)->delete();
         BusinessPartner::where('shop_id', $shop->id)->delete();
         Equipment::where('shop_id', $shop->id)->delete();
+        Tool::where('shop_id', $shop->id)->delete();
+        MaterialType::where('shop_id', $shop->id)->delete();
         MarkupDefault::where('shop_id', $shop->id)->delete();
 
         $memberIds = $shop->members()->pluck('users.id');

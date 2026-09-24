@@ -13,7 +13,7 @@ import { FormEventHandler } from 'react';
 interface Tool {
     id: number;
     name: string;
-    cuts: string[];
+    cuts: number[];
     cost: number;
     unit: string;
     notes: string | null;

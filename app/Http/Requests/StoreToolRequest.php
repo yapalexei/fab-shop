@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\CuttableMaterial;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,7 +23,10 @@ class StoreToolRequest extends FormRequest
             // At least one - a tool with no rated material defeats the point
             // of telling a steel bit from an aluminum one.
             'cuts' => ['required', 'array', 'min:1'],
-            'cuts.*' => ['distinct', Rule::enum(CuttableMaterial::class)],
+            'cuts.*' => [
+                'distinct',
+                Rule::exists('material_types', 'id')->where('shop_id', $this->user()->current_shop_id),
+            ],
             'cost' => ['required', 'numeric', 'min:0'],
             'unit' => ['required', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],

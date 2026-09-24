@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\CuttableMaterial;
 use App\Enums\ShopResource;
 use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreToolRequest;
 use App\Http\Requests\UpdateToolRequest;
+use App\Models\MaterialType;
 use App\Models\Tool;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -26,29 +26,31 @@ class ToolController extends Controller implements HasMiddleware
     {
         return Inertia::render('Tools/Index', [
             'tools' => Tool::query()
+                ->with('materialTypes:id')
                 ->orderBy('name')
                 ->get()
                 ->map(fn (Tool $tool) => [
                     'id' => $tool->id,
                     'name' => $tool->name,
-                    'cuts' => $tool->cuts->map(fn (CuttableMaterial $m) => $m->value)->all(),
+                    'cuts' => $tool->materialTypes->pluck('id')->all(),
                     'cost' => (float) $tool->cost,
                     'unit' => $tool->unit,
                 ]),
-            'materialOptions' => CuttableMaterial::options(),
+            'materialOptions' => $this->materialOptions(),
         ]);
     }
 
     public function create(): Response
     {
         return Inertia::render('Tools/Create', [
-            'materialOptions' => CuttableMaterial::options(),
+            'materialOptions' => $this->materialOptions(),
         ]);
     }
 
     public function store(StoreToolRequest $request): RedirectResponse
     {
-        Tool::create($request->validated());
+        $tool = Tool::create($request->safe()->except('cuts'));
+        $tool->materialTypes()->sync($request->validated('cuts'));
 
         return redirect()->route('tools.index');
     }
@@ -59,18 +61,19 @@ class ToolController extends Controller implements HasMiddleware
             'tool' => [
                 'id' => $tool->id,
                 'name' => $tool->name,
-                'cuts' => $tool->cuts->map(fn (CuttableMaterial $m) => $m->value)->all(),
+                'cuts' => $tool->materialTypes()->pluck('material_types.id')->all(),
                 'cost' => (float) $tool->cost,
                 'unit' => $tool->unit,
                 'notes' => $tool->notes,
             ],
-            'materialOptions' => CuttableMaterial::options(),
+            'materialOptions' => $this->materialOptions(),
         ]);
     }
 
     public function update(UpdateToolRequest $request, Tool $tool): RedirectResponse
     {
-        $tool->update($request->validated());
+        $tool->update($request->safe()->except('cuts'));
+        $tool->materialTypes()->sync($request->validated('cuts'));
 
         return redirect()->route('tools.index');
     }
@@ -80,5 +83,20 @@ class ToolController extends Controller implements HasMiddleware
         $tool->delete();
 
         return redirect()->route('tools.index');
+    }
+
+    /**
+     * The shop's material types, for the "Cuts" checkboxes and the filter.
+     *
+     * @return array<int, array{value: int, label: string}>
+     */
+    private function materialOptions(): array
+    {
+        return MaterialType::query()
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (MaterialType $type) => ['value' => $type->id, 'label' => $type->name])
+            ->all();
     }
 }

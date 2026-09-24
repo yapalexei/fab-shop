@@ -9,6 +9,7 @@ use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\MaterialTypeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteController;
@@ -100,6 +101,10 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('tools', ToolController::class)
         ->except('show')
+        ->middleware('feature:quote-builder');
+
+    Route::resource('material-types', MaterialTypeController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
         ->middleware('feature:quote-builder');
 
     // Everything about the shop itself (as opposed to its catalog) lives

@@ -32,4 +32,8 @@ return [
         'job_board_drag_enabled' => (bool) env('SHOP_DEFAULT_JOB_BOARD_DRAG_ENABLED', false),
     ],
 
+    // Every shop gets the built-in material types (App\Support\MaterialTypes)
+    // and may add this many of its own on top.
+    'max_custom_material_types' => (int) env('SHOP_MAX_CUSTOM_MATERIAL_TYPES', 20),
+
 ];

@@ -1,18 +1,23 @@
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import MaterialFields, {
     MaterialFormData,
+    MaterialTypeOption,
 } from '@/Components/MaterialFields';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PageProps } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
-export default function Create() {
+export default function Create({
+    materialTypes,
+}: PageProps<{ materialTypes: MaterialTypeOption[] }>) {
     const { data, setData, post, processing, errors } =
         useForm<MaterialFormData>({
             name: '',
             unit: '',
             notes: '',
+            material_type_id: '',
         });
 
     const submit: FormEventHandler = (e) => {
@@ -40,6 +45,7 @@ export default function Create() {
                                 data={data}
                                 setData={setData}
                                 errors={errors}
+                                materialTypes={materialTypes}
                             />
 
                             <div className="mt-6 flex justify-end">

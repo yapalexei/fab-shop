@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Feature;
+use App\Support\MaterialTypes;
 use Carbon\CarbonImmutable;
 use Database\Factories\ShopFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +19,13 @@ class Shop extends Model
     use HasFactory;
 
     public const TRIAL_DAYS = 14;
+
+    protected static function booted(): void
+    {
+        // Every shop starts with the built-in material types - at signup,
+        // in demo data and in test factories alike.
+        static::created(fn (Shop $shop) => MaterialTypes::seedDefaults($shop));
+    }
 
     protected $fillable = [
         'name', 'owner_id', 'plan_id', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',

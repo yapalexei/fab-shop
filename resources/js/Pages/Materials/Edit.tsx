@@ -1,6 +1,7 @@
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import MaterialFields, {
     MaterialFormData,
+    MaterialTypeOption,
 } from '@/Components/MaterialFields';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -14,9 +15,13 @@ interface Material {
     name: string;
     unit: string | null;
     notes: string | null;
+    material_type_id: number | null;
 }
 
-export default function Edit({ material }: PageProps<{ material: Material }>) {
+export default function Edit({
+    material,
+    materialTypes,
+}: PageProps<{ material: Material; materialTypes: MaterialTypeOption[] }>) {
     const can = useCan();
     const readOnly = !can('materials.update');
 
@@ -25,6 +30,7 @@ export default function Edit({ material }: PageProps<{ material: Material }>) {
             name: material.name,
             unit: material.unit ?? '',
             notes: material.notes ?? '',
+            material_type_id: material.material_type_id?.toString() ?? '',
         });
 
     const submit: FormEventHandler = (e) => {
@@ -53,6 +59,7 @@ export default function Edit({ material }: PageProps<{ material: Material }>) {
                                     data={data}
                                     setData={setData}
                                     errors={errors}
+                                    materialTypes={materialTypes}
                                 />
                             </fieldset>
 

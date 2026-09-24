@@ -2,14 +2,15 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 
+/** One of the shop's material types (built-in or custom). */
 export interface MaterialOption {
-    value: string;
+    value: number;
     label: string;
 }
 
 export interface ToolFormData {
     name: string;
-    cuts: string[];
+    cuts: number[];
     cost: string;
     unit: string;
     notes: string;
@@ -31,7 +32,7 @@ export default function ToolFields({
     errors: Partial<Record<string, string>>;
     materialOptions: MaterialOption[];
 }) {
-    const toggleMaterial = (value: string) =>
+    const toggleMaterial = (value: number) =>
         setData(
             'cuts',
             data.cuts.includes(value)
@@ -61,7 +62,8 @@ export default function ToolFields({
                 </legend>
                 <p className="text-xs text-gray-500">
                     Every material this tool is rated for. A bit for steel and a
-                    bit for aluminum are separate tools.
+                    bit for aluminum are separate tools. Missing one? Add it
+                    under Setup → Material types.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                     {materialOptions.map((option) => {

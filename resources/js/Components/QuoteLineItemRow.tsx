@@ -5,6 +5,7 @@ import {
     LineItem,
     MarkupDefaults,
     MaterialOption,
+    MaterialTypeRef,
     ServiceOption,
     ToolOption,
 } from '@/Components/QuoteForm';
@@ -32,6 +33,7 @@ export default function QuoteLineItemRow({
     services,
     equipmentList,
     tools,
+    quoteMaterialTypes,
     employees,
     markupDefaults,
     onChange,
@@ -44,6 +46,7 @@ export default function QuoteLineItemRow({
     services: ServiceOption[];
     equipmentList: EquipmentOption[];
     tools: ToolOption[];
+    quoteMaterialTypes: MaterialTypeRef[];
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
     onChange: (index: number, patch: Partial<LineItem>) => void;
@@ -163,6 +166,18 @@ export default function QuoteLineItemRow({
             unit_cost: tool?.cost ?? item.unit_cost,
         });
     };
+
+    // Advisory only: a tool rated for none of the quote's material types is
+    // probably the wrong one (an aluminum bit on a steel job). A tool that
+    // covers at least one of them is fine - mixed-material quotes are normal.
+    const selectedTool = tools.find((t) => t.id === Number(item.tool_id));
+    const toolMismatch =
+        item.type === 'tooling' &&
+        selectedTool !== undefined &&
+        quoteMaterialTypes.length > 0 &&
+        !quoteMaterialTypes.some((type) =>
+            selectedTool.cut_type_ids.includes(type.id),
+        );
 
     const selectedMaterial = materials.find((m) => m.id === Number(item.material_id));
 
@@ -308,6 +323,20 @@ export default function QuoteLineItemRow({
                                     </option>
                                 ))}
                             </select>
+                        )}
+
+                        {toolMismatch && selectedTool && (
+                            <p
+                                role="alert"
+                                className="w-48 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800"
+                            >
+                                Rated for {selectedTool.cuts} - this quote's
+                                materials are{' '}
+                                {quoteMaterialTypes
+                                    .map((type) => type.name)
+                                    .join(', ')}
+                                .
+                            </p>
                         )}
 
                         <TextInput

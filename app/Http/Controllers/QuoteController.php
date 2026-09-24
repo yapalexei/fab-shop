@@ -139,10 +139,11 @@ class QuoteController extends Controller implements HasMiddleware
         $shop = Auth::user()->currentShop;
 
         return [
-            'materials' => Material::query()->with('businessPartners:id,name')->orderBy('name')->get()
+            'materials' => Material::query()->with('businessPartners:id,name', 'materialType:id,name')->orderBy('name')->get()
                 ->map(fn (Material $material) => [
                     'id' => $material->id,
                     'name' => $material->name,
+                    'material_type' => $material->materialType ? ['id' => $material->materialType->id, 'name' => $material->materialType->name] : null,
                     'partners' => $material->businessPartners->map(fn ($partner) => [
                         'business_partner_id' => $partner->id,
                         'name' => $partner->name,
@@ -166,11 +167,12 @@ class QuoteController extends Controller implements HasMiddleware
                     'billing_method' => $item->billing_method->value,
                     'rate' => (float) $item->rate,
                 ]),
-            'tools' => Tool::query()->orderBy('name')->get()
+            'tools' => Tool::query()->with('materialTypes:id,name')->orderBy('name')->get()
                 ->map(fn (Tool $tool) => [
                     'id' => $tool->id,
                     'name' => $tool->name,
                     'cuts' => $tool->cutsLabel(),
+                    'cut_type_ids' => $tool->materialTypes->pluck('id')->all(),
                     'cost' => (float) $tool->cost,
                     'unit' => $tool->unit,
                 ]),

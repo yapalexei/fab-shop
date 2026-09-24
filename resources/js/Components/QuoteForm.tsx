@@ -24,9 +24,15 @@ export interface LineItem {
     tool_id: number | string | null;
 }
 
+export interface MaterialTypeRef {
+    id: number;
+    name: string;
+}
+
 export interface MaterialOption {
     id: number;
     name: string;
+    material_type: MaterialTypeRef | null;
     partners: { business_partner_id: number; name: string; price: number }[];
 }
 
@@ -48,6 +54,7 @@ export interface ToolOption {
     name: string;
     /** What it's rated to cut, e.g. "Carbon steel, Stainless steel". */
     cuts: string;
+    cut_type_ids: number[];
     cost: number;
     unit: string;
 }
@@ -146,6 +153,20 @@ export default function QuoteForm({
         );
     };
 
+    // The material types this quote works with, from its catalog-backed
+    // material lines - what the tooling check compares each tool against.
+    const quoteMaterialTypes = data.line_items
+        .filter((item) => item.type === 'material' && item.material_id)
+        .map(
+            (item) =>
+                materials.find((m) => m.id === Number(item.material_id))
+                    ?.material_type,
+        )
+        .filter((type): type is MaterialTypeRef => !!type)
+        .filter(
+            (type, i, all) => all.findIndex((t) => t.id === type.id) === i,
+        );
+
     const cost = data.line_items.reduce(
         (sum, item) =>
             sum + (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0),
@@ -223,6 +244,7 @@ export default function QuoteForm({
                                         services={services}
                                         equipmentList={equipmentList}
                                         tools={tools}
+                                        quoteMaterialTypes={quoteMaterialTypes}
                                         employees={employees}
                                         markupDefaults={markupDefaults}
                                         onChange={patchLineItem}

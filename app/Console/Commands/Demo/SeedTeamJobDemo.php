@@ -11,6 +11,7 @@ use App\Models\Equipment;
 use App\Models\Job;
 use App\Models\MarkupDefault;
 use App\Models\Material;
+use App\Models\MaterialType;
 use App\Models\Plan;
 use App\Models\Quote;
 use App\Models\Service;
@@ -155,8 +156,12 @@ class SeedTeamJobDemo extends DemoSeedCommand
      */
     private function createMaterialCatalog(Shop $shop): array
     {
-        $material = Material::factory()->for($shop)->create(['name' => '1/4in Steel Plate', 'unit' => 'sheet']);
-        Material::factory()->for($shop)->create(['name' => '2in Square Tube', 'unit' => 'ft']);
+        // Every shop is created with the built-in material types.
+        $typeId = fn (string $name) => MaterialType::withoutGlobalScopes()->where('shop_id', $shop->id)->where('name', $name)->value('id');
+
+        $material = Material::factory()->for($shop)->create(['name' => '1/4in Steel Plate', 'unit' => 'sheet', 'material_type_id' => $typeId('Carbon steel')]);
+        Material::factory()->for($shop)->create(['name' => '2in Square Tube', 'unit' => 'ft', 'material_type_id' => $typeId('Carbon steel')]);
+        Material::factory()->for($shop)->create(['name' => '1/8in Aluminum Sheet', 'unit' => 'sheet', 'material_type_id' => $typeId('Aluminum')]);
 
         $partner = BusinessPartner::factory()->for($shop)->create(['name' => 'Coastal Metal Supply']);
         $partner->materials()->attach($material->id, ['price' => 45.00]);
@@ -187,19 +192,24 @@ class SeedTeamJobDemo extends DemoSeedCommand
 
     /**
      * The same 1/4in bit twice - once rated for steel, once for aluminum -
-     * to show why a tool records what it can cut.
+     * to show why a tool records what it can cut, plus one custom material
+     * type (on top of the built-ins every shop gets) and a tool rated for it.
      */
     private function createTooling(Shop $shop): void
     {
+        $chromoly = new MaterialType(['name' => 'Chromoly (4130)']);
+        $chromoly->shop_id = $shop->id;
+        $chromoly->save();
+
         $tools = [
-            ['name' => '1/4in cobalt drill bit', 'cuts' => ['carbon-steel', 'stainless-steel'], 'cost' => 6.50, 'unit' => 'each'],
-            ['name' => '1/4in drill bit', 'cuts' => ['aluminum'], 'cost' => 3.25, 'unit' => 'each'],
-            ['name' => '2in bi-metal hole saw', 'cuts' => ['carbon-steel', 'aluminum', 'wood'], 'cost' => 1.40, 'unit' => 'hole'],
-            ['name' => '4.5in cut-off wheel', 'cuts' => ['carbon-steel', 'stainless-steel'], 'cost' => 0.35, 'unit' => 'cut'],
+            ['1/4in cobalt drill bit', ['Carbon steel', 'Stainless steel', 'Chromoly (4130)'], 6.50, 'each'],
+            ['1/4in drill bit', ['Aluminum'], 3.25, 'each'],
+            ['2in bi-metal hole saw', ['Carbon steel', 'Aluminum', 'Wood'], 1.40, 'hole'],
+            ['4.5in cut-off wheel', ['Carbon steel', 'Stainless steel'], 0.35, 'cut'],
         ];
 
-        foreach ($tools as $tool) {
-            Tool::factory()->for($shop)->create($tool);
+        foreach ($tools as [$name, $cuts, $cost, $unit]) {
+            Tool::factory()->for($shop)->cutting(...$cuts)->create(['name' => $name, 'cost' => $cost, 'unit' => $unit]);
         }
     }
 

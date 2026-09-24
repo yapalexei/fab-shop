@@ -8,6 +8,7 @@ interface MaterialRow {
     id: number;
     name: string;
     unit: string | null;
+    material_type: string | null;
 }
 
 export default function Index({
@@ -53,6 +54,9 @@ export default function Index({
                                             Name
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                            Type
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                             Unit
                                         </th>
                                         <th className="px-6 py-3" />
@@ -63,6 +67,9 @@ export default function Index({
                                         <tr key={material.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                                                 {material.name}
+                                            </td>
+                                            <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                                {material.material_type ?? '—'}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                                 {material.unit}

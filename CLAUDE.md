@@ -60,6 +60,10 @@ Deletes that would orphan history are refused with a flash `error` instead of hi
 
 Gate financial data on the server, not just in the UI - e.g. the dashboard omits the `financials` prop entirely without `financials.view`, since Inertia props are readable in page source. `SetPermissionsTeamFromCurrentShop` must run before `HandleInertiaRequests` (it does, in `bootstrap/app.php`) so the shared `auth.permissions` list is resolved against the current shop; the frontend checks it with `useCan()` (`resources/js/lib/permissions.ts`) purely to hide controls.
 
+## Material types and tooling
+
+`material_types` are per-shop records: every shop gets the built-ins in `App\Support\MaterialTypes::DEFAULTS` (via a `Shop::created` hook, so signup, demo data and test factories all have them; `is_default`, can't be renamed or deleted) and may add custom ones up to `config('shop.max_custom_material_types')` (20). Names are unique per shop case-insensitively (a `lower(name)` index). A catalog `Material` has one optional type; a `Tool` is rated for one or more (`material_type_tool`). A type still used by a tool or material can't be deleted - the controller explains, and the FK (no cascade) backs it up. The quote builder warns (advisory, client-side) when a tooling line's tool is rated for none of the quote's material types. To add a built-in, append to `DEFAULTS` and run `MaterialTypes::seedDefaults()` for every shop in a migration (it's idempotent).
+
 ## Job board moves
 
 Every status change - button or drag - goes through `JobMoveDialog` for confirmation first. Drag-and-drop (`@dnd-kit/core`, drag handle only so card links and touch-scrolling still work) is a per-shop setting, `shops.job_board_drag_enabled`, off by default (`config('shop.defaults.job_board_drag_enabled')`); the board only enables it for users with `jobs.update`. Moving needs `jobs.update`, cancelling `jobs.cancel` - checked in `JobStatusController` since it depends on the target status.

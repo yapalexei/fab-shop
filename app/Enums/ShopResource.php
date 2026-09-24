@@ -18,6 +18,7 @@ enum ShopResource: string
     case BusinessPartners = 'business-partners';
     case Equipment = 'equipment';
     case Tooling = 'tooling';
+    case MaterialTypes = 'material-types';
     case Markup = 'markup';
     case QuickBooks = 'quickbooks';
     case Team = 'team';
@@ -35,6 +36,7 @@ enum ShopResource: string
             self::BusinessPartners => 'Business partners',
             self::Equipment => 'Equipment',
             self::Tooling => 'Tooling',
+            self::MaterialTypes => 'Material types',
             self::Markup => 'Default markup',
             self::QuickBooks => 'QuickBooks',
             self::Team => 'Team',
@@ -84,6 +86,12 @@ enum ShopResource: string
             self::BusinessPartners => $catalog('business partners'),
             self::Equipment => $catalog('equipment'),
             self::Tooling => $catalog('tooling'),
+            self::MaterialTypes => [
+                'view' => 'See material types',
+                'create' => 'Add custom material types (up to the shop limit)',
+                'update' => 'Rename custom material types',
+                'delete' => 'Delete custom material types - only ones no tool or material uses',
+            ],
             self::Markup => [
                 'view' => 'See default markups',
                 'update' => 'Change default markups for new quote lines',
