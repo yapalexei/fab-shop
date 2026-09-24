@@ -1,39 +1,62 @@
-import PrimaryButton from "@/Components/PrimaryButton";
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { PageProps } from "@/types";
-import { Head, Link, useForm } from "@inertiajs/react";
-import { FormEventHandler } from "react";
-
-export interface PermissionOption {
-    value: string;
-    label: string;
-    description: string;
-}
+import PermissionGrid, {
+    actionLabel,
+    isDestructive,
+    ResourceOption,
+} from '@/Components/PermissionGrid';
+import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PageProps } from '@/types';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { FormEventHandler, useState } from 'react';
 
 export type RoleGrants = Record<string, string[]>;
 
 export default function Edit({
-    permissions,
+    resources,
     grants,
-}: PageProps<{ permissions: PermissionOption[]; grants: RoleGrants }>) {
+    defaults,
+}: PageProps<{
+    resources: ResourceOption[];
+    grants: RoleGrants;
+    defaults: RoleGrants;
+}>) {
     const roles = Object.keys(grants);
+    const [role, setRole] = useState(roles[0]);
     const { data, setData, put, processing, isDirty } = useForm<{
         grants: RoleGrants;
     }>({ grants });
 
-    const toggle = (role: string, permission: string) => {
-        const current = data.grants[role] ?? [];
-        setData("grants", {
-            ...data.grants,
-            [role]: current.includes(permission)
-                ? current.filter((p) => p !== permission)
-                : [...current, permission],
-        });
+    const granted = data.grants[role] ?? [];
+
+    // Mirrors the server rule that any action on a resource implies seeing
+    // it: ticking Edit also ticks View, and unticking View unticks the rest.
+    const toggle = (permission: string) => {
+        const [resource, action] = splitPermission(permission);
+        const view = `${resource}.view`;
+        const hasView = resources
+            .find((r) => r.value === resource)
+            ?.actions.some((a) => a.action === 'view');
+        let next: string[];
+
+        if (granted.includes(permission)) {
+            next =
+                action === 'view'
+                    ? granted.filter((p) => !p.startsWith(`${resource}.`))
+                    : granted.filter((p) => p !== permission);
+        } else {
+            next = [...granted, permission];
+            if (hasView && action !== 'view' && !next.includes(view)) {
+                next.push(view);
+            }
+        }
+
+        setData('grants', { ...data.grants, [role]: next });
     };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        put(route("shop.permissions.update"), { preserveScroll: true });
+        put(route('shop.permissions.update'), { preserveScroll: true });
     };
 
     return (
@@ -47,95 +70,91 @@ export default function Edit({
             <Head title="Roles & permissions" />
 
             <div className="py-12">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                     <form
                         onSubmit={submit}
-                        className="overflow-hidden bg-white shadow sm:rounded-lg"
+                        className="space-y-6 bg-white p-4 shadow sm:rounded-lg sm:p-8"
                     >
-                        <p className="p-6 text-sm text-gray-500">
-                            Choose what each role can do in this shop. The owner
-                            can always do everything. To make an exception for
-                            one person, open their{" "}
+                        <p className="text-sm text-gray-500">
+                            What each role can do in this shop. The owner can
+                            always do everything. To make an exception for one
+                            person, open them from the{' '}
                             <Link
-                                href={route("team.index")}
+                                href={route('team.index')}
                                 className="text-indigo-600 hover:text-indigo-900"
                             >
                                 team page
-                            </Link>{" "}
-                            and change their access there.
+                            </Link>
+                            . Actions in{' '}
+                            <span className="text-red-600">red</span> delete or
+                            permanently change data.
                         </p>
 
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                            Permission
-                                        </th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                                            Owner
-                                        </th>
-                                        {roles.map((role) => (
-                                            <th
-                                                key={role}
-                                                className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500"
-                                            >
-                                                {role}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {permissions.map((permission) => (
-                                        <tr key={permission.value}>
-                                            <td className="px-6 py-4">
-                                                <p className="text-sm font-medium text-gray-900">
-                                                    {permission.label}
-                                                </p>
-                                                <p className="text-xs text-gray-500">
-                                                    {permission.description}
-                                                </p>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked
-                                                    disabled
-                                                    aria-label={`Owner: ${permission.label}`}
-                                                    className="rounded border-gray-300 text-gray-400"
-                                                />
-                                            </td>
-                                            {roles.map((role) => (
-                                                <td
-                                                    key={role}
-                                                    className="px-6 py-4 text-center"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        aria-label={`${role}: ${permission.label}`}
-                                                        checked={(
-                                                            data.grants[role] ??
-                                                            []
-                                                        ).includes(
-                                                            permission.value,
-                                                        )}
-                                                        onChange={() =>
-                                                            toggle(
-                                                                role,
-                                                                permission.value,
-                                                            )
-                                                        }
-                                                        className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                                                    />
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div
+                                role="tablist"
+                                className="inline-flex rounded-md shadow-sm"
+                            >
+                                {roles.map((name, i) => (
+                                    <button
+                                        key={name}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={role === name}
+                                        onClick={() => setRole(name)}
+                                        className={`border px-4 py-2 text-sm font-medium ${i === 0 ? 'rounded-s-md' : '-ms-px'} ${i === roles.length - 1 ? 'rounded-e-md' : ''} ${role === name ? 'z-10 border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                    >
+                                        {name}
+                                        <span className="ms-2 text-xs opacity-75">
+                                            {(data.grants[name] ?? []).length}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                            <SecondaryButton
+                                onClick={() =>
+                                    setData('grants', {
+                                        ...data.grants,
+                                        [role]: defaults[role] ?? [],
+                                    })
+                                }
+                            >
+                                Reset {role} to defaults
+                            </SecondaryButton>
                         </div>
 
-                        <div className="flex justify-end border-t border-gray-100 p-6">
+                        <PermissionGrid
+                            resources={resources}
+                            renderCell={(action) => {
+                                const checked = granted.includes(
+                                    action.permission,
+                                );
+
+                                return (
+                                    <label
+                                        className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${checked ? (isDestructive(action.action) ? 'border-red-300 bg-red-50 text-red-800' : 'border-indigo-300 bg-indigo-50 text-indigo-900') : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            className={`rounded border-gray-300 shadow-sm ${isDestructive(action.action) ? 'text-red-600 focus:ring-red-500' : 'text-indigo-600 focus:ring-indigo-500'}`}
+                                            checked={checked}
+                                            onChange={() =>
+                                                toggle(action.permission)
+                                            }
+                                            aria-label={`${role}: ${action.permission}`}
+                                        />
+                                        {actionLabel(action.action)}
+                                    </label>
+                                );
+                            }}
+                        />
+
+                        <div className="flex items-center justify-end gap-4">
+                            {isDirty && (
+                                <span className="text-sm text-gray-500">
+                                    Unsaved changes
+                                </span>
+                            )}
                             <PrimaryButton disabled={processing || !isDirty}>
                                 Save
                             </PrimaryButton>
@@ -145,4 +164,10 @@ export default function Edit({
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function splitPermission(permission: string): [string, string] {
+    const dot = permission.indexOf('.');
+
+    return [permission.slice(0, dot), permission.slice(dot + 1)];
 }

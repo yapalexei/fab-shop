@@ -50,9 +50,23 @@ Shop membership is many-to-many (`shop_user` pivot) — a user can belong to sev
 
 ## Permissions (per shop)
 
-Beyond the three roles, the owner decides what Admin and Staff can do via `App\Enums\ShopPermission` (currently `view-financials`, `manage-shop-settings`). Each case is a Gate ability of the same name. Resolution order in `User::hasShopPermission()`: the Owner role always passes → a per-member override on that member's `shop_user.permission_overrides` (true = allow, false = deny, absent = inherit) → the member's role in the current shop (Spatie role permissions - roles are per shop, so grants never leak across shops). Admin/Staff start with nothing. Managing permissions and roles themselves stays behind the Owner-only `manage-shop` gate, so it can't be delegated (an Admin could otherwise grant themselves everything). Add a new capability by adding an enum case plus a migration inserting its `permissions` row.
+Access is granted per resource and action: permission names are `{resource}.{action}` (e.g. `quotes.delete`, `jobs.cancel`, `financials.view`), defined in `App\Enums\ShopResource` (resources, their actions, and a plain description of what each action really allows). `App\Support\ShopPermissions` holds the full list and each role's out-of-the-box grants (`defaultsFor()`); `seedRoles($shop)` creates a shop's roles with those defaults - called at signup, by the demo commands, and by the test helper. Each permission is also a Gate ability of the same name, so routes use `can:quotes.delete` middleware; resource controllers get theirs from the `AuthorizesShopResource` trait (edit pages need only `view` and render read-only without `update`).
 
-Gate financial data on the server, not just in the UI - e.g. the dashboard omits the `financials` prop entirely without `view-financials`, since Inertia props are readable in page source. `SetPermissionsTeamFromCurrentShop` must run before `HandleInertiaRequests` (it does, in `bootstrap/app.php`) so the shared `auth.can` flags are resolved against the current shop.
+Resolution (`User::shopPermissions()`): the Owner role has everything → otherwise the role's grants in the current shop → then per-member overrides on `shop_user.permission_overrides` (true = allow, false = deny, absent = inherit). Any action on a resource implies `view` of it. Spatie's own `Gate::before` permission check is **disabled** (`permission.register_permission_check_method = false`) - left on, it approved anything the role granted before our gates ran, silently ignoring per-member denies.
+
+Who can change access: editing *role* defaults is Owner-only (`manage-shop` gate, never delegable). Per-member access needs `team.manage-access` (Admins by default), with guard rails in `TeamMemberAccessController`/`UpdateTeamMemberAccessRequest`: nobody edits the owner or themselves; only the owner changes roles or edits an Admin; a non-owner can only *allow* permissions they hold themselves. Adding a permission = add the action to `ShopResource`, decide `defaultsFor()`, and add a migration that calls `ShopPermissions::seedRoles()` for existing shops (it only adds grants, never revokes).
+
+Deletes that would orphan history are refused with a flash `error` instead of hitting the database's restrict constraint (a customer with quotes/jobs; a quote that became a job - archive it instead). Catalog deletes are fine: quote lines keep their description and price, only the link is nulled.
+
+Gate financial data on the server, not just in the UI - e.g. the dashboard omits the `financials` prop entirely without `financials.view`, since Inertia props are readable in page source. `SetPermissionsTeamFromCurrentShop` must run before `HandleInertiaRequests` (it does, in `bootstrap/app.php`) so the shared `auth.permissions` list is resolved against the current shop; the frontend checks it with `useCan()` (`resources/js/lib/permissions.ts`) purely to hide controls.
+
+## Job board moves
+
+Every status change - button or drag - goes through `JobMoveDialog` for confirmation first. Drag-and-drop (`@dnd-kit/core`, drag handle only so card links and touch-scrolling still work) is a per-shop setting, `shops.job_board_drag_enabled`, off by default (`config('shop.defaults.job_board_drag_enabled')`); the board only enables it for users with `jobs.update`. Moving needs `jobs.update`, cancelling `jobs.cancel` - checked in `JobStatusController` since it depends on the target status.
+
+## Frontend formatting
+
+`.prettierrc` matches the repo's style (single quotes, 4 spaces). Much of the existing code was hand-formatted rather than Prettier output, so format only files you create or substantially rewrite - running Prettier over the whole tree reflows lines in files you never touched.
 
 ## Shop settings and timezones
 

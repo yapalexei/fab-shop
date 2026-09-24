@@ -23,6 +23,8 @@ class ShopSettingsController extends Controller
                 'timezone' => $shop->timezone,
                 'stale_quote_days' => $shop->stale_quote_days,
                 'win_rate_window_days' => $shop->win_rate_window_days,
+                // A plain on/off switch, so the resolved value (not null).
+                'job_board_drag_enabled' => $shop->jobBoardDragEnabled(),
             ],
             'defaults' => config('shop.defaults'),
             'timezones' => \DateTimeZone::listIdentifiers(),

@@ -1,4 +1,5 @@
 import SecondaryButton from '@/Components/SecondaryButton';
+import { useCan } from '@/lib/permissions';
 import { Link, router, usePage } from '@inertiajs/react';
 
 interface Props {
@@ -20,6 +21,12 @@ export default function QuoteWorkflowPanel({
     jobId,
 }: Props) {
     const errors = usePage().props.errors as Record<string, string>;
+    const can = useCan();
+
+    // Workflow steps are part of editing a quote; converting creates a job.
+    if (!can('quotes.update') && !(status === 'won' && jobId)) {
+        return null;
+    }
 
     const post = (routeName: string) => {
         router.post(route(routeName, quoteId), {}, { preserveScroll: true });
@@ -67,10 +74,14 @@ export default function QuoteWorkflowPanel({
                     >
                         View job
                     </Link>
-                ) : (
+                ) : can('jobs.create') ? (
                     <SecondaryButton onClick={() => post('quotes.convert')}>
                         Convert to job
                     </SecondaryButton>
+                ) : (
+                    <span className="text-sm text-gray-500">
+                        Won - waiting to be converted into a job
+                    </span>
                 )
             ) : status === 'lost' ? (
                 <SecondaryButton onClick={() => post('quotes.archive')}>

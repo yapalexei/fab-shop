@@ -118,7 +118,11 @@ return [
      * Set this to false if you want to implement custom logic for checking permissions.
      */
 
-    'register_permission_check_method' => true,
+    // Off: Spatie's Gate::before would approve any ability the user's role
+    // grants *before* our own gates run, silently ignoring per-member deny
+    // overrides. Every shop permission has its own Gate definition instead
+    // (AppServiceProvider), resolved by User::shopPermissions().
+    'register_permission_check_method' => false,
 
     /*
      * When set to true, Laravel\Octane\Events\OperationTerminated event listener will be registered

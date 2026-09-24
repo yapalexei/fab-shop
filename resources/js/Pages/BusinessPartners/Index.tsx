@@ -1,5 +1,6 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -13,6 +14,7 @@ interface BusinessPartnerRow {
 export default function Index({
     businessPartners,
 }: PageProps<{ businessPartners: BusinessPartnerRow[] }>) {
+    const can = useCan();
     const destroy = (partner: BusinessPartnerRow) => {
         if (confirm(`Delete ${partner.name}?`)) {
             router.delete(route('business-partners.destroy', partner.id));
@@ -31,11 +33,15 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="flex justify-end">
-                        <Link href={route('business-partners.create')}>
-                            <PrimaryButton>Add business partner</PrimaryButton>
-                        </Link>
-                    </div>
+                    {can('business-partners.create') && (
+                        <div className="flex justify-end">
+                            <Link href={route('business-partners.create')}>
+                                <PrimaryButton>
+                                    Add business partner
+                                </PrimaryButton>
+                            </Link>
+                        </div>
+                    )}
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {businessPartners.length === 0 ? (
@@ -78,16 +84,24 @@ export default function Index({
                                                     )}
                                                     className="text-indigo-600 hover:text-indigo-900"
                                                 >
-                                                    Edit
+                                                    {can(
+                                                        'business-partners.update',
+                                                    )
+                                                        ? 'Edit'
+                                                        : 'View'}
                                                 </Link>
-                                                <button
-                                                    onClick={() =>
-                                                        destroy(partner)
-                                                    }
-                                                    className="ms-4 text-red-600 hover:text-red-900"
-                                                >
-                                                    Delete
-                                                </button>
+                                                {can(
+                                                    'business-partners.delete',
+                                                ) && (
+                                                    <button
+                                                        onClick={() =>
+                                                            destroy(partner)
+                                                        }
+                                                        className="ms-4 text-red-600 hover:text-red-900"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

@@ -3,7 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Enums\ShopPermission;
+use App\Support\ShopPermissions;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -58,40 +58,70 @@ class User extends Authenticatable
     }
 
     /**
-     * Whether this user may do $permission in their current shop, resolved
-     * in order: the Owner role can do everything; then a per-member
-     * override the owner set for this user in this shop (allow or deny);
-     * then whatever the user's role in this shop has been granted.
-     *
-     * Role lookups rely on Spatie's team id being the current shop (set per
-     * request by SetPermissionsTeamFromCurrentShop).
-     */
-    public function hasShopPermission(ShopPermission $permission): bool
-    {
-        if (! $this->current_shop_id) {
-            return false;
-        }
-
-        if ($this->hasRole('Owner')) {
-            return true;
-        }
-
-        $overrides = $this->shops()->whereKey($this->current_shop_id)->first()?->pivot->permission_overrides ?? [];
-
-        if (array_key_exists($permission->value, $overrides)) {
-            return (bool) $overrides[$permission->value];
-        }
-
-        return $this->roles->contains(
-            fn ($role) => $role->permissions->contains('name', $permission->value),
-        );
-    }
-
-    /**
      * Shops this user owns.
      */
     public function ownedShops(): HasMany
     {
         return $this->hasMany(Shop::class, 'owner_id');
+    }
+
+    /**
+     * Effective permissions per shop id, resolved once per model instance.
+     *
+     * @var array<int, array<int, string>>
+     */
+    private array $resolvedShopPermissions = [];
+
+    /**
+     * Every shop permission this user holds in their *current* shop,
+     * resolved in order: the Owner role holds everything; otherwise start
+     * from the role's grants in this shop, then apply this member's own
+     * overrides from the shop_user pivot (true = allow, false = deny,
+     * absent = inherit). Any action on a resource implies seeing it.
+     *
+     * Role lookups rely on Spatie's team id being the current shop (set per
+     * request by SetPermissionsTeamFromCurrentShop).
+     *
+     * @return array<int, string>
+     */
+    public function shopPermissions(): array
+    {
+        $shopId = $this->current_shop_id;
+
+        if (! $shopId) {
+            return [];
+        }
+
+        return $this->resolvedShopPermissions[$shopId] ??= $this->resolveShopPermissions($shopId);
+    }
+
+    public function hasShopPermission(string $permission): bool
+    {
+        return in_array($permission, $this->shopPermissions(), true);
+    }
+
+    public function forgetResolvedShopPermissions(): void
+    {
+        $this->resolvedShopPermissions = [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveShopPermissions(int $shopId): array
+    {
+        if ($this->hasRole('Owner')) {
+            return ShopPermissions::all();
+        }
+
+        $granted = $this->roles->flatMap(fn ($role) => $role->permissions->pluck('name'))->all();
+        $overrides = $this->shops()->whereKey($shopId)->first()?->pivot->permission_overrides ?? [];
+
+        $effective = array_filter(
+            ShopPermissions::all(),
+            fn (string $name) => array_key_exists($name, $overrides) ? (bool) $overrides[$name] : in_array($name, $granted, true),
+        );
+
+        return ShopPermissions::withImpliedViews(array_values($effective));
     }
 }

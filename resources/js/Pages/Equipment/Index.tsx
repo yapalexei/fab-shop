@@ -1,5 +1,6 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -18,6 +19,7 @@ const currency = new Intl.NumberFormat('en-US', {
 export default function Index({
     equipment,
 }: PageProps<{ equipment: EquipmentRow[] }>) {
+    const can = useCan();
     const destroy = (item: EquipmentRow) => {
         if (confirm(`Delete ${item.name}?`)) {
             router.delete(route('equipment.destroy', item.id));
@@ -36,11 +38,13 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="flex justify-end">
-                        <Link href={route('equipment.create')}>
-                            <PrimaryButton>Add equipment</PrimaryButton>
-                        </Link>
-                    </div>
+                    {can('equipment.create') && (
+                        <div className="flex justify-end">
+                            <Link href={route('equipment.create')}>
+                                <PrimaryButton>Add equipment</PrimaryButton>
+                            </Link>
+                        </div>
+                    )}
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {equipment.length === 0 ? (
@@ -70,7 +74,8 @@ export default function Index({
                                                 {item.name}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                                                {item.billing_method === 'hourly'
+                                                {item.billing_method ===
+                                                'hourly'
                                                     ? 'Hourly'
                                                     : 'Flat fee'}
                                             </td>
@@ -87,16 +92,20 @@ export default function Index({
                                                     )}
                                                     className="text-indigo-600 hover:text-indigo-900"
                                                 >
-                                                    Edit
+                                                    {can('equipment.update')
+                                                        ? 'Edit'
+                                                        : 'View'}
                                                 </Link>
-                                                <button
-                                                    onClick={() =>
-                                                        destroy(item)
-                                                    }
-                                                    className="ms-4 text-red-600 hover:text-red-900"
-                                                >
-                                                    Delete
-                                                </button>
+                                                {can('equipment.delete') && (
+                                                    <button
+                                                        onClick={() =>
+                                                            destroy(item)
+                                                        }
+                                                        className="ms-4 text-red-600 hover:text-red-900"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

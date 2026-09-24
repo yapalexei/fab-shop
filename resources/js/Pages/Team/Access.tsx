@@ -1,11 +1,16 @@
-import InputError from "@/Components/InputError";
-import InputLabel from "@/Components/InputLabel";
-import PrimaryButton from "@/Components/PrimaryButton";
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { PermissionOption, RoleGrants } from "@/Pages/Permissions/Edit";
-import { PageProps } from "@/types";
-import { Head, Link, useForm } from "@inertiajs/react";
-import { FormEventHandler } from "react";
+import InputError from '@/Components/InputError';
+import InputLabel from '@/Components/InputLabel';
+import PermissionGrid, {
+    actionLabel,
+    isDestructive,
+    ResourceOption,
+} from '@/Components/PermissionGrid';
+import PrimaryButton from '@/Components/PrimaryButton';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { RoleGrants } from '@/Pages/Permissions/Edit';
+import { PageProps } from '@/types';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { FormEventHandler } from 'react';
 
 interface Member {
     id: number;
@@ -16,51 +21,70 @@ interface Member {
 
 type Override = boolean | null;
 
-const choices: { value: Override; label: string }[] = [
-    { value: null, label: "Role default" },
-    { value: true, label: "Allow" },
-    { value: false, label: "Deny" },
-];
-
 export default function Access({
     member,
     roles,
-    permissions,
+    canChangeRole,
+    resources,
     roleGrants,
     overrides,
+    grantable,
 }: PageProps<{
     member: Member;
     roles: string[];
-    permissions: PermissionOption[];
+    canChangeRole: boolean;
+    resources: ResourceOption[];
     roleGrants: RoleGrants;
     overrides: Record<string, boolean>;
+    grantable: string[];
 }>) {
+    const allPermissions = resources.flatMap((r) =>
+        r.actions.map((a) => a.permission),
+    );
+
+    // Sent as a list, not a map: permission names contain dots, which the
+    // server-side validator would read as nesting.
     const { data, setData, put, processing, errors, isDirty } = useForm<{
         role: string;
-        overrides: Record<string, Override>;
+        overrides: { permission: string; value: Override }[];
     }>({
         role:
-            member.role && roles.includes(member.role) ? member.role : "Staff",
-        overrides: Object.fromEntries(
-            permissions.map((p) => [p.value, overrides[p.value] ?? null]),
-        ),
+            member.role && roles.includes(member.role) ? member.role : 'Staff',
+        overrides: allPermissions.map((permission) => ({
+            permission,
+            value: overrides[permission] ?? null,
+        })),
     });
+
+    const errorMap = errors as Record<string, string>;
+    const roleHas = (permission: string) =>
+        (roleGrants[data.role] ?? []).includes(permission);
+
+    const setOverride = (permission: string, value: Override) =>
+        setData(
+            'overrides',
+            data.overrides.map((row) =>
+                row.permission === permission ? { ...row, value } : row,
+            ),
+        );
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        put(route("team.access.update", member.id), { preserveScroll: true });
+        put(route('team.access.update', member.id), { preserveScroll: true });
     };
+
+    const exceptions = data.overrides.filter((row) => row.value !== null);
 
     return (
         <AuthenticatedLayout
             header={
                 <h2 className="text-xl font-semibold leading-tight text-gray-800">
                     <Link
-                        href={route("team.index")}
+                        href={route('team.index')}
                         className="text-gray-500 hover:text-gray-700"
                     >
                         Team
-                    </Link>{" "}
+                    </Link>{' '}
                     / {member.name}
                 </h2>
             }
@@ -68,133 +92,143 @@ export default function Access({
             <Head title={`${member.name} - access`} />
 
             <div className="py-12">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                     <form
                         onSubmit={submit}
-                        className="space-y-8 bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                        className="space-y-6 bg-white p-4 shadow sm:rounded-lg sm:p-8"
                     >
-                        <div>
-                            <p className="text-sm text-gray-500">
-                                {member.email}
-                            </p>
-                            <div className="mt-4 max-w-xs">
-                                <InputLabel
-                                    htmlFor="role"
-                                    value="Role in this shop"
-                                />
-                                <select
-                                    id="role"
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    value={data.role}
-                                    onChange={(e) =>
-                                        setData("role", e.target.value)
-                                    }
-                                >
-                                    {roles.map((role) => (
-                                        <option key={role} value={role}>
-                                            {role}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError
-                                    message={errors.role}
-                                    className="mt-2"
-                                />
+                        <div className="flex flex-wrap items-end justify-between gap-4">
+                            <div>
+                                <p className="text-sm text-gray-500">
+                                    {member.email}
+                                </p>
+                                <div className="mt-3 w-60">
+                                    <InputLabel
+                                        htmlFor="role"
+                                        value="Role in this shop"
+                                    />
+                                    <select
+                                        id="role"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                                        value={data.role}
+                                        disabled={!canChangeRole}
+                                        onChange={(e) =>
+                                            setData('role', e.target.value)
+                                        }
+                                    >
+                                        {roles.map((role) => (
+                                            <option key={role} value={role}>
+                                                {role}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {!canChangeRole && (
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Only the shop owner can change
+                                            roles.
+                                        </p>
+                                    )}
+                                    <InputError
+                                        message={errors.role}
+                                        className="mt-2"
+                                    />
+                                </div>
                             </div>
-                        </div>
-
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-900">
-                                Permissions
-                            </h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                                By default {member.name} gets whatever the{" "}
-                                {data.role} role has (set on{" "}
-                                <Link
-                                    href={route("shop.permissions.edit")}
-                                    className="text-indigo-600 hover:text-indigo-900"
-                                >
-                                    Roles & permissions
-                                </Link>
-                                ). Allow or deny here to make an exception for
-                                just this person, in this shop only.
+                            <p className="text-sm text-gray-500">
+                                {exceptions.length === 0
+                                    ? `Exactly the ${data.role} role's access.`
+                                    : `${exceptions.length} exception${exceptions.length === 1 ? '' : 's'} to the ${data.role} role.`}
                             </p>
-
-                            <ul className="mt-4 divide-y divide-gray-100 rounded-md border border-gray-200">
-                                {permissions.map((permission) => {
-                                    const roleHasIt = (
-                                        roleGrants[data.role] ?? []
-                                    ).includes(permission.value);
-                                    const override =
-                                        data.overrides[permission.value];
-                                    const effective = override ?? roleHasIt;
-
-                                    return (
-                                        <li
-                                            key={permission.value}
-                                            className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                                        >
-                                            <div>
-                                                <p className="text-sm font-medium text-gray-900">
-                                                    {permission.label}
-                                                    <span
-                                                        className={`ms-2 inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${effective ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}
-                                                    >
-                                                        {effective
-                                                            ? "Allowed"
-                                                            : "Not allowed"}
-                                                    </span>
-                                                </p>
-                                                <p className="text-xs text-gray-500">
-                                                    {permission.description}
-                                                </p>
-                                            </div>
-
-                                            <div
-                                                role="radiogroup"
-                                                aria-label={permission.label}
-                                                className="inline-flex shrink-0 rounded-md shadow-sm"
-                                            >
-                                                {choices.map((choice, i) => {
-                                                    const selected =
-                                                        override ===
-                                                        choice.value;
-
-                                                    return (
-                                                        <button
-                                                            key={choice.label}
-                                                            type="button"
-                                                            role="radio"
-                                                            aria-checked={
-                                                                selected
-                                                            }
-                                                            onClick={() =>
-                                                                setData(
-                                                                    "overrides",
-                                                                    {
-                                                                        ...data.overrides,
-                                                                        [permission.value]:
-                                                                            choice.value,
-                                                                    },
-                                                                )
-                                                            }
-                                                            className={`border px-3 py-1.5 text-xs font-medium ${i === 0 ? "rounded-s-md" : "-ms-px"} ${i === choices.length - 1 ? "rounded-e-md" : ""} ${selected ? "z-10 border-indigo-600 bg-indigo-600 text-white" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
-                                                        >
-                                                            {choice.value ===
-                                                            null
-                                                                ? `${choice.label} (${roleHasIt ? "yes" : "no"})`
-                                                                : choice.label}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
                         </div>
 
-                        <div className="flex justify-end">
+                        <p className="text-sm text-gray-500">
+                            Each action follows the {data.role} role (set on{' '}
+                            <Link
+                                href={route('shop.permissions.edit')}
+                                className="text-indigo-600 hover:text-indigo-900"
+                            >
+                                Roles & permissions
+                            </Link>
+                            ) unless you allow or deny it here - just for{' '}
+                            {member.name}, in this shop only.
+                            {!canChangeRole &&
+                                ' You can only allow access you have yourself.'}
+                        </p>
+
+                        <PermissionGrid
+                            resources={resources}
+                            renderCell={(action) => {
+                                const index = data.overrides.findIndex(
+                                    (row) =>
+                                        row.permission === action.permission,
+                                );
+                                const override = data.overrides[index].value;
+                                const inherited = roleHas(action.permission);
+                                const effective = override ?? inherited;
+                                const canAllow =
+                                    grantable.includes(action.permission) ||
+                                    overrides[action.permission] === true;
+                                const error =
+                                    errorMap[`overrides.${index}.value`];
+
+                                return (
+                                    <div
+                                        className={`rounded-md border px-2 py-1.5 ${effective ? (isDestructive(action.action) ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50') : 'border-gray-200'}`}
+                                    >
+                                        <label className="block text-xs font-medium text-gray-700">
+                                            {actionLabel(action.action)}
+                                            <select
+                                                aria-label={`${member.name}: ${action.permission}`}
+                                                className="mt-1 block w-full rounded border-gray-300 py-1 pe-8 text-xs focus:border-indigo-500 focus:ring-indigo-500"
+                                                value={
+                                                    override === null
+                                                        ? 'inherit'
+                                                        : override
+                                                          ? 'allow'
+                                                          : 'deny'
+                                                }
+                                                onChange={(e) =>
+                                                    setOverride(
+                                                        action.permission,
+                                                        e.target.value ===
+                                                            'inherit'
+                                                            ? null
+                                                            : e.target.value ===
+                                                                  'allow',
+                                                    )
+                                                }
+                                            >
+                                                <option value="inherit">
+                                                    Role default (
+                                                    {inherited ? 'yes' : 'no'})
+                                                </option>
+                                                <option
+                                                    value="allow"
+                                                    disabled={!canAllow}
+                                                >
+                                                    Allow
+                                                </option>
+                                                <option value="deny">
+                                                    Deny
+                                                </option>
+                                            </select>
+                                        </label>
+                                        {error && (
+                                            <p className="mt-1 max-w-40 text-xs text-red-600">
+                                                {error}
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            }}
+                        />
+
+                        <div className="flex items-center justify-end gap-4">
+                            {isDirty && (
+                                <span className="text-sm text-gray-500">
+                                    Unsaved changes
+                                </span>
+                            )}
                             <PrimaryButton disabled={processing || !isDirty}>
                                 Save access
                             </PrimaryButton>

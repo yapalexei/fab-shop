@@ -1,5 +1,6 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -12,6 +13,7 @@ interface MaterialRow {
 export default function Index({
     materials,
 }: PageProps<{ materials: MaterialRow[] }>) {
+    const can = useCan();
     const destroy = (material: MaterialRow) => {
         if (confirm(`Delete ${material.name}?`)) {
             router.delete(route('materials.destroy', material.id));
@@ -30,11 +32,13 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="flex justify-end">
-                        <Link href={route('materials.create')}>
-                            <PrimaryButton>Add material</PrimaryButton>
-                        </Link>
-                    </div>
+                    {can('materials.create') && (
+                        <div className="flex justify-end">
+                            <Link href={route('materials.create')}>
+                                <PrimaryButton>Add material</PrimaryButton>
+                            </Link>
+                        </div>
+                    )}
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {materials.length === 0 ? (
@@ -71,16 +75,20 @@ export default function Index({
                                                     )}
                                                     className="text-indigo-600 hover:text-indigo-900"
                                                 >
-                                                    Edit
+                                                    {can('materials.update')
+                                                        ? 'Edit'
+                                                        : 'View'}
                                                 </Link>
-                                                <button
-                                                    onClick={() =>
-                                                        destroy(material)
-                                                    }
-                                                    className="ms-4 text-red-600 hover:text-red-900"
-                                                >
-                                                    Delete
-                                                </button>
+                                                {can('materials.delete') && (
+                                                    <button
+                                                        onClick={() =>
+                                                            destroy(material)
+                                                        }
+                                                        className="ms-4 text-red-600 hover:text-red-900"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

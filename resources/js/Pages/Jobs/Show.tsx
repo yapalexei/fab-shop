@@ -85,7 +85,7 @@ export default function Show({ job }: PageProps<{ job: JobDetail }>) {
 
                         <div className="mt-4 border-t border-gray-100 pt-4">
                             <JobStatusActions
-                                jobId={job.id}
+                                job={job}
                                 transitions={job.available_transitions}
                             />
                         </div>

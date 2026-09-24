@@ -25,12 +25,15 @@ export default function BusinessPartnerForm({
     initialData,
     submitUrl,
     method,
+    readOnly = false,
 }: {
     materialOptions: { id: number; name: string }[];
     serviceOptions: { id: number; name: string }[];
     initialData: BusinessPartnerFormData;
     submitUrl: string;
     method: 'post' | 'put';
+    /** View-only (no update permission): every field disabled, no save. */
+    readOnly?: boolean;
 }) {
     const { data, setData, post, put, processing, errors, transform } =
         useForm<BusinessPartnerFormData>(initialData);
@@ -59,99 +62,104 @@ export default function BusinessPartnerForm({
 
     return (
         <form onSubmit={submit}>
-            <FormErrorSummary errors={errorMap} />
+            <fieldset disabled={readOnly}>
+                <FormErrorSummary errors={errorMap} />
 
-            <div>
-                <InputLabel htmlFor="name" value="Name" />
-                <TextInput
-                    id="name"
-                    className="mt-1 block w-full"
-                    value={data.name}
-                    onChange={(e) => setData('name', e.target.value)}
-                    isFocused
-                    required
+                <div>
+                    <InputLabel htmlFor="name" value="Name" />
+                    <TextInput
+                        id="name"
+                        className="mt-1 block w-full"
+                        value={data.name}
+                        onChange={(e) => setData('name', e.target.value)}
+                        isFocused
+                        required
+                    />
+                    <InputError message={errors.name} className="mt-2" />
+                </div>
+
+                <div className="mt-4">
+                    <InputLabel htmlFor="email" value="Email" />
+                    <TextInput
+                        id="email"
+                        type="email"
+                        className="mt-1 block w-full"
+                        value={data.email}
+                        onChange={(e) => setData('email', e.target.value)}
+                    />
+                    <InputError message={errors.email} className="mt-2" />
+                </div>
+
+                <div className="mt-4">
+                    <InputLabel htmlFor="phone" value="Phone" />
+                    <TextInput
+                        id="phone"
+                        className="mt-1 block w-full"
+                        value={data.phone}
+                        onChange={(e) => setData('phone', e.target.value)}
+                    />
+                    <InputError message={errors.phone} className="mt-2" />
+                </div>
+
+                <div className="mt-4">
+                    <InputLabel htmlFor="address" value="Address" />
+                    <textarea
+                        id="address"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        rows={3}
+                        value={data.address}
+                        onChange={(e) => setData('address', e.target.value)}
+                    />
+                    <InputError message={errors.address} className="mt-2" />
+                </div>
+
+                <CapabilityPriceTable
+                    title="Materials supplied"
+                    itemLabel="Material"
+                    addLabel="Add material"
+                    options={materialOptions}
+                    rows={data.materials}
+                    onChange={(rows) => setData('materials', rows)}
+                    getError={(index, field) =>
+                        errorMap[
+                            `materials.${index}.${field === 'itemId' ? 'material_id' : 'price'}`
+                        ]
+                    }
                 />
-                <InputError message={errors.name} className="mt-2" />
-            </div>
 
-            <div className="mt-4">
-                <InputLabel htmlFor="email" value="Email" />
-                <TextInput
-                    id="email"
-                    type="email"
-                    className="mt-1 block w-full"
-                    value={data.email}
-                    onChange={(e) => setData('email', e.target.value)}
+                <CapabilityPriceTable
+                    title="Services offered"
+                    itemLabel="Service"
+                    addLabel="Add service"
+                    options={serviceOptions}
+                    rows={data.services}
+                    onChange={(rows) => setData('services', rows)}
+                    getError={(index, field) =>
+                        errorMap[
+                            `services.${index}.${field === 'itemId' ? 'service_id' : 'price'}`
+                        ]
+                    }
                 />
-                <InputError message={errors.email} className="mt-2" />
-            </div>
 
-            <div className="mt-4">
-                <InputLabel htmlFor="phone" value="Phone" />
-                <TextInput
-                    id="phone"
-                    className="mt-1 block w-full"
-                    value={data.phone}
-                    onChange={(e) => setData('phone', e.target.value)}
-                />
-                <InputError message={errors.phone} className="mt-2" />
-            </div>
+                <div className="mt-6">
+                    <InputLabel htmlFor="notes" value="Notes" />
+                    <textarea
+                        id="notes"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        rows={3}
+                        value={data.notes}
+                        onChange={(e) => setData('notes', e.target.value)}
+                    />
+                    <InputError message={errors.notes} className="mt-2" />
+                </div>
 
-            <div className="mt-4">
-                <InputLabel htmlFor="address" value="Address" />
-                <textarea
-                    id="address"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    rows={3}
-                    value={data.address}
-                    onChange={(e) => setData('address', e.target.value)}
-                />
-                <InputError message={errors.address} className="mt-2" />
-            </div>
+            </fieldset>
 
-            <CapabilityPriceTable
-                title="Materials supplied"
-                itemLabel="Material"
-                addLabel="Add material"
-                options={materialOptions}
-                rows={data.materials}
-                onChange={(rows) => setData('materials', rows)}
-                getError={(index, field) =>
-                    errorMap[
-                        `materials.${index}.${field === 'itemId' ? 'material_id' : 'price'}`
-                    ]
-                }
-            />
-
-            <CapabilityPriceTable
-                title="Services offered"
-                itemLabel="Service"
-                addLabel="Add service"
-                options={serviceOptions}
-                rows={data.services}
-                onChange={(rows) => setData('services', rows)}
-                getError={(index, field) =>
-                    errorMap[
-                        `services.${index}.${field === 'itemId' ? 'service_id' : 'price'}`
-                    ]
-                }
-            />
-
-            <div className="mt-6">
-                <InputLabel htmlFor="notes" value="Notes" />
-                <textarea
-                    id="notes"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    rows={3}
-                    value={data.notes}
-                    onChange={(e) => setData('notes', e.target.value)}
-                />
-                <InputError message={errors.notes} className="mt-2" />
-            </div>
-
-            <div className="mt-6 flex justify-end">
-                <PrimaryButton disabled={processing}>Save</PrimaryButton>
-            </div>
+            {!readOnly && (
+                <div className="mt-6 flex justify-end">
+                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                </div>
+            )}
         </form>
     );
 }

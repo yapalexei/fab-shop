@@ -1,9 +1,10 @@
-import ApplicationLogo from "@/Components/ApplicationLogo";
-import Dropdown from "@/Components/Dropdown";
-import NavLink from "@/Components/NavLink";
-import ResponsiveNavLink from "@/Components/ResponsiveNavLink";
-import { Link, usePage } from "@inertiajs/react";
-import { PropsWithChildren, ReactNode, useState } from "react";
+import ApplicationLogo from '@/Components/ApplicationLogo';
+import Dropdown from '@/Components/Dropdown';
+import NavLink from '@/Components/NavLink';
+import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import { useCan } from '@/lib/permissions';
+import { Link, usePage } from '@inertiajs/react';
+import { PropsWithChildren, ReactNode, useState } from 'react';
 
 function GatedNavLink({
     enabled,
@@ -89,55 +90,63 @@ export default function Authenticated({
 }: PropsWithChildren<{ header?: ReactNode }>) {
     const { auth, enabledFeatures, availableShops, flash } = usePage().props;
     const user = auth.user;
-    const customersEnabled = enabledFeatures.includes("customers");
-    const quoteBuilderEnabled = enabledFeatures.includes("quote-builder");
-    const jobBoardEnabled = enabledFeatures.includes("job-board");
-    const quickbooksEnabled = enabledFeatures.includes("quickbooks-sync");
+    const customersEnabled = enabledFeatures.includes('customers');
+    const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
+    const jobBoardEnabled = enabledFeatures.includes('job-board');
+    const quickbooksEnabled = enabledFeatures.includes('quickbooks-sync');
     const currentShop = availableShops.find(
         (shop) => shop.id === user.current_shop_id,
     );
+    const can = useCan();
 
     // Catalog/pricing setup - touched occasionally, not part of the daily
     // quote/job workflow, so it lives in its own "Setup" menu instead of
-    // crowding the primary nav.
+    // crowding the primary nav. Items the user can't even view are left out
+    // (plan-gated ones stay visible, greyed, as an upgrade hint).
     const setupNavItems = [
         {
-            label: "Customers",
-            href: route("customers.index"),
-            active: route().current("customers.*"),
+            label: 'Customers',
+            href: route('customers.index'),
+            active: route().current('customers.*'),
             enabled: customersEnabled,
+            visible: can('customers.view'),
         },
         {
-            label: "Materials",
-            href: route("materials.index"),
-            active: route().current("materials.*"),
+            label: 'Materials',
+            href: route('materials.index'),
+            active: route().current('materials.*'),
             enabled: quoteBuilderEnabled,
+            visible: can('materials.view'),
         },
         {
-            label: "Services",
-            href: route("services.index"),
-            active: route().current("services.*"),
+            label: 'Services',
+            href: route('services.index'),
+            active: route().current('services.*'),
             enabled: quoteBuilderEnabled,
+            visible: can('services.view'),
         },
         {
-            label: "Business partners",
-            href: route("business-partners.index"),
-            active: route().current("business-partners.*"),
+            label: 'Business partners',
+            href: route('business-partners.index'),
+            active: route().current('business-partners.*'),
             enabled: quoteBuilderEnabled,
+            visible: can('business-partners.view'),
         },
         {
-            label: "Equipment",
-            href: route("equipment.index"),
-            active: route().current("equipment.*"),
+            label: 'Equipment',
+            href: route('equipment.index'),
+            active: route().current('equipment.*'),
             enabled: quoteBuilderEnabled,
+            visible: can('equipment.view'),
         },
         {
-            label: "Markup",
-            href: route("markup-defaults.index"),
-            active: route().current("markup-defaults.*"),
+            label: 'Markup',
+            href: route('markup-defaults.index'),
+            active: route().current('markup-defaults.*'),
             enabled: quoteBuilderEnabled,
+            visible: can('markup.view'),
         },
-    ];
+    ].filter((item) => item.visible);
     const setupActive = setupNavItems.some((item) => item.active);
 
     // The shop itself - its settings, team, who can do what, and its
@@ -146,32 +155,32 @@ export default function Authenticated({
     // items, which stay visible as an upgrade hint).
     const shopNavItems = [
         {
-            label: "Shop settings",
-            href: route("shop.settings.edit"),
-            active: route().current("shop.settings.*"),
+            label: 'Shop settings',
+            href: route('shop.settings.edit'),
+            active: route().current('shop.settings.*'),
             enabled: true,
-            visible: auth.can?.manageShopSettings ?? false,
+            visible: can('shop-settings.update'),
         },
         {
-            label: "Team",
-            href: route("team.index"),
-            active: route().current("team.*"),
+            label: 'Team',
+            href: route('team.index'),
+            active: route().current('team.*'),
             enabled: true,
-            visible: true,
+            visible: can('team.view'),
         },
         {
-            label: "Roles & permissions",
-            href: route("shop.permissions.edit"),
-            active: route().current("shop.permissions.*"),
+            label: 'Roles & permissions',
+            href: route('shop.permissions.edit'),
+            active: route().current('shop.permissions.*'),
             enabled: true,
-            visible: auth.can?.manageShop ?? false,
+            visible: auth.isOwner,
         },
         {
-            label: "QuickBooks",
-            href: route("quickbooks.show"),
-            active: route().current("quickbooks.*"),
+            label: 'QuickBooks',
+            href: route('quickbooks.show'),
+            active: route().current('quickbooks.*'),
             enabled: quickbooksEnabled,
-            visible: true,
+            visible: can('quickbooks.view'),
         },
     ].filter((item) => item.visible);
 
@@ -192,64 +201,70 @@ export default function Authenticated({
 
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                                 <NavLink
-                                    href={route("dashboard")}
-                                    active={route().current("dashboard")}
+                                    href={route('dashboard')}
+                                    active={route().current('dashboard')}
                                 >
                                     Dashboard
                                 </NavLink>
-                                <GatedNavLink
-                                    enabled={quoteBuilderEnabled}
-                                    href={route("quotes.index")}
-                                    active={route().current("quotes.*")}
-                                    label="Quotes"
-                                />
-                                <GatedNavLink
-                                    enabled={jobBoardEnabled}
-                                    href={route("jobs.index")}
-                                    active={route().current("jobs.*")}
-                                    label="Jobs"
-                                />
+                                {can('quotes.view') && (
+                                    <GatedNavLink
+                                        enabled={quoteBuilderEnabled}
+                                        href={route('quotes.index')}
+                                        active={route().current('quotes.*')}
+                                        label="Quotes"
+                                    />
+                                )}
+                                {can('jobs.view') && (
+                                    <GatedNavLink
+                                        enabled={jobBoardEnabled}
+                                        href={route('jobs.index')}
+                                        active={route().current('jobs.*')}
+                                        label="Jobs"
+                                    />
+                                )}
 
-                                <div className="flex items-center">
-                                    <Dropdown>
-                                        <Dropdown.Trigger>
-                                            <button
-                                                type="button"
-                                                className={
-                                                    "inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none " +
-                                                    (setupActive
-                                                        ? "border-indigo-400 text-gray-900 focus:border-indigo-700"
-                                                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700")
-                                                }
-                                            >
-                                                Setup
-                                                <svg
-                                                    className="-me-0.5 ms-1 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
+                                {setupNavItems.length > 0 && (
+                                    <div className="flex items-center">
+                                        <Dropdown>
+                                            <Dropdown.Trigger>
+                                                <button
+                                                    type="button"
+                                                    className={
+                                                        'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none ' +
+                                                        (setupActive
+                                                            ? 'border-indigo-400 text-gray-900 focus:border-indigo-700'
+                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700')
+                                                    }
                                                 >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </Dropdown.Trigger>
+                                                    Setup
+                                                    <svg
+                                                        className="-me-0.5 ms-1 h-4 w-4"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor"
+                                                    >
+                                                        <path
+                                                            fillRule="evenodd"
+                                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                            clipRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </Dropdown.Trigger>
 
-                                        <Dropdown.Content align="left">
-                                            {setupNavItems.map((item) => (
-                                                <GatedDropdownLink
-                                                    key={item.label}
-                                                    enabled={item.enabled}
-                                                    href={item.href}
-                                                    label={item.label}
-                                                />
-                                            ))}
-                                        </Dropdown.Content>
-                                    </Dropdown>
-                                </div>
+                                            <Dropdown.Content align="left">
+                                                {setupNavItems.map((item) => (
+                                                    <GatedDropdownLink
+                                                        key={item.label}
+                                                        enabled={item.enabled}
+                                                        href={item.href}
+                                                        label={item.label}
+                                                    />
+                                                ))}
+                                            </Dropdown.Content>
+                                        </Dropdown>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -261,15 +276,15 @@ export default function Authenticated({
                                             <button
                                                 type="button"
                                                 className={
-                                                    "inline-flex items-center rounded-md border bg-white px-3 py-2 text-sm font-medium leading-4 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none " +
+                                                    'inline-flex items-center rounded-md border bg-white px-3 py-2 text-sm font-medium leading-4 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none ' +
                                                     (shopNavItems.some(
                                                         (item) => item.active,
                                                     )
-                                                        ? "border-indigo-300 text-gray-900"
-                                                        : "border-gray-300 text-gray-500")
+                                                        ? 'border-indigo-300 text-gray-900'
+                                                        : 'border-gray-300 text-gray-500')
                                                 }
                                             >
-                                                {currentShop?.name ?? "Shop"}
+                                                {currentShop?.name ?? 'Shop'}
 
                                                 <svg
                                                     className="-me-0.5 ms-2 h-4 w-4"
@@ -306,7 +321,7 @@ export default function Authenticated({
                                                     <Dropdown.Link
                                                         key={shop.id}
                                                         href={route(
-                                                            "current-shop.update",
+                                                            'current-shop.update',
                                                             shop.id,
                                                         )}
                                                         method="post"
@@ -314,8 +329,8 @@ export default function Authenticated({
                                                         className={
                                                             shop.id ===
                                                             user.current_shop_id
-                                                                ? "font-semibold"
-                                                                : ""
+                                                                ? 'font-semibold'
+                                                                : ''
                                                         }
                                                     >
                                                         {shop.name}
@@ -355,12 +370,12 @@ export default function Authenticated({
 
                                     <Dropdown.Content>
                                         <Dropdown.Link
-                                            href={route("profile.edit")}
+                                            href={route('profile.edit')}
                                         >
                                             Profile
                                         </Dropdown.Link>
                                         <Dropdown.Link
-                                            href={route("logout")}
+                                            href={route('logout')}
                                             method="post"
                                             as="button"
                                         >
@@ -389,8 +404,8 @@ export default function Authenticated({
                                     <path
                                         className={
                                             !showingNavigationDropdown
-                                                ? "inline-flex"
-                                                : "hidden"
+                                                ? 'inline-flex'
+                                                : 'hidden'
                                         }
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -400,8 +415,8 @@ export default function Authenticated({
                                     <path
                                         className={
                                             showingNavigationDropdown
-                                                ? "inline-flex"
-                                                : "hidden"
+                                                ? 'inline-flex'
+                                                : 'hidden'
                                         }
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -416,51 +431,57 @@ export default function Authenticated({
 
                 <div
                     className={
-                        (showingNavigationDropdown ? "block" : "hidden") +
-                        " sm:hidden"
+                        (showingNavigationDropdown ? 'block' : 'hidden') +
+                        ' sm:hidden'
                     }
                 >
                     <div className="space-y-1 pb-3 pt-2">
                         <ResponsiveNavLink
-                            href={route("dashboard")}
-                            active={route().current("dashboard")}
+                            href={route('dashboard')}
+                            active={route().current('dashboard')}
                         >
                             Dashboard
                         </ResponsiveNavLink>
-                        <GatedResponsiveNavLink
-                            enabled={quoteBuilderEnabled}
-                            href={route("quotes.index")}
-                            active={route().current("quotes.*")}
-                            label="Quotes"
-                        />
-                        <GatedResponsiveNavLink
-                            enabled={jobBoardEnabled}
-                            href={route("jobs.index")}
-                            active={route().current("jobs.*")}
-                            label="Jobs"
-                        />
+                        {can('quotes.view') && (
+                            <GatedResponsiveNavLink
+                                enabled={quoteBuilderEnabled}
+                                href={route('quotes.index')}
+                                active={route().current('quotes.*')}
+                                label="Quotes"
+                            />
+                        )}
+                        {can('jobs.view') && (
+                            <GatedResponsiveNavLink
+                                enabled={jobBoardEnabled}
+                                href={route('jobs.index')}
+                                active={route().current('jobs.*')}
+                                label="Jobs"
+                            />
+                        )}
                     </div>
+
+                    {setupNavItems.length > 0 && (
+                        <div className="border-t border-gray-200 pb-1 pt-4">
+                            <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                Setup
+                            </div>
+                            <div className="mt-1 space-y-1">
+                                {setupNavItems.map((item) => (
+                                    <GatedResponsiveNavLink
+                                        key={item.label}
+                                        enabled={item.enabled}
+                                        href={item.href}
+                                        active={item.active}
+                                        label={item.label}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="border-t border-gray-200 pb-1 pt-4">
                         <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                            Setup
-                        </div>
-                        <div className="mt-1 space-y-1">
-                            {setupNavItems.map((item) => (
-                                <GatedResponsiveNavLink
-                                    key={item.label}
-                                    enabled={item.enabled}
-                                    href={item.href}
-                                    active={item.active}
-                                    label={item.label}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="border-t border-gray-200 pb-1 pt-4">
-                        <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                            {currentShop?.name ?? "Shop"}
+                            {currentShop?.name ?? 'Shop'}
                         </div>
                         <div className="mt-1 space-y-1">
                             {shopNavItems.map((item) => (
@@ -485,7 +506,7 @@ export default function Authenticated({
                                     <ResponsiveNavLink
                                         key={shop.id}
                                         href={route(
-                                            "current-shop.update",
+                                            'current-shop.update',
                                             shop.id,
                                         )}
                                         method="post"
@@ -512,12 +533,12 @@ export default function Authenticated({
                         </div>
 
                         <div className="mt-3 space-y-1">
-                            <ResponsiveNavLink href={route("profile.edit")}>
+                            <ResponsiveNavLink href={route('profile.edit')}>
                                 Profile
                             </ResponsiveNavLink>
                             <ResponsiveNavLink
                                 method="post"
-                                href={route("logout")}
+                                href={route('logout')}
                                 as="button"
                             >
                                 Log Out
@@ -533,6 +554,14 @@ export default function Authenticated({
                         {header}
                     </div>
                 </header>
+            )}
+
+            {flash?.error && (
+                <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+                        {flash.error}
+                    </div>
+                </div>
             )}
 
             {flash?.status && (

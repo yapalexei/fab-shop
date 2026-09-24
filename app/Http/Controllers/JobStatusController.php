@@ -9,6 +9,7 @@ use App\Models\Job;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -22,6 +23,8 @@ class JobStatusController extends Controller
         ]);
 
         $target = JobStatus::from($validated['status']);
+
+        abort_unless(Gate::allows($target === JobStatus::Cancelled ? 'jobs.cancel' : 'jobs.update'), 403);
 
         if (! $job->canTransitionTo($target)) {
             throw ValidationException::withMessages([

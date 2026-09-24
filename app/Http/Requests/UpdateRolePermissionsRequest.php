@@ -2,8 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\ShopPermission;
-use App\Http\Controllers\RolePermissionController;
+use App\Support\ShopPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -20,11 +19,11 @@ class UpdateRolePermissionsRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = ['grants' => ['present', 'array:'.implode(',', RolePermissionController::EDITABLE_ROLES)]];
+        $rules = ['grants' => ['present', 'array:'.implode(',', ShopPermissions::EDITABLE_ROLES)]];
 
-        foreach (RolePermissionController::EDITABLE_ROLES as $role) {
+        foreach (ShopPermissions::EDITABLE_ROLES as $role) {
             $rules["grants.{$role}"] = ['sometimes', 'array'];
-            $rules["grants.{$role}.*"] = ['distinct', Rule::enum(ShopPermission::class)];
+            $rules["grants.{$role}.*"] = ['distinct', Rule::in(ShopPermissions::all())];
         }
 
         return $rules;

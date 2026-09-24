@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\ShopPermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
@@ -10,7 +9,7 @@ class UpdateShopSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return Gate::allows(ShopPermission::ManageShopSettings->value);
+        return Gate::allows('shop-settings.update');
     }
 
     /**
@@ -26,6 +25,7 @@ class UpdateShopSettingsRequest extends FormRequest
             'timezone' => ['nullable', 'timezone:all'],
             'stale_quote_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'win_rate_window_days' => ['nullable', 'integer', 'min:7', 'max:730'],
+            'job_board_drag_enabled' => ['nullable', 'boolean'],
         ];
     }
 }

@@ -12,7 +12,7 @@ class UpdateMarkupDefaultsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return Gate::allows('manage-shop');
+        return Gate::allows('markup.update');
     }
 
     /**

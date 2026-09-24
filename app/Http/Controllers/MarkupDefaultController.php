@@ -20,7 +20,7 @@ class MarkupDefaultController extends Controller
                 'line_item_type' => $type->value,
                 'default_markup_percent' => MarkupDefault::forType($type),
             ]),
-            'canManage' => Gate::allows('manage-shop'),
+            'canManage' => Gate::allows('markup.update'),
         ]);
     }
 

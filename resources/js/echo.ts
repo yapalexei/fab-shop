@@ -29,4 +29,19 @@ window.Echo = new Echo({
     }),
 });
 
+// Tag this browser's own requests with its socket id so `->toOthers()`
+// broadcasts skip it - otherwise the mover's board reloads itself mid-
+// redirect. Echo would normally add this itself, but only if a global
+// `axios` exists when it's constructed, and bootstrap.ts's hoisted
+// `import './echo'` runs before `window.axios` is assigned.
+axios.interceptors.request.use((config) => {
+    const socketId = window.Echo.socketId();
+
+    if (socketId) {
+        config.headers['X-Socket-Id'] = socketId;
+    }
+
+    return config;
+});
+
 export default window.Echo;

@@ -1,7 +1,7 @@
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { PageProps } from "@/types";
-import { Head, Link } from "@inertiajs/react";
-import { ReactNode } from "react";
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PageProps } from '@/types';
+import { Head, Link } from '@inertiajs/react';
+import { ReactNode } from 'react';
 
 interface Counts {
     work_in_progress: number;
@@ -34,7 +34,7 @@ interface PipelineStage {
 }
 
 interface AttentionItem {
-    kind: "ready_to_invoice" | "sync_error" | "stale_quote";
+    kind: 'ready_to_invoice' | 'sync_error' | 'stale_quote';
     title: string;
     subtitle: string | null;
     amount: number | null;
@@ -50,26 +50,26 @@ interface ActivityEntry {
     created_at: string;
 }
 
-const currency = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+const currency = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     maximumFractionDigits: 0,
 });
 
-const attentionStyles: Record<AttentionItem["kind"], string> = {
-    sync_error: "bg-red-500",
-    ready_to_invoice: "bg-green-500",
-    stale_quote: "bg-yellow-400",
+const attentionStyles: Record<AttentionItem['kind'], string> = {
+    sync_error: 'bg-red-500',
+    ready_to_invoice: 'bg-green-500',
+    stale_quote: 'bg-yellow-400',
 };
 
 function timeAgo(iso: string): string {
     const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
     const units: [Intl.RelativeTimeFormatUnit, number][] = [
-        ["day", 86400],
-        ["hour", 3600],
-        ["minute", 60],
+        ['day', 86400],
+        ['hour', 3600],
+        ['minute', 60],
     ];
-    const format = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+    const format = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
     for (const [unit, size] of units) {
         if (seconds >= size) {
@@ -77,7 +77,7 @@ function timeAgo(iso: string): string {
         }
     }
 
-    return "just now";
+    return 'just now';
 }
 
 function Panel({
@@ -131,14 +131,14 @@ function monthOverMonth(current: number, previous: number): ReactNode {
     }
 
     const change = Math.round(((current - previous) / previous) * 100);
-    const colour = change >= 0 ? "text-green-600" : "text-red-600";
+    const colour = change >= 0 ? 'text-green-600' : 'text-red-600';
 
     return (
         <>
             <span className={colour}>
-                {change >= 0 ? "+" : ""}
+                {change >= 0 ? '+' : ''}
                 {change}%
-            </span>{" "}
+            </span>{' '}
             vs {currency.format(previous)} last month
         </>
     );
@@ -160,18 +160,18 @@ function RevenueChart({ months }: { months: RevenueMonth[] }) {
                         <span className="text-xs text-gray-500">
                             {month.total > 0
                                 ? currency.format(month.total)
-                                : ""}
+                                : ''}
                         </span>
                         <div
-                            className={`w-full rounded-t ${isCurrent ? "bg-indigo-500" : "bg-indigo-200"}`}
+                            className={`w-full rounded-t ${isCurrent ? 'bg-indigo-500' : 'bg-indigo-200'}`}
                             style={{
                                 height: `${(month.total / max) * 100}%`,
-                                minHeight: month.total > 0 ? "4px" : "1px",
+                                minHeight: month.total > 0 ? '4px' : '1px',
                             }}
                             title={`${month.label}: ${currency.format(month.total)}`}
                         />
                         <span
-                            className={`text-xs ${isCurrent ? "font-semibold text-gray-900" : "text-gray-500"}`}
+                            className={`text-xs ${isCurrent ? 'font-semibold text-gray-900' : 'text-gray-500'}`}
                         >
                             {month.label}
                         </span>
@@ -188,11 +188,11 @@ function Pipeline({ stages }: { stages: PipelineStage[] }) {
             {stages.map((stage) => (
                 <Link
                     key={stage.status}
-                    href={route("jobs.index")}
-                    className={`rounded-md p-3 text-center transition hover:ring-2 hover:ring-indigo-200 ${stage.count > 0 ? "bg-indigo-50" : "bg-gray-50"}`}
+                    href={route('jobs.index')}
+                    className={`rounded-md p-3 text-center transition hover:ring-2 hover:ring-indigo-200 ${stage.count > 0 ? 'bg-indigo-50' : 'bg-gray-50'}`}
                 >
                     <p
-                        className={`text-2xl font-semibold ${stage.count > 0 ? "text-indigo-700" : "text-gray-300"}`}
+                        className={`text-2xl font-semibold ${stage.count > 0 ? 'text-indigo-700' : 'text-gray-300'}`}
                     >
                         {stage.count}
                     </p>
@@ -204,7 +204,7 @@ function Pipeline({ stages }: { stages: PipelineStage[] }) {
 }
 
 function plural(count: number, word: string): string {
-    return `${count} ${word}${count === 1 ? "" : "s"}`;
+    return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
 function FinancialKpis({
@@ -223,19 +223,19 @@ function FinancialKpis({
                     financials.invoiced_this_month,
                     financials.invoiced_last_month,
                 )}
-                href={route("jobs.index")}
+                href={route('jobs.index')}
             />
             <KpiCard
                 label="Ready to invoice"
                 value={currency.format(financials.ready_to_invoice)}
-                detail={plural(counts.ready_to_invoice, "shipped job")}
-                href={route("jobs.index")}
+                detail={plural(counts.ready_to_invoice, 'shipped job')}
+                href={route('jobs.index')}
             />
             <KpiCard
                 label="Work in progress"
                 value={currency.format(financials.work_in_progress)}
-                detail={`${plural(counts.work_in_progress, "job")} in the shop`}
-                href={route("jobs.index")}
+                detail={`${plural(counts.work_in_progress, 'job')} in the shop`}
+                href={route('jobs.index')}
             />
             <KpiCard
                 label="Open quotes"
@@ -247,7 +247,7 @@ function FinancialKpis({
                             ` · ${financials.win_rate}% win rate (${financials.win_rate_window_days}d)`}
                     </>
                 }
-                href={route("quotes.index")}
+                href={route('quotes.index')}
             />
         </div>
     );
@@ -260,19 +260,19 @@ function CountKpis({ counts }: { counts: Counts }) {
                 label="In the shop"
                 value={counts.work_in_progress.toString()}
                 detail="Not started through Finishing"
-                href={route("jobs.index")}
+                href={route('jobs.index')}
             />
             <KpiCard
                 label="Shipped, not yet invoiced"
                 value={counts.ready_to_invoice.toString()}
-                detail={plural(counts.ready_to_invoice, "job")}
-                href={route("jobs.index")}
+                detail={plural(counts.ready_to_invoice, 'job')}
+                href={route('jobs.index')}
             />
             <KpiCard
                 label="Open quotes"
                 value={counts.open_quotes.toString()}
                 detail="Sent and awaiting a reply"
-                href={route("quotes.index")}
+                href={route('quotes.index')}
             />
         </div>
     );
@@ -323,7 +323,7 @@ export default function Dashboard({
                             </div>
                         )}
 
-                        <div className={financials ? "" : "lg:col-span-3"}>
+                        <div className={financials ? '' : 'lg:col-span-3'}>
                             <Panel title="Needs attention">
                                 {attention.length === 0 ? (
                                     <p className="text-sm text-gray-500">
@@ -372,7 +372,7 @@ export default function Dashboard({
                         title="Jobs by stage"
                         action={
                             <Link
-                                href={route("jobs.index")}
+                                href={route('jobs.index')}
                                 className="text-sm text-indigo-600 hover:text-indigo-900"
                             >
                                 Open board
@@ -409,7 +409,7 @@ export default function Dashboard({
                                             : {entry.description}
                                             {entry.causer && (
                                                 <span className="text-gray-500">
-                                                    {" "}
+                                                    {' '}
                                                     by {entry.causer}
                                                 </span>
                                             )}

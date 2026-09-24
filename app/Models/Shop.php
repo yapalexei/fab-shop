@@ -21,7 +21,7 @@ class Shop extends Model
 
     protected $fillable = [
         'name', 'owner_id', 'plan_id', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
-        'timezone', 'stale_quote_days', 'win_rate_window_days',
+        'timezone', 'stale_quote_days', 'win_rate_window_days', 'job_board_drag_enabled',
     ];
 
     protected function casts(): array
@@ -32,6 +32,7 @@ class Shop extends Model
             'trial_ended_notified_at' => 'datetime',
             'stale_quote_days' => 'integer',
             'win_rate_window_days' => 'integer',
+            'job_board_drag_enabled' => 'boolean',
         ];
     }
 
@@ -85,6 +86,16 @@ class Shop extends Model
     public function winRateWindowDays(): int
     {
         return $this->win_rate_window_days ?? config('shop.defaults.win_rate_window_days');
+    }
+
+    /**
+     * Whether jobs can be dragged between columns on the board. Off by
+     * default - one stray drag on a shared shop-floor tablet shouldn't move
+     * a job, so it's something a shop opts into.
+     */
+    public function jobBoardDragEnabled(): bool
+    {
+        return $this->job_board_drag_enabled ?? config('shop.defaults.job_board_drag_enabled');
     }
 
     public function onTrial(): bool

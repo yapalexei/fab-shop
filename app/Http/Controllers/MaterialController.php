@@ -2,15 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ShopResource;
+use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreMaterialRequest;
 use App\Http\Requests\UpdateMaterialRequest;
 use App\Models\Material;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class MaterialController extends Controller
+class MaterialController extends Controller implements HasMiddleware
 {
+    use AuthorizesShopResource;
+
+    protected static function shopResource(): ShopResource
+    {
+        return ShopResource::Materials;
+    }
+
     public function index(): Response
     {
         return Inertia::render('Materials/Index', [

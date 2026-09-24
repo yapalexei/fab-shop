@@ -9,9 +9,9 @@ use App\Models\Plan;
 use App\Models\Quote;
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\ShopPermissions;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
@@ -103,9 +103,8 @@ class SeedMultiShopDemo extends DemoSeedCommand
         $shop->members()->attach($owner);
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
-        foreach (['Owner', 'Admin', 'Staff'] as $role) {
-            Role::findOrCreate($role);
-        }
+        // Owner/Admin/Staff for this shop, with Admin/Staff's default grants.
+        ShopPermissions::seedRoles($shop);
         $owner->assignRole('Owner');
 
         $customer = Customer::factory()->for($shop)->create(['name' => $customerName]);

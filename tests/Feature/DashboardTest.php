@@ -2,7 +2,6 @@
 
 use App\Enums\JobStatus;
 use App\Enums\QuoteStatus;
-use App\Enums\ShopPermission;
 use App\Models\Customer;
 use App\Models\Job;
 use App\Models\Quote;
@@ -206,7 +205,7 @@ test('an admin granted financials by role sees the money figures', function () {
     $shop = Shop::factory()->create();
     pricedJob($shop, JobStatus::Invoiced, 1000, now());
     $admin = actingAsShopRole($shop, 'Admin');
-    Role::findOrCreate('Admin')->givePermissionTo(ShopPermission::ViewFinancials->value);
+    Role::findOrCreate('Admin')->givePermissionTo('financials.view');
 
     $this->actingAs($admin)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page->where('financials.invoiced_this_month', 1000));

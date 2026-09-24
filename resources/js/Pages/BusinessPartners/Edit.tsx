@@ -1,5 +1,6 @@
 import BusinessPartnerForm from '@/Components/BusinessPartnerForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
 
@@ -23,6 +24,8 @@ export default function Edit({
     materials: { id: number; name: string; unit: string | null }[];
     services: { id: number; name: string }[];
 }>) {
+    const can = useCan();
+
     return (
         <AuthenticatedLayout
             header={
@@ -44,6 +47,7 @@ export default function Edit({
                                 businessPartner.id,
                             )}
                             method="put"
+                            readOnly={!can('business-partners.update')}
                             initialData={{
                                 name: businessPartner.name,
                                 email: businessPartner.email ?? '',

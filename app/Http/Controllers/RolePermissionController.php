@@ -2,33 +2,35 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ShopPermission;
+use App\Enums\ShopResource;
 use App\Http\Requests\UpdateRolePermissionsRequest;
+use App\Support\ShopPermissions;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
 
 /**
- * Which roles can do what in the current shop. Roles are per shop (Spatie
- * teams), so granting Admin a permission here only affects this shop's
- * Admins. The Owner role isn't editable - it always has everything.
+ * What each role can do in the current shop - owner only. Roles are per
+ * shop (Spatie teams), so these grants only affect this shop. The Owner role
+ * isn't editable: it always has everything.
  */
 class RolePermissionController extends Controller
 {
-    public const EDITABLE_ROLES = ['Admin', 'Staff'];
-
     public function edit(): Response
     {
         return Inertia::render('Permissions/Edit', [
-            'permissions' => self::permissionOptions(),
+            'resources' => self::resourceOptions(),
             'grants' => self::roleGrants(),
+            'defaults' => collect(ShopPermissions::EDITABLE_ROLES)
+                ->mapWithKeys(fn (string $role) => [$role => ShopPermissions::defaultsFor($role)])
+                ->all(),
         ]);
     }
 
     public function update(UpdateRolePermissionsRequest $request): RedirectResponse
     {
-        foreach (self::EDITABLE_ROLES as $roleName) {
+        foreach (ShopPermissions::EDITABLE_ROLES as $roleName) {
             Role::findOrCreate($roleName)->syncPermissions($request->validated("grants.{$roleName}", []));
         }
 
@@ -36,15 +38,24 @@ class RolePermissionController extends Controller
     }
 
     /**
-     * @return array<int, array{value: string, label: string, description: string}>
+     * Resources and their actions, grouped for the permission grids.
+     *
+     * @return array<int, array{value: string, label: string, actions: array<int, array{action: string, permission: string, description: string}>}>
      */
-    public static function permissionOptions(): array
+    public static function resourceOptions(): array
     {
-        return array_map(fn (ShopPermission $permission) => [
-            'value' => $permission->value,
-            'label' => $permission->label(),
-            'description' => $permission->description(),
-        ], ShopPermission::cases());
+        return array_map(fn (ShopResource $resource) => [
+            'value' => $resource->value,
+            'label' => $resource->label(),
+            'actions' => collect($resource->actions())
+                ->map(fn (string $description, string $action) => [
+                    'action' => $action,
+                    'permission' => $resource->permission($action),
+                    'description' => $description,
+                ])
+                ->values()
+                ->all(),
+        ], ShopResource::cases());
     }
 
     /**
@@ -54,7 +65,7 @@ class RolePermissionController extends Controller
      */
     public static function roleGrants(): array
     {
-        return collect(self::EDITABLE_ROLES)
+        return collect(ShopPermissions::EDITABLE_ROLES)
             ->mapWithKeys(fn (string $roleName) => [
                 $roleName => Role::findOrCreate($roleName)->permissions->pluck('name')->values()->all(),
             ])

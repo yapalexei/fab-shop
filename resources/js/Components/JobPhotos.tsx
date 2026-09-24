@@ -1,3 +1,4 @@
+import { useCan } from '@/lib/permissions';
 import { router } from '@inertiajs/react';
 import { useRef } from 'react';
 
@@ -14,6 +15,7 @@ export default function JobPhotos({
     jobId: number;
     photos: JobPhoto[];
 }) {
+    const canEdit = useCan()('jobs.update');
     const fileInput = useRef<HTMLInputElement>(null);
 
     const upload = (files: FileList | null) => {
@@ -44,17 +46,19 @@ export default function JobPhotos({
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                     Photos
                 </h3>
-                <label className="cursor-pointer rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
-                    Upload
-                    <input
-                        ref={fileInput}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => upload(e.target.files)}
-                    />
-                </label>
+                {canEdit && (
+                    <label className="cursor-pointer rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                        Upload
+                        <input
+                            ref={fileInput}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => upload(e.target.files)}
+                        />
+                    </label>
+                )}
             </div>
 
             {photos.length === 0 ? (
@@ -70,13 +74,15 @@ export default function JobPhotos({
                                     className="aspect-square w-full rounded-md object-cover"
                                 />
                             </a>
-                            <button
-                                type="button"
-                                onClick={() => destroy(photo.id)}
-                                className="absolute right-1 top-1 hidden rounded-full bg-white/90 px-1.5 text-xs text-red-600 shadow group-hover:block"
-                            >
-                                &times;
-                            </button>
+                            {canEdit && (
+                                <button
+                                    type="button"
+                                    onClick={() => destroy(photo.id)}
+                                    className="absolute right-1 top-1 hidden rounded-full bg-white/90 px-1.5 text-xs text-red-600 shadow group-hover:block"
+                                >
+                                    &times;
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>

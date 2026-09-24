@@ -8,6 +8,7 @@ import QuoteForm, {
 } from '@/Components/QuoteForm';
 import QuoteWorkflowPanel from '@/Components/QuoteWorkflowPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
 
@@ -38,6 +39,8 @@ export default function Edit({
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
 }>) {
+    const can = useCan();
+
     return (
         <AuthenticatedLayout
             header={
@@ -67,6 +70,7 @@ export default function Edit({
                             markupDefaults={markupDefaults}
                             submitUrl={route('quotes.update', quote.id)}
                             method="put"
+                            readOnly={!can('quotes.update')}
                             initialData={{
                                 customer_id: quote.customer_id,
                                 notes: quote.notes ?? '',

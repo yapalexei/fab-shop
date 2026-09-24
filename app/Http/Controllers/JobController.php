@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\JobStatus;
 use App\Models\Job;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,6 +19,9 @@ class JobController extends Controller
                 ->latest()
                 ->get()
                 ->map(fn (Job $job) => $this->jobSummary($job)),
+            // Drag-and-drop is a shop setting (off by default); moving still
+            // needs jobs.update, and every drop is confirmed before it's sent.
+            'dragEnabled' => Auth::user()->currentShop->jobBoardDragEnabled() && Gate::allows('jobs.update'),
             'statuses' => collect(JobStatus::cases())->map(fn (JobStatus $status) => [
                 'value' => $status->value,
                 'label' => $status->label(),
@@ -85,7 +90,13 @@ class JobController extends Controller
     {
         $forwardOrder = $job->status->order() + 1;
 
+        // Only offer what this user may actually do - the server enforces
+        // the same split in JobStatusController.
+        $canMove = Gate::allows('jobs.update');
+        $canCancel = Gate::allows('jobs.cancel');
+
         return collect($job->availableTransitions())
+            ->filter(fn (JobStatus $status) => $status === JobStatus::Cancelled ? $canCancel : $canMove)
             ->map(fn (JobStatus $status) => [
                 'value' => $status->value,
                 'label' => $status->label(),

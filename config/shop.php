@@ -26,6 +26,10 @@ return [
 
         // Dashboard: how far back the quote win rate looks.
         'win_rate_window_days' => (int) env('SHOP_DEFAULT_WIN_RATE_WINDOW_DAYS', 90),
+
+        // Job board: allow dragging cards between columns (every move still
+        // asks for confirmation). Off unless a shop turns it on.
+        'job_board_drag_enabled' => (bool) env('SHOP_DEFAULT_JOB_BOARD_DRAG_ENABLED', false),
     ],
 
 ];

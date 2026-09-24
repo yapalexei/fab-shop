@@ -2,15 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ShopResource;
+use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreEquipmentRequest;
 use App\Http\Requests\UpdateEquipmentRequest;
 use App\Models\Equipment;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class EquipmentController extends Controller
+class EquipmentController extends Controller implements HasMiddleware
 {
+    use AuthorizesShopResource;
+
+    protected static function shopResource(): ShopResource
+    {
+        return ShopResource::Equipment;
+    }
+
     public function index(): Response
     {
         return Inertia::render('Equipment/Index', [

@@ -1,5 +1,6 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 
@@ -23,6 +24,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
+    const can = useCan();
     const destroy = (quote: QuoteRow) => {
         if (confirm(`Delete this quote for ${quote.customer}?`)) {
             router.delete(route('quotes.destroy', quote.id));
@@ -41,11 +43,13 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="flex justify-end">
-                        <Link href={route('quotes.create')}>
-                            <PrimaryButton>New quote</PrimaryButton>
-                        </Link>
-                    </div>
+                    {can('quotes.create') && (
+                        <div className="flex justify-end">
+                            <Link href={route('quotes.create')}>
+                                <PrimaryButton>New quote</PrimaryButton>
+                            </Link>
+                        </div>
+                    )}
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {quotes.length === 0 ? (
@@ -92,16 +96,20 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
                                                     )}
                                                     className="text-indigo-600 hover:text-indigo-900"
                                                 >
-                                                    Edit
+                                                    {can('quotes.update')
+                                                        ? 'Edit'
+                                                        : 'View'}
                                                 </Link>
-                                                <button
-                                                    onClick={() =>
-                                                        destroy(quote)
-                                                    }
-                                                    className="ms-4 text-red-600 hover:text-red-900"
-                                                >
-                                                    Delete
-                                                </button>
+                                                {can('quotes.delete') && (
+                                                    <button
+                                                        onClick={() =>
+                                                            destroy(quote)
+                                                        }
+                                                        className="ms-4 text-red-600 hover:text-red-900"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

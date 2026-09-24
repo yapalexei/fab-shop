@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\JobStatus;
 use App\Enums\QuoteStatus;
-use App\Enums\ShopPermission;
 use App\Models\Job;
 use App\Models\Quote;
 use App\Models\Shop;
@@ -23,7 +22,7 @@ class DashboardController extends Controller
     public function __invoke(): Response
     {
         $shop = Auth::user()->currentShop;
-        $canSeeFinancials = Gate::allows(ShopPermission::ViewFinancials->value);
+        $canSeeFinancials = Gate::allows('financials.view');
 
         // Totals are derived from quote line items rather than stored, so
         // aggregation happens here in PHP - fine at the 1-8 person shop

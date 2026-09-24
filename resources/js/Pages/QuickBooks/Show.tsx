@@ -2,6 +2,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useShopDateTime } from '@/lib/datetime';
+import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
 
@@ -14,6 +15,7 @@ export default function Show({
     connection,
 }: PageProps<{ connection: Connection | null }>) {
     const formatDateTime = useShopDateTime();
+    const can = useCan();
 
     const disconnect = () => {
         if (
@@ -52,30 +54,38 @@ export default function Show({
                                 </div>
                                 <p className="text-sm text-gray-600">
                                     Connected{' '}
-                                    {formatDateTime(connection.connected_at)}
-                                    . Jobs automatically push an invoice to
+                                    {formatDateTime(connection.connected_at)}.
+                                    Jobs automatically push an invoice to
                                     QuickBooks when they're marked Invoiced,
-                                    reusing a matching customer if one
-                                    already exists there instead of creating
-                                    a duplicate.
+                                    reusing a matching customer if one already
+                                    exists there instead of creating a
+                                    duplicate.
                                 </p>
-                                <SecondaryButton onClick={disconnect}>
-                                    Disconnect
-                                </SecondaryButton>
+                                {can('quickbooks.delete') && (
+                                    <SecondaryButton onClick={disconnect}>
+                                        Disconnect
+                                    </SecondaryButton>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-4">
                                 <p className="text-sm text-gray-600">
-                                    Connect QuickBooks Online to
-                                    automatically push an invoice when a job
-                                    is marked Invoiced - customers are
-                                    matched by email instead of duplicated.
+                                    Connect QuickBooks Online to automatically
+                                    push an invoice when a job is marked
+                                    Invoiced - customers are matched by email
+                                    instead of duplicated.
                                 </p>
-                                <a href={route('quickbooks.connect')}>
-                                    <PrimaryButton>
-                                        Connect QuickBooks
-                                    </PrimaryButton>
-                                </a>
+                                {can('quickbooks.update') ? (
+                                    <a href={route('quickbooks.connect')}>
+                                        <PrimaryButton>
+                                            Connect QuickBooks
+                                        </PrimaryButton>
+                                    </a>
+                                ) : (
+                                    <p className="text-sm text-gray-500">
+                                        Ask the shop owner to connect it.
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>

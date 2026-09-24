@@ -11,20 +11,19 @@ export type PageProps<
 > = T & {
     auth: {
         user: User;
-        can: {
-            manageShop: boolean;
-            viewFinancials: boolean;
-            manageShopSettings: boolean;
-        } | null;
+        permissions: string[];
+        isOwner: boolean;
     };
     shop: {
         id: number;
         name: string;
         timezone: string;
+        job_board_drag_enabled: boolean;
     } | null;
     enabledFeatures: string[];
     availableShops: { id: number; name: string }[];
     flash: {
         status: string | null;
+        error: string | null;
     };
 };

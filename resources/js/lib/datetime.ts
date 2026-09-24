@@ -1,6 +1,6 @@
-import { PageProps } from "@/types";
-import { usePage } from "@inertiajs/react";
-import { useMemo } from "react";
+import { PageProps } from '@/types';
+import { usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
 
 /**
  * Timestamps arrive from the server in UTC. Show them on the *shop's* wall
@@ -10,15 +10,15 @@ import { useMemo } from "react";
  */
 export function useShopDateTime(
     options: Intl.DateTimeFormatOptions = {
-        dateStyle: "medium",
-        timeStyle: "short",
+        dateStyle: 'medium',
+        timeStyle: 'short',
     },
 ) {
     const timeZone = usePage<PageProps>().props.shop?.timezone;
     const key = JSON.stringify(options);
 
     return useMemo(() => {
-        const formatter = new Intl.DateTimeFormat("en-US", {
+        const formatter = new Intl.DateTimeFormat('en-US', {
             ...options,
             timeZone,
         });

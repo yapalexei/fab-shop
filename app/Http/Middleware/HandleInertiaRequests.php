@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\ShopPermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
@@ -37,16 +36,16 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                'can' => $request->user() ? [
-                    'manageShop' => Gate::allows('manage-shop'),
-                    'viewFinancials' => Gate::allows(ShopPermission::ViewFinancials->value),
-                    'manageShopSettings' => Gate::allows(ShopPermission::ManageShopSettings->value),
-                ] : null,
+                // Effective shop permissions ("quotes.delete", ...) so the UI
+                // can hide what the server would refuse anyway.
+                'permissions' => $request->user()?->shopPermissions() ?? [],
+                'isOwner' => $request->user() ? Gate::allows('manage-shop') : false,
             ],
             'shop' => $shop ? [
                 'id' => $shop->id,
                 'name' => $shop->name,
                 'timezone' => $shop->localTimezone(),
+                'job_board_drag_enabled' => $shop->jobBoardDragEnabled(),
             ] : null,
             'enabledFeatures' => $shop
                 ? $shop->enabledFeatures()->map(fn ($feature) => $feature->value)->values()
@@ -56,6 +55,7 @@ class HandleInertiaRequests extends Middleware
                 : [],
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
+                'error' => fn () => $request->session()->get('error'),
             ],
         ];
     }

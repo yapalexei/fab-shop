@@ -1,149 +1,224 @@
 <?php
 
-use App\Enums\ShopPermission;
+use App\Enums\JobStatus;
+use App\Models\Customer;
+use App\Models\Material;
+use App\Models\Quote;
 use App\Models\Shop;
+use App\Models\User;
+use App\Support\ShopPermissions;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
-function grantToRole(Shop $shop, string $role, ShopPermission $permission): void
+/**
+ * @param  array<string, bool|null>  $overrides
+ * @return array<int, array{permission: string, value: bool|null}>
+ */
+function overridePayload(array $overrides): array
 {
-    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
-    Role::findOrCreate($role)->givePermissionTo($permission->value);
+    return collect($overrides)->map(fn ($value, $permission) => ['permission' => $permission, 'value' => $value])->values()->all();
 }
 
-test('the owner always has every permission and admin/staff start with none', function () {
-    $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $admin = actingAsShopRole($shop, 'Admin');
-    $staff = actingAsShopRole($shop, 'Staff');
+function roleIn(Shop $shop, string $role): Role
+{
+    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
 
-    foreach (ShopPermission::cases() as $permission) {
-        expect($owner->hasShopPermission($permission))->toBeTrue()
-            ->and($admin->hasShopPermission($permission))->toBeFalse()
-            ->and($staff->hasShopPermission($permission))->toBeFalse();
-    }
+    return Role::findOrCreate($role);
+}
+
+function asCurrentShop(User $user, Shop $shop): User
+{
+    $user->current_shop_id = $shop->id;
+    $user->save();
+    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
+
+    return $user->fresh();
+}
+
+// --- Resolution ----------------------------------------------------------
+
+test('the owner holds every permission; admin and staff start from their role defaults', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $admin = actingAsShopMember($shop, 'Admin');
+    $staff = actingAsShopMember($shop, 'Staff');
+
+    expect($owner->shopPermissions())->toEqualCanonicalizing(ShopPermissions::all())
+        ->and($admin->hasShopPermission('quotes.delete'))->toBeTrue()
+        ->and($admin->hasShopPermission('team.manage-access'))->toBeTrue()
+        ->and($admin->hasShopPermission('financials.view'))->toBeFalse()
+        ->and($admin->hasShopPermission('quickbooks.delete'))->toBeFalse()
+        ->and($staff->hasShopPermission('quotes.create'))->toBeTrue()
+        ->and($staff->hasShopPermission('jobs.update'))->toBeTrue()
+        ->and($staff->hasShopPermission('quotes.delete'))->toBeFalse()
+        ->and($staff->hasShopPermission('jobs.cancel'))->toBeFalse()
+        ->and($staff->hasShopPermission('materials.create'))->toBeFalse();
 });
 
-test('the owner can grant a permission to a role', function () {
+test('the owner can change what a role is granted', function () {
     $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $admin = actingAsShopRole($shop, 'Admin');
+    $owner = actingAsShopMember($shop, 'Owner');
+    $staff = actingAsShopMember($shop, 'Staff');
 
     $this->actingAs($owner)->put(route('shop.permissions.update'), [
-        'grants' => ['Admin' => ['view-financials'], 'Staff' => []],
-    ])->assertRedirect();
+        'grants' => ['Admin' => ShopPermissions::defaultsFor('Admin'), 'Staff' => ['jobs.view', 'jobs.cancel']],
+    ])->assertRedirect()->assertSessionHasNoErrors();
 
-    expect($admin->fresh()->hasShopPermission(ShopPermission::ViewFinancials))->toBeTrue();
+    $fresh = $staff->fresh();
+    expect($fresh->hasShopPermission('jobs.cancel'))->toBeTrue()
+        ->and($fresh->hasShopPermission('quotes.create'))->toBeFalse();
 });
 
-test('role permissions set in one shop do not leak into another shop', function () {
+test('role grants in one shop never leak into another', function () {
     $shopA = Shop::factory()->create();
     $shopB = Shop::factory()->create();
-    $user = actingAsShopRole($shopA, 'Admin');
+    $user = actingAsShopMember($shopA, 'Staff');
     $shopB->members()->attach($user);
-    app(PermissionRegistrar::class)->setPermissionsTeamId($shopB->id);
-    $user->assignRole(Role::findOrCreate('Admin'));
+    ShopPermissions::seedRoles($shopB);
+    roleIn($shopB, 'Staff');
+    $user->assignRole('Staff');
 
-    grantToRole($shopA, 'Admin', ShopPermission::ViewFinancials);
+    roleIn($shopA, 'Staff')->givePermissionTo('quotes.delete');
 
-    app(PermissionRegistrar::class)->setPermissionsTeamId($shopA->id);
-    expect($user->fresh()->hasShopPermission(ShopPermission::ViewFinancials))->toBeTrue();
-
-    $user->current_shop_id = $shopB->id;
-    $user->save();
-    app(PermissionRegistrar::class)->setPermissionsTeamId($shopB->id);
-    expect($user->fresh()->hasShopPermission(ShopPermission::ViewFinancials))->toBeFalse();
+    expect(asCurrentShop($user, $shopA)->hasShopPermission('quotes.delete'))->toBeTrue()
+        ->and(asCurrentShop($user, $shopB)->hasShopPermission('quotes.delete'))->toBeFalse();
 });
 
-test('a member override can allow what the role does not have', function () {
+test('a member override can allow what the role lacks, and deny what it grants', function () {
     $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $staff = actingAsShopRole($shop, 'Staff');
+    $owner = actingAsShopMember($shop, 'Owner');
+    $staff = actingAsShopMember($shop, 'Staff');
 
     $this->actingAs($owner)->put(route('team.access.update', $staff), [
         'role' => 'Staff',
-        'overrides' => ['view-financials' => true, 'manage-shop-settings' => null],
-    ])->assertRedirect(route('team.access.edit', $staff));
+        'overrides' => overridePayload(['financials.view' => true, 'quotes.create' => false, 'jobs.update' => null]),
+    ])->assertRedirect(route('team.access.edit', $staff))->assertSessionHasNoErrors();
 
     $fresh = $staff->fresh();
-    expect($fresh->hasShopPermission(ShopPermission::ViewFinancials))->toBeTrue()
-        ->and($fresh->hasShopPermission(ShopPermission::ManageShopSettings))->toBeFalse()
-        ->and($shop->members()->find($staff->id)->pivot->permission_overrides)->toBe(['view-financials' => true]);
-});
-
-test('a member override can deny what the role grants', function () {
-    $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $admin = actingAsShopRole($shop, 'Admin');
-    grantToRole($shop, 'Admin', ShopPermission::ViewFinancials);
-
-    $this->actingAs($owner)->put(route('team.access.update', $admin), [
-        'role' => 'Admin',
-        'overrides' => ['view-financials' => false],
-    ]);
-
-    expect($admin->fresh()->hasShopPermission(ShopPermission::ViewFinancials))->toBeFalse();
+    expect($fresh->hasShopPermission('financials.view'))->toBeTrue()
+        ->and($fresh->hasShopPermission('quotes.create'))->toBeFalse()
+        ->and($fresh->hasShopPermission('jobs.update'))->toBeTrue()
+        ->and($shop->members()->find($staff->id)->pivot->permission_overrides)
+        ->toEqual(['financials.view' => true, 'quotes.create' => false]);
 });
 
 test('a member override in one shop does not apply in another shop they belong to', function () {
     $shopA = Shop::factory()->create();
     $shopB = Shop::factory()->create();
-    $ownerA = actingAsShopRole($shopA, 'Owner');
-    $user = actingAsShopRole($shopA, 'Staff');
+    $ownerA = actingAsShopMember($shopA, 'Owner');
+    $user = actingAsShopMember($shopA, 'Staff');
     $shopB->members()->attach($user);
+    ShopPermissions::seedRoles($shopB);
+    roleIn($shopB, 'Staff');
+    $user->assignRole('Staff');
 
     $this->actingAs($ownerA)->put(route('team.access.update', $user), [
         'role' => 'Staff',
-        'overrides' => ['view-financials' => true],
+        'overrides' => overridePayload(['financials.view' => true]),
     ]);
 
-    $user->current_shop_id = $shopB->id;
-    $user->save();
-    app(PermissionRegistrar::class)->setPermissionsTeamId($shopB->id);
-
-    expect($user->fresh()->hasShopPermission(ShopPermission::ViewFinancials))->toBeFalse();
+    expect(asCurrentShop($user, $shopB)->hasShopPermission('financials.view'))->toBeFalse();
 });
 
-test('the owner can change a member\'s role', function () {
+test('any action on a resource implies being able to see it', function () {
     $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $staff = actingAsShopRole($shop, 'Staff');
+    roleIn($shop, 'Staff');
+    $staff = actingAsShopMember($shop, 'Staff');
+    roleIn($shop, 'Staff')->revokePermissionTo('materials.view');
+    $shop->members()->updateExistingPivot($staff->id, ['permission_overrides' => ['materials.update' => true]]);
 
-    $this->actingAs($owner)->put(route('team.access.update', $staff), [
-        'role' => 'Admin',
-        'overrides' => [],
-    ]);
+    expect($staff->fresh()->hasShopPermission('materials.view'))->toBeTrue();
+});
 
-    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
+// --- Who can change access -----------------------------------------------
+
+test('the owner can change a member\'s role, but nobody becomes a second owner', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $staff = actingAsShopMember($shop, 'Staff');
+
+    $this->actingAs($owner)->put(route('team.access.update', $staff), ['role' => 'Admin', 'overrides' => []])
+        ->assertSessionHasNoErrors();
+    roleIn($shop, 'Admin');
     expect($staff->fresh()->getRoleNames()->all())->toBe(['Admin']);
-});
-
-test('nobody can be made a second owner, and the owner\'s own access cannot be edited', function () {
-    $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $staff = actingAsShopRole($shop, 'Staff');
 
     $this->actingAs($owner)->put(route('team.access.update', $staff), ['role' => 'Owner', 'overrides' => []])
         ->assertSessionHasErrors('role');
-
-    $this->actingAs($owner)->get(route('team.access.edit', $owner))->assertForbidden();
 });
 
-test('only the owner can manage permissions - not even an admin trusted with shop settings', function () {
+test('nobody can edit the owner\'s access or their own', function () {
     $shop = Shop::factory()->create();
-    $admin = actingAsShopRole($shop, 'Admin');
-    $staff = actingAsShopRole($shop, 'Staff');
-    grantToRole($shop, 'Admin', ShopPermission::ManageShopSettings);
+    $owner = actingAsShopMember($shop, 'Owner');
+    $admin = actingAsShopMember($shop, 'Admin');
 
+    $this->actingAs($admin)->get(route('team.access.edit', $owner))->assertForbidden();
+    $this->actingAs($admin)->get(route('team.access.edit', $admin))->assertForbidden();
+});
+
+test('an admin can adjust a staff member\'s access within their own permissions', function () {
+    $shop = Shop::factory()->create();
+    $admin = actingAsShopMember($shop, 'Admin');
+    $staff = actingAsShopMember($shop, 'Staff');
+
+    $this->actingAs($admin)->put(route('team.access.update', $staff), [
+        'role' => 'Staff',
+        'overrides' => overridePayload(['quotes.delete' => true, 'quotes.create' => false]),
+    ])->assertSessionHasNoErrors();
+
+    expect($staff->fresh()->hasShopPermission('quotes.delete'))->toBeTrue();
+});
+
+test('an admin cannot give a staff member access they do not have themselves', function () {
+    $shop = Shop::factory()->create();
+    $admin = actingAsShopMember($shop, 'Admin');
+    $staff = actingAsShopMember($shop, 'Staff');
+
+    $this->actingAs($admin)->put(route('team.access.update', $staff), [
+        'role' => 'Staff',
+        'overrides' => overridePayload(['financials.view' => true]),
+    ])->assertSessionHasErrors('overrides.0.value');
+
+    expect($staff->fresh()->hasShopPermission('financials.view'))->toBeFalse();
+});
+
+test('an admin can re-save a member whose owner-granted access exceeds their own', function () {
+    $shop = Shop::factory()->create();
+    $admin = actingAsShopMember($shop, 'Admin');
+    $staff = actingAsShopMember($shop, 'Staff');
+    $shop->members()->updateExistingPivot($staff->id, ['permission_overrides' => ['financials.view' => true]]);
+
+    $this->actingAs($admin)->put(route('team.access.update', $staff), [
+        'role' => 'Staff',
+        'overrides' => overridePayload(['financials.view' => true, 'quotes.create' => false]),
+    ])->assertSessionHasNoErrors();
+});
+
+test('an admin cannot change roles or touch another admin\'s access', function () {
+    $shop = Shop::factory()->create();
+    $admin = actingAsShopMember($shop, 'Admin');
+    $otherAdmin = actingAsShopMember($shop, 'Admin');
+    $staff = actingAsShopMember($shop, 'Staff');
+
+    $this->actingAs($admin)->put(route('team.access.update', $staff), ['role' => 'Admin', 'overrides' => []])
+        ->assertSessionHasErrors('role');
+    $this->actingAs($admin)->get(route('team.access.edit', $otherAdmin))->assertForbidden();
+});
+
+test('staff cannot change anyone\'s access, and only the owner edits role defaults', function () {
+    $shop = Shop::factory()->create();
+    $admin = actingAsShopMember($shop, 'Admin');
+    $staff = actingAsShopMember($shop, 'Staff');
+    $otherStaff = actingAsShopMember($shop, 'Staff');
+
+    $this->actingAs($staff)->get(route('team.access.edit', $otherStaff))->assertForbidden();
     $this->actingAs($admin)->get(route('shop.permissions.edit'))->assertForbidden();
-    $this->actingAs($admin)->put(route('shop.permissions.update'), ['grants' => ['Admin' => ['view-financials']]])->assertForbidden();
-    $this->actingAs($admin)->put(route('team.access.update', $staff), ['role' => 'Admin', 'overrides' => []])->assertForbidden();
+    $this->actingAs($admin)->put(route('shop.permissions.update'), ['grants' => ['Admin' => ['financials.view']]])->assertForbidden();
 });
 
-test('the owner cannot edit access for someone outside their current shop', function () {
+test('access cannot be edited for someone outside the current shop', function () {
     $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $outsider = actingAsShopRole(Shop::factory()->create(), 'Staff');
+    $owner = actingAsShopMember($shop, 'Owner');
+    $outsider = actingAsShopMember(Shop::factory()->create(), 'Staff');
 
     $this->actingAs($owner)->get(route('team.access.edit', $outsider))->assertNotFound();
     $this->actingAs($owner)->put(route('team.access.update', $outsider), ['role' => 'Admin', 'overrides' => []])->assertNotFound();
@@ -151,20 +226,110 @@ test('the owner cannot edit access for someone outside their current shop', func
 
 test('unknown permission names are rejected', function () {
     $shop = Shop::factory()->create();
-    $owner = actingAsShopRole($shop, 'Owner');
-    $staff = actingAsShopRole($shop, 'Staff');
+    $owner = actingAsShopMember($shop, 'Owner');
+    $staff = actingAsShopMember($shop, 'Staff');
 
     $this->actingAs($owner)->put(route('shop.permissions.update'), ['grants' => ['Staff' => ['delete-everything']]])
         ->assertSessionHasErrors('grants.Staff.0');
-    $this->actingAs($owner)->put(route('team.access.update', $staff), ['role' => 'Staff', 'overrides' => ['delete-everything' => true]])
-        ->assertSessionHasErrors('overrides');
+    $this->actingAs($owner)->put(route('team.access.update', $staff), [
+        'role' => 'Staff', 'overrides' => overridePayload(['delete-everything' => true]),
+    ])->assertSessionHasErrors('overrides.0.permission');
 });
 
-test('permission flags are shared with every page', function () {
+test('effective permissions are shared with every page', function () {
     $shop = Shop::factory()->create();
-    $staff = actingAsShopRole($shop, 'Staff');
+    $staff = actingAsShopMember($shop, 'Staff');
 
     $this->actingAs($staff)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page
-            ->where('auth.can', ['manageShop' => false, 'viewFinancials' => false, 'manageShopSettings' => false]));
+            ->where('auth.isOwner', false)
+            ->where('auth.permissions', fn ($permissions) => collect($permissions)->sort()->values()->all()
+                === collect(ShopPermissions::defaultsFor('Staff'))->sort()->values()->all()));
+});
+
+// --- Enforcement on real routes ------------------------------------------
+
+test('staff defaults: quote and move jobs, read-only catalog, no deletes or cancellations', function () {
+    $shop = Shop::factory()->create();
+    $staff = actingAsShopMember($shop, 'Staff');
+    $customer = Customer::factory()->for($shop)->create();
+    $material = Material::factory()->for($shop)->create();
+    $job = jobForShop($shop, JobStatus::Cutting);
+
+    $this->actingAs($staff)->get(route('customers.create'))->assertOk();
+    $this->actingAs($staff)->delete(route('customers.destroy', $customer))->assertForbidden();
+
+    $this->actingAs($staff)->get(route('materials.index'))->assertOk();
+    $this->actingAs($staff)->get(route('materials.edit', $material))->assertOk();
+    $this->actingAs($staff)->put(route('materials.update', $material), ['name' => 'X', 'unit' => 'ft'])->assertForbidden();
+    $this->actingAs($staff)->post(route('materials.store'), ['name' => 'X', 'unit' => 'ft'])->assertForbidden();
+
+    $this->actingAs($staff)->patch(route('jobs.status', $job), ['status' => 'fitting'])->assertRedirect();
+    $this->actingAs($staff)->patch(route('jobs.status', $job), ['status' => 'cancelled'])->assertForbidden();
+    expect($job->fresh()->status)->toBe(JobStatus::Fitting);
+
+    $this->actingAs($staff)->get(route('quickbooks.show'))->assertForbidden();
+    $this->actingAs($staff)->get(route('shop.settings.edit'))->assertForbidden();
+});
+
+test('staff are only offered the job moves they are allowed to make', function () {
+    $shop = Shop::factory()->create();
+    $staff = actingAsShopMember($shop, 'Staff');
+    $job = jobForShop($shop, JobStatus::Cutting);
+
+    $this->actingAs($staff)->get(route('jobs.show', $job))
+        ->assertInertia(fn ($page) => $page->where('job.available_transitions', fn ($transitions) => ! collect($transitions)->contains('value', 'cancelled')));
+});
+
+test('converting a won quote into a job needs jobs.create', function () {
+    $shop = Shop::factory()->create();
+    $staff = actingAsShopMember($shop, 'Staff');
+    $quote = Quote::factory()->for($shop)->create([
+        'customer_id' => Customer::factory()->for($shop)->create()->id,
+        'status' => 'won',
+    ]);
+
+    $this->actingAs($staff)->post(route('quotes.convert', $quote))->assertForbidden();
+});
+
+test('a denied view override locks a member out of that section entirely', function () {
+    $shop = Shop::factory()->create();
+    $staff = actingAsShopMember($shop, 'Staff');
+    $shop->members()->updateExistingPivot($staff->id, ['permission_overrides' => ['customers.view' => false, 'customers.create' => false, 'customers.update' => false]]);
+
+    $this->actingAs($staff->fresh())->get(route('customers.index'))->assertForbidden();
+});
+
+test('an admin can connect quickbooks but only the owner can disconnect it by default', function () {
+    $shop = Shop::factory()->create();
+    $admin = actingAsShopMember($shop, 'Admin');
+
+    $this->actingAs($admin)->get(route('quickbooks.show'))->assertOk();
+    $this->actingAs($admin)->delete(route('quickbooks.destroy'))->assertForbidden();
+});
+
+// --- Data integrity on delete --------------------------------------------
+
+test('a customer with quotes cannot be deleted - the reason is shown instead of an error page', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $customer = Customer::factory()->for($shop)->create();
+    Quote::factory()->for($shop)->create(['customer_id' => $customer->id]);
+
+    $this->actingAs($owner)->from(route('customers.index'))->delete(route('customers.destroy', $customer))
+        ->assertRedirect(route('customers.index'))
+        ->assertSessionHas('error');
+
+    expect(Customer::withoutGlobalScopes()->find($customer->id))->not->toBeNull();
+});
+
+test('a quote that became a job cannot be deleted', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $job = jobForShop($shop);
+
+    $this->actingAs($owner)->from(route('quotes.index'))->delete(route('quotes.destroy', $job->quote))
+        ->assertSessionHas('error');
+
+    expect(Quote::withoutGlobalScopes()->find($job->quote_id))->not->toBeNull();
 });

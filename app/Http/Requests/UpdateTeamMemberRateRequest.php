@@ -10,7 +10,7 @@ class UpdateTeamMemberRateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return Gate::allows('manage-shop');
+        return Gate::allows('team.update');
     }
 
     /**

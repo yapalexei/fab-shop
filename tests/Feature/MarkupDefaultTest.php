@@ -35,9 +35,9 @@ test('the owner can set markup defaults for all three types', function () {
         ->and(MarkupDefault::forType(LineItemType::Equipment))->toBe(10.0);
 });
 
-test('a non-owner cannot set markup defaults', function () {
+test('staff cannot set markup defaults', function () {
     $shop = Shop::factory()->create();
-    $user = actingAsShopMember($shop);
+    $user = actingAsShopMember($shop, 'Staff');
 
     $this->actingAs($user)->patch(route('markup-defaults.update'), [
         'defaults' => [

@@ -1,18 +1,19 @@
-import FormErrorSummary from "@/Components/FormErrorSummary";
-import InputError from "@/Components/InputError";
-import InputLabel from "@/Components/InputLabel";
-import PrimaryButton from "@/Components/PrimaryButton";
-import TextInput from "@/Components/TextInput";
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { PageProps } from "@/types";
-import { Head, useForm } from "@inertiajs/react";
-import { FormEventHandler } from "react";
+import FormErrorSummary from '@/Components/FormErrorSummary';
+import InputError from '@/Components/InputError';
+import InputLabel from '@/Components/InputLabel';
+import PrimaryButton from '@/Components/PrimaryButton';
+import TextInput from '@/Components/TextInput';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PageProps } from '@/types';
+import { Head, useForm } from '@inertiajs/react';
+import { FormEventHandler } from 'react';
 
 interface Settings {
     name: string;
     timezone: string | null;
     stale_quote_days: number | null;
     win_rate_window_days: number | null;
+    job_board_drag_enabled: boolean;
 }
 
 interface Defaults {
@@ -50,24 +51,25 @@ export default function Edit({
     // placeholder shows what that default currently is.
     const { data, setData, patch, processing, errors, isDirty } = useForm({
         name: settings.name,
-        timezone: settings.timezone ?? "",
-        stale_quote_days: settings.stale_quote_days?.toString() ?? "",
-        win_rate_window_days: settings.win_rate_window_days?.toString() ?? "",
+        timezone: settings.timezone ?? '',
+        stale_quote_days: settings.stale_quote_days?.toString() ?? '',
+        win_rate_window_days: settings.win_rate_window_days?.toString() ?? '',
+        job_board_drag_enabled: settings.job_board_drag_enabled,
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        patch(route("shop.settings.update"), { preserveScroll: true });
+        patch(route('shop.settings.update'), { preserveScroll: true });
     };
 
     const now = new Date();
     const localTime = (timeZone: string) =>
-        new Intl.DateTimeFormat("en-US", {
+        new Intl.DateTimeFormat('en-US', {
             timeZone,
-            weekday: "short",
-            hour: "numeric",
-            minute: "2-digit",
-            timeZoneName: "short",
+            weekday: 'short',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short',
         }).format(now);
 
     return (
@@ -101,7 +103,7 @@ export default function Edit({
                                     className="mt-1 block w-full"
                                     value={data.name}
                                     onChange={(e) =>
-                                        setData("name", e.target.value)
+                                        setData('name', e.target.value)
                                     }
                                     required
                                 />
@@ -126,7 +128,7 @@ export default function Edit({
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                     value={data.timezone}
                                     onChange={(e) =>
-                                        setData("timezone", e.target.value)
+                                        setData('timezone', e.target.value)
                                     }
                                 >
                                     <option value="">
@@ -134,15 +136,15 @@ export default function Edit({
                                     </option>
                                     {timezones.map((tz) => (
                                         <option key={tz} value={tz}>
-                                            {tz.replaceAll("_", " ")}
+                                            {tz.replaceAll('_', ' ')}
                                         </option>
                                     ))}
                                 </select>
                                 <p className="mt-1 text-xs text-gray-500">
-                                    Right now it's{" "}
+                                    Right now it's{' '}
                                     {localTime(
                                         data.timezone || defaults.timezone,
-                                    )}{" "}
+                                    )}{' '}
                                     in the shop.
                                 </p>
                                 <InputError
@@ -172,7 +174,7 @@ export default function Edit({
                                         value={data.stale_quote_days}
                                         onChange={(e) =>
                                             setData(
-                                                "stale_quote_days",
+                                                'stale_quote_days',
                                                 e.target.value,
                                             )
                                         }
@@ -203,7 +205,7 @@ export default function Edit({
                                         value={data.win_rate_window_days}
                                         onChange={(e) =>
                                             setData(
-                                                "win_rate_window_days",
+                                                'win_rate_window_days',
                                                 e.target.value,
                                             )
                                         }
@@ -217,6 +219,46 @@ export default function Edit({
                                     className="mt-2"
                                 />
                             </div>
+                        </Section>
+
+                        <Section
+                            title="Job board"
+                            description="How jobs move between stations on the board."
+                        >
+                            <label className="flex items-start gap-3">
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={data.job_board_drag_enabled}
+                                    aria-labelledby="drag-label"
+                                    onClick={() =>
+                                        setData(
+                                            'job_board_drag_enabled',
+                                            !data.job_board_drag_enabled,
+                                        )
+                                    }
+                                    className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${data.job_board_drag_enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                                >
+                                    <span
+                                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${data.job_board_drag_enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                    />
+                                </button>
+                                <span>
+                                    <span
+                                        id="drag-label"
+                                        className="block text-sm font-medium text-gray-900"
+                                    >
+                                        Drag-and-drop on the job board
+                                    </span>
+                                    <span className="block text-sm text-gray-500">
+                                        Let people drag a job card to another
+                                        station. Every move - dragged or clicked
+                                        - still asks for confirmation first. Off
+                                        by default so a stray swipe on a shared
+                                        shop-floor tablet can't move a job.
+                                    </span>
+                                </span>
+                            </label>
                         </Section>
 
                         <div className="flex justify-end border-t border-gray-100 pt-6">

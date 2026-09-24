@@ -1,8 +1,8 @@
-import TextInput from "@/Components/TextInput";
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { PageProps } from "@/types";
-import { Head, Link, router } from "@inertiajs/react";
-import { useState } from "react";
+import TextInput from '@/Components/TextInput';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PageProps } from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 interface Member {
     id: number;
@@ -10,6 +10,7 @@ interface Member {
     email: string;
     role: string | null;
     is_owner: boolean;
+    can_edit_access: boolean;
     hourly_rate: number | null;
 }
 
@@ -20,7 +21,7 @@ function RateCell({
     member: Member;
     canManageTeam: boolean;
 }) {
-    const [rate, setRate] = useState(member.hourly_rate?.toString() ?? "");
+    const [rate, setRate] = useState(member.hourly_rate?.toString() ?? '');
     const [saved, setSaved] = useState(false);
 
     if (!canManageTeam) {
@@ -28,15 +29,15 @@ function RateCell({
             <span className="text-sm text-gray-500">
                 {member.hourly_rate !== null
                     ? `$${member.hourly_rate.toFixed(2)}/hr`
-                    : "—"}
+                    : '—'}
             </span>
         );
     }
 
     const save = () => {
         router.patch(
-            route("team.update", member.id),
-            { hourly_rate: rate === "" ? null : rate },
+            route('team.update', member.id),
+            { hourly_rate: rate === '' ? null : rate },
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -72,7 +73,12 @@ function RateCell({
 export default function Index({
     members,
     canManageTeam,
-}: PageProps<{ members: Member[]; canManageTeam: boolean }>) {
+    canManageAccess,
+}: PageProps<{
+    members: Member[];
+    canManageTeam: boolean;
+    canManageAccess: boolean;
+}>) {
     return (
         <AuthenticatedLayout
             header={
@@ -101,7 +107,7 @@ export default function Index({
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                         Hourly rate
                                     </th>
-                                    {canManageTeam && (
+                                    {canManageAccess && (
                                         <th className="px-6 py-3" />
                                     )}
                                 </tr>
@@ -124,23 +130,23 @@ export default function Index({
                                                 canManageTeam={canManageTeam}
                                             />
                                         </td>
-                                        {canManageTeam && (
+                                        {canManageAccess && (
                                             <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
                                                 {member.is_owner ? (
                                                     <span className="text-gray-400">
                                                         Full access
                                                     </span>
-                                                ) : (
+                                                ) : member.can_edit_access ? (
                                                     <Link
                                                         href={route(
-                                                            "team.access.edit",
+                                                            'team.access.edit',
                                                             member.id,
                                                         )}
                                                         className="text-indigo-600 hover:text-indigo-900"
                                                     >
                                                         Role & access
                                                     </Link>
-                                                )}
+                                                ) : null}
                                             </td>
                                         )}
                                     </tr>

@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Enums\ShopPermission;
 use App\Models\User;
+use App\Support\ShopPermissions;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -25,12 +25,13 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
-        // Owner-only: team rates, markup defaults, and who can do what -
-        // never delegable, or an Admin could grant themselves anything.
+        // Owner-only: editing what each *role* can do. Never delegable, or
+        // an Admin could grant their own role anything.
         Gate::define('manage-shop', fn (User $user): bool => $user->hasRole('Owner'));
 
-        foreach (ShopPermission::cases() as $permission) {
-            Gate::define($permission->value, fn (User $user): bool => $user->hasShopPermission($permission));
+        // One ability per shop permission, e.g. Gate::allows('quotes.delete').
+        foreach (ShopPermissions::all() as $permission) {
+            Gate::define($permission, fn (User $user): bool => $user->hasShopPermission($permission));
         }
     }
 }

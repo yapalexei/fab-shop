@@ -5,7 +5,6 @@ namespace App\Console\Commands\Demo;
 use App\Enums\JobStatus;
 use App\Enums\LineItemType;
 use App\Enums\QuoteStatus;
-use App\Enums\ShopPermission;
 use App\Models\BusinessPartner;
 use App\Models\Customer;
 use App\Models\Equipment;
@@ -17,6 +16,7 @@ use App\Models\Quote;
 use App\Models\Service;
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\ShopPermissions;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
@@ -94,6 +94,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             'plan_id' => Plan::where('key', 'pro')->value('id'),
             'trial_ends_at' => null,
             'timezone' => 'America/Los_Angeles',
+            'job_board_drag_enabled' => true,
         ]);
 
         $owner->current_shop_id = $shop->id;
@@ -102,9 +103,8 @@ class SeedTeamJobDemo extends DemoSeedCommand
         $shop->members()->attach($owner);
 
         app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
-        foreach (['Owner', 'Admin', 'Staff'] as $role) {
-            Role::findOrCreate($role);
-        }
+        // Owner/Admin/Staff for this shop, with Admin/Staff's default grants.
+        ShopPermissions::seedRoles($shop);
         $owner->assignRole('Owner');
 
         return $shop;
@@ -130,12 +130,11 @@ class SeedTeamJobDemo extends DemoSeedCommand
         $fitter->assignRole('Staff');
         $admin->assignRole('Admin');
 
-        // Shows delegation off: log in as admin@ to see financials and shop
-        // settings, as welder@/fitter@ (Staff) to see the counts-only dashboard.
-        Role::findOrCreate('Admin')->syncPermissions([
-            ShopPermission::ViewFinancials->value,
-            ShopPermission::ManageShopSettings->value,
-        ]);
+        // Shows delegation off: on top of the Admin defaults, this shop's
+        // owner has also trusted Admins with financials and shop settings.
+        // Log in as admin@ to see those, as welder@/fitter@ (Staff) for the
+        // counts-only dashboard and read-only catalog.
+        Role::findOrCreate('Admin')->givePermissionTo(['financials.view', 'shop-settings.update']);
 
         return [$owner, $welder, $fitter, $admin];
     }

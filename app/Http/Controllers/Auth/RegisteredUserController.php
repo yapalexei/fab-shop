@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\ShopPermissions;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,6 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class RegisteredUserController extends Controller
@@ -76,9 +76,8 @@ class RegisteredUserController extends Controller
 
             app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
 
-            foreach (['Owner', 'Admin', 'Staff'] as $role) {
-                Role::findOrCreate($role);
-            }
+            // Owner/Admin/Staff for this shop, with Admin/Staff's default grants.
+            ShopPermissions::seedRoles($shop);
 
             $user->assignRole('Owner');
 

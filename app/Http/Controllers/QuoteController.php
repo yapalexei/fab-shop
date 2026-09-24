@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\LineItemType;
 use App\Enums\QuoteStatus;
+use App\Enums\ShopResource;
+use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreQuoteRequest;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\Models\Customer;
@@ -13,13 +15,21 @@ use App\Models\Material;
 use App\Models\Quote;
 use App\Models\Service;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class QuoteController extends Controller
+class QuoteController extends Controller implements HasMiddleware
 {
+    use AuthorizesShopResource;
+
+    protected static function shopResource(): ShopResource
+    {
+        return ShopResource::Quotes;
+    }
+
     public function index(): Response
     {
         return Inertia::render('Quotes/Index', [
@@ -103,6 +113,11 @@ class QuoteController extends Controller
 
     public function destroy(Quote $quote): RedirectResponse
     {
+        // A converted quote is the job's price record - archive it instead.
+        if ($quote->job()->exists()) {
+            return back()->with('error', "This quote became job {$quote->job->job_number}, so it can't be deleted. Archive it instead.");
+        }
+
         $quote->delete();
 
         return redirect()->route('quotes.index');

@@ -26,8 +26,8 @@ test('the owner can set a team member\'s hourly rate', function () {
 
 test('a non-owner cannot set a team member\'s hourly rate', function () {
     $shop = Shop::factory()->create();
-    $staffA = actingAsShopMember($shop);
-    $staffB = actingAsShopMember($shop);
+    $staffA = actingAsShopMember($shop, 'Staff');
+    $staffB = actingAsShopMember($shop, 'Staff');
 
     $this->actingAs($staffA)->patch(route('team.update', $staffB), [
         'hourly_rate' => 50,
@@ -56,6 +56,8 @@ test('the team index lists members with their role and rate', function () {
     $owner = $shop->owner;
     $owner->forceFill(['current_shop_id' => $shop->id])->save();
     $shop->members()->updateExistingPivot($owner->id, ['hourly_rate' => 28]);
+    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
+    $owner->assignRole(Role::findOrCreate('Owner'));
 
     $response = $this->actingAs($owner)->get(route('team.index'));
 

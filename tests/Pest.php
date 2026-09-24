@@ -2,6 +2,7 @@
 
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\ShopPermissions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -56,23 +57,27 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function actingAsShopMember(Shop $shop): User
+/**
+ * A member of $shop acting within it, holding $role there. Defaults to
+ * Owner (full access) - tests about restricted access pass 'Admin'/'Staff'.
+ * The shop's roles get their real default grants, same as signup.
+ */
+function actingAsShopMember(Shop $shop, string $role = 'Owner'): User
 {
     $user = User::factory()->create(['current_shop_id' => $shop->id]);
     $shop->members()->attach($user);
+
+    ShopPermissions::seedRoles($shop);
+    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
+    $user->assignRole(Role::findOrCreate($role));
 
     return $user;
 }
 
 /**
- * A shop member holding $role (Owner/Admin/Staff) in that shop.
+ * Alias kept for readability where the role is the point of the test.
  */
 function actingAsShopRole(Shop $shop, string $role): User
 {
-    $user = actingAsShopMember($shop);
-
-    app(PermissionRegistrar::class)->setPermissionsTeamId($shop->id);
-    $user->assignRole(Role::findOrCreate($role));
-
-    return $user;
+    return actingAsShopMember($shop, $role);
 }

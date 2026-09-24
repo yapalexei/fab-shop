@@ -2,15 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ShopResource;
+use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
 use App\Models\Service;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ServiceController extends Controller
+class ServiceController extends Controller implements HasMiddleware
 {
+    use AuthorizesShopResource;
+
+    protected static function shopResource(): ShopResource
+    {
+        return ShopResource::Services;
+    }
+
     public function index(): Response
     {
         return Inertia::render('Services/Index', [

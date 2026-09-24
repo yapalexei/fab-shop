@@ -2,15 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ShopResource;
+use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreCustomerRequest;
 use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Customer;
+use App\Models\Job;
+use App\Models\Quote;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class CustomerController extends Controller
+class CustomerController extends Controller implements HasMiddleware
 {
+    use AuthorizesShopResource;
+
+    protected static function shopResource(): ShopResource
+    {
+        return ShopResource::Customers;
+    }
+
     public function index(): Response
     {
         return Inertia::render('Customers/Index', [
@@ -48,6 +60,12 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer): RedirectResponse
     {
+        // Quotes and jobs keep a hard reference to their customer (the
+        // database refuses the delete) - say why, rather than a 500.
+        if (Quote::where('customer_id', $customer->id)->exists() || Job::where('customer_id', $customer->id)->exists()) {
+            return back()->with('error', "{$customer->name} has quotes or jobs, so they can't be deleted - their history would be lost.");
+        }
+
         $customer->delete();
 
         return redirect()->route('customers.index');

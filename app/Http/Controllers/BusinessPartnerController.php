@@ -2,18 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ShopResource;
+use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreBusinessPartnerRequest;
 use App\Http\Requests\UpdateBusinessPartnerRequest;
 use App\Models\BusinessPartner;
 use App\Models\Material;
 use App\Models\Service;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class BusinessPartnerController extends Controller
+class BusinessPartnerController extends Controller implements HasMiddleware
 {
+    use AuthorizesShopResource;
+
+    protected static function shopResource(): ShopResource
+    {
+        return ShopResource::BusinessPartners;
+    }
+
     public function index(): Response
     {
         return Inertia::render('BusinessPartners/Index', [
