@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\User;
@@ -41,5 +42,11 @@ class DatabaseSeeder extends Seeder
             Role::findOrCreate($role);
         }
         $user->assignRole('Owner');
+
+        Customer::factory()->for($shop)->create([
+            'name' => 'Riverside Metal Co',
+            'email' => 'orders@riversidemetal.test',
+            'phone' => '555-0100',
+        ]);
     }
 }
