@@ -121,6 +121,12 @@ export default function Authenticated({
                                     active={route().current('business-partners.*')}
                                     label="Business partners"
                                 />
+                                <GatedNavLink
+                                    enabled={quoteBuilderEnabled}
+                                    href={route('equipment.index')}
+                                    active={route().current('equipment.*')}
+                                    label="Equipment"
+                                />
                             </div>
                         </div>
 
@@ -254,6 +260,12 @@ export default function Authenticated({
                             href={route('business-partners.index')}
                             active={route().current('business-partners.*')}
                             label="Business partners"
+                        />
+                        <GatedResponsiveNavLink
+                            enabled={quoteBuilderEnabled}
+                            href={route('equipment.index')}
+                            active={route().current('equipment.*')}
+                            label="Equipment"
                         />
                     </div>
 

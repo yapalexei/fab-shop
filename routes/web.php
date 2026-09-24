@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuoteController;
@@ -45,6 +46,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('feature:quote-builder');
 
     Route::resource('business-partners', BusinessPartnerController::class)
+        ->except('show')
+        ->middleware('feature:quote-builder');
+
+    Route::resource('equipment', EquipmentController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
 });
