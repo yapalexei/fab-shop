@@ -4,6 +4,7 @@ use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\JobController;
+use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
@@ -61,6 +62,13 @@ Route::middleware('auth')->group(function () {
 
     Route::patch('jobs/{job}/status', [JobStatusController::class, 'update'])
         ->name('jobs.status')
+        ->middleware('feature:job-board');
+
+    Route::post('jobs/{job}/photos', [JobPhotoController::class, 'store'])
+        ->name('jobs.photos.store')
+        ->middleware('feature:job-board');
+    Route::delete('jobs/{job}/photos/{media}', [JobPhotoController::class, 'destroy'])
+        ->name('jobs.photos.destroy')
         ->middleware('feature:job-board');
 
     Route::resource('materials', MaterialController::class)

@@ -9,13 +9,17 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Job extends Model
+class Job extends Model implements HasMedia
 {
     /** @use HasFactory<JobFactory> */
-    use BelongsToShop, HasFactory, LogsActivity;
+    use BelongsToShop, HasFactory, InteractsWithMedia, LogsActivity;
 
     protected $table = 'fabrication_jobs';
 
@@ -102,5 +106,33 @@ class Job extends Model
         // (see JobStatusController) - this only grants the `activities()`
         // relation without Eloquent's own generic attribute-diff logging.
         return LogOptions::defaults()->logOnly([])->dontLogEmptyChanges();
+    }
+
+    /**
+     * Progress photos taken on the shop floor - multiple per job, newest
+     * first for display, with a resized thumbnail so the board/detail page
+     * doesn't ship full-resolution phone photos just to show a preview.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('photos');
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        // Generated synchronously (medialibrary queues conversions by
+        // default) - a photo needs its thumbnail to exist by the time the
+        // upload's response reaches the browser, not whenever a queue
+        // worker next runs.
+        $this->addMediaConversion('thumb')
+            ->width(400)
+            ->height(400)
+            ->nonQueued()
+            ->performOnCollections('photos');
+    }
+
+    public function photos(): Collection
+    {
+        return $this->getMedia('photos')->sortByDesc('created_at')->values();
     }
 }

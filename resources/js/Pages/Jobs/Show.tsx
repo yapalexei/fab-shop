@@ -1,3 +1,4 @@
+import JobPhotos, { JobPhoto } from '@/Components/JobPhotos';
 import JobStatusActions, {
     JobTransition,
 } from '@/Components/JobStatusActions';
@@ -30,6 +31,7 @@ interface JobDetail {
     customer: { name: string; email: string | null };
     line_items: JobLineItem[];
     history: HistoryEntry[];
+    photos: JobPhoto[];
 }
 
 const currency = new Intl.NumberFormat('en-US', {
@@ -129,6 +131,8 @@ export default function Show({ job }: PageProps<{ job: JobDetail }>) {
                             </tbody>
                         </table>
                     </div>
+
+                    <JobPhotos jobId={job.id} photos={job.photos} />
 
                     <div className="bg-white p-6 shadow sm:rounded-lg">
                         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">

@@ -53,6 +53,11 @@ class JobController extends Controller
                     'causer' => $activity->causer?->name,
                     'created_at' => $activity->created_at->toIso8601String(),
                 ]),
+                'photos' => $job->photos()->map(fn ($photo) => [
+                    'id' => $photo->id,
+                    'url' => $photo->getUrl(),
+                    'thumb_url' => $photo->getUrl('thumb'),
+                ]),
             ],
         ]);
     }
