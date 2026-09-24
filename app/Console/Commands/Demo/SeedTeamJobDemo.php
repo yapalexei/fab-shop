@@ -25,7 +25,9 @@ use Spatie\Permission\PermissionRegistrar;
  * One shop, a full team, and a full catalog - everything a quote line item
  * can reference (materials + suppliers, services + outsourced partners,
  * equipment, an internal employee with an hourly rate), used on a quote
- * that's already been won and converted to a job mid-progress. Log in as
+ * that's already been won and converted to a job mid-progress - plus a few
+ * months of invoiced work, jobs at other stations and open/stale/lost quotes
+ * so the dashboard has something to show. Log in as
  * any of the printed users to explore the same shop from a different role.
  */
 class SeedTeamJobDemo extends DemoSeedCommand
@@ -66,6 +68,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             $this->createMarkupDefaults($shop);
             $quote = $this->createWonQuote($shop, $customer, $material, $partner, $service, $welder, $equipment);
             $this->createInProgressJob($shop, $quote, $customer);
+            $this->createShopHistory($shop, $material);
 
             $this->printCredentials([
                 ['name' => $owner->name, 'email' => $owner->email, 'role' => 'Owner'],
@@ -75,7 +78,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             ]);
         });
 
-        $this->components->info('Seeded "'.self::SHOP_NAME.'" with a full catalog and an in-progress job.');
+        $this->components->info('Seeded "'.self::SHOP_NAME.'" with a full catalog, an in-progress job, and six months of job/quote history.');
 
         return self::SUCCESS;
     }
@@ -250,5 +253,75 @@ class SeedTeamJobDemo extends DemoSeedCommand
         }
 
         return $job;
+    }
+
+    /**
+     * Back-dated jobs and quotes across other customers, so the dashboard's
+     * revenue trend, stage counts, "needs attention" list and win rate all
+     * have realistic data rather than a single job.
+     */
+    private function createShopHistory(Shop $shop, Material $material): void
+    {
+        $customers = collect(['Ridgeline Ranch Supply', 'Oakmont HOA', 'Delgado Brewing Co.', 'Cascade Stair & Rail'])
+            ->map(fn (string $name) => Customer::factory()->for($shop)->create(['name' => $name]));
+
+        // [customer index, status, sell price, days ago it was sent/invoiced]
+        $jobs = [
+            [0, JobStatus::Invoiced, 4200, 150],
+            [1, JobStatus::Invoiced, 2800, 120],
+            [2, JobStatus::Invoiced, 6100, 95],
+            [3, JobStatus::Invoiced, 3900, 62],
+            [0, JobStatus::Invoiced, 5200, 35],
+            [1, JobStatus::Invoiced, 1850, 20],
+            [2, JobStatus::Invoiced, 2400, 1],
+            [3, JobStatus::Shipped, 3300, 4],
+            [2, JobStatus::Welding, 2750, 9],
+            [1, JobStatus::NotStarted, 1600, 1],
+            [0, JobStatus::Cancelled, 900, 40],
+        ];
+
+        foreach ($jobs as [$customerIndex, $status, $price, $daysAgo]) {
+            $customer = $customers[$customerIndex];
+            $quote = $this->pricedQuote($shop, $customer, $material, QuoteStatus::Won, $price, now()->subDays($daysAgo + 7));
+
+            $job = new Job;
+            $job->forceFill([
+                'shop_id' => $shop->id,
+                'quote_id' => $quote->id,
+                'customer_id' => $customer->id,
+                'job_number' => 'J-'.str_pad((string) (Job::where('shop_id', $shop->id)->count() + 1), 4, '0', STR_PAD_LEFT),
+                'status' => $status,
+                'invoiced_at' => $status === JobStatus::Invoiced ? now()->subDays($daysAgo) : null,
+            ])->save();
+
+            activity()->performedOn($job)->causedBy($shop->owner)
+                ->tap(fn ($activity) => $activity->created_at = now()->subDays($daysAgo))
+                ->log("Status changed to {$status->label()}");
+        }
+
+        // Open (one fresh, one stale enough to flag for follow-up) and lost quotes.
+        $this->pricedQuote($shop, $customers[3], $material, QuoteStatus::Sent, 4800, now()->subDays(2));
+        $this->pricedQuote($shop, $customers[1], $material, QuoteStatus::Sent, 2200, now()->subDays(12));
+        $this->pricedQuote($shop, $customers[0], $material, QuoteStatus::Lost, 3100, now()->subDays(30));
+        $this->pricedQuote($shop, $customers[2], $material, QuoteStatus::Lost, 1400, now()->subDays(50));
+    }
+
+    private function pricedQuote(Shop $shop, Customer $customer, Material $material, QuoteStatus $status, float $price, \DateTimeInterface $sentAt): Quote
+    {
+        $quote = Quote::factory()->for($shop)->create([
+            'customer_id' => $customer->id,
+            'status' => $status,
+            'sent_at' => $sentAt,
+        ]);
+
+        // A single material line priced to land on exactly $price after the
+        // shop's default 25% material markup.
+        $quote->lineItems()->create([
+            'type' => LineItemType::Material, 'description' => 'Fabricated assembly',
+            'quantity' => 1, 'unit_cost' => round($price / 1.25, 2), 'markup_percent' => 25,
+            'material_id' => $material->id, 'sort_order' => 0,
+        ]);
+
+        return $quote;
     }
 }

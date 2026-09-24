@@ -30,7 +30,13 @@ class JobStatusController extends Controller
         }
 
         $from = $job->status;
-        $job->update(['status' => $target]);
+        $job->status = $target;
+
+        if ($target === JobStatus::Invoiced) {
+            $job->invoiced_at = now();
+        }
+
+        $job->save();
 
         $description = $target === JobStatus::Cancelled
             ? 'Job cancelled'.(filled($validated['reason'] ?? null) ? ": {$validated['reason']}" : '')." (was {$from->label()})"
