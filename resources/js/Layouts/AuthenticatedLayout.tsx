@@ -60,6 +60,29 @@ function GatedResponsiveNavLink({
     );
 }
 
+function GatedDropdownLink({
+    enabled,
+    href,
+    label,
+}: {
+    enabled: boolean;
+    href: string;
+    label: string;
+}) {
+    if (enabled) {
+        return <Dropdown.Link href={href}>{label}</Dropdown.Link>;
+    }
+
+    return (
+        <span
+            className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-300"
+            title={`Upgrade your plan to unlock ${label}`}
+        >
+            {label}
+        </span>
+    );
+}
+
 export default function Authenticated({
     header,
     children,
@@ -73,6 +96,61 @@ export default function Authenticated({
     const currentShop = availableShops.find(
         (shop) => shop.id === user.current_shop_id,
     );
+
+    // Shop setup/configuration - touched occasionally, not part of the
+    // daily quote/job workflow, so it lives in its own "Setup" menu instead
+    // of crowding the primary nav.
+    const setupNavItems = [
+        {
+            label: 'Customers',
+            href: route('customers.index'),
+            active: route().current('customers.*'),
+            enabled: customersEnabled,
+        },
+        {
+            label: 'Materials',
+            href: route('materials.index'),
+            active: route().current('materials.*'),
+            enabled: quoteBuilderEnabled,
+        },
+        {
+            label: 'Services',
+            href: route('services.index'),
+            active: route().current('services.*'),
+            enabled: quoteBuilderEnabled,
+        },
+        {
+            label: 'Business partners',
+            href: route('business-partners.index'),
+            active: route().current('business-partners.*'),
+            enabled: quoteBuilderEnabled,
+        },
+        {
+            label: 'Equipment',
+            href: route('equipment.index'),
+            active: route().current('equipment.*'),
+            enabled: quoteBuilderEnabled,
+        },
+        {
+            label: 'Markup',
+            href: route('markup-defaults.index'),
+            active: route().current('markup-defaults.*'),
+            enabled: quoteBuilderEnabled,
+        },
+        {
+            label: 'QuickBooks',
+            href: route('quickbooks.show'),
+            active: route().current('quickbooks.*'),
+            enabled: quickbooksEnabled,
+        },
+        {
+            label: 'Team',
+            href: route('team.index'),
+            active: route().current('team.*'),
+            enabled: true,
+        },
+    ];
+    const setupActive = setupNavItems.some((item) => item.active);
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -97,46 +175,10 @@ export default function Authenticated({
                                     Dashboard
                                 </NavLink>
                                 <GatedNavLink
-                                    enabled={customersEnabled}
-                                    href={route('customers.index')}
-                                    active={route().current('customers.*')}
-                                    label="Customers"
-                                />
-                                <GatedNavLink
                                     enabled={quoteBuilderEnabled}
                                     href={route('quotes.index')}
                                     active={route().current('quotes.*')}
                                     label="Quotes"
-                                />
-                                <GatedNavLink
-                                    enabled={quoteBuilderEnabled}
-                                    href={route('materials.index')}
-                                    active={route().current('materials.*')}
-                                    label="Materials"
-                                />
-                                <GatedNavLink
-                                    enabled={quoteBuilderEnabled}
-                                    href={route('services.index')}
-                                    active={route().current('services.*')}
-                                    label="Services"
-                                />
-                                <GatedNavLink
-                                    enabled={quoteBuilderEnabled}
-                                    href={route('business-partners.index')}
-                                    active={route().current('business-partners.*')}
-                                    label="Business partners"
-                                />
-                                <GatedNavLink
-                                    enabled={quoteBuilderEnabled}
-                                    href={route('equipment.index')}
-                                    active={route().current('equipment.*')}
-                                    label="Equipment"
-                                />
-                                <GatedNavLink
-                                    enabled={quoteBuilderEnabled}
-                                    href={route('markup-defaults.index')}
-                                    active={route().current('markup-defaults.*')}
-                                    label="Markup"
                                 />
                                 <GatedNavLink
                                     enabled={jobBoardEnabled}
@@ -144,18 +186,47 @@ export default function Authenticated({
                                     active={route().current('jobs.*')}
                                     label="Jobs"
                                 />
-                                <GatedNavLink
-                                    enabled={quickbooksEnabled}
-                                    href={route('quickbooks.show')}
-                                    active={route().current('quickbooks.*')}
-                                    label="QuickBooks"
-                                />
-                                <NavLink
-                                    href={route('team.index')}
-                                    active={route().current('team.*')}
-                                >
-                                    Team
-                                </NavLink>
+
+                                <div className="flex items-center">
+                                    <Dropdown>
+                                        <Dropdown.Trigger>
+                                            <button
+                                                type="button"
+                                                className={
+                                                    'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none ' +
+                                                    (setupActive
+                                                        ? 'border-indigo-400 text-gray-900 focus:border-indigo-700'
+                                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700')
+                                                }
+                                            >
+                                                Setup
+                                                <svg
+                                                    className="-me-0.5 ms-1 h-4 w-4"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
+                                                >
+                                                    <path
+                                                        fillRule="evenodd"
+                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                        clipRule="evenodd"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </Dropdown.Trigger>
+
+                                        <Dropdown.Content align="left">
+                                            {setupNavItems.map((item) => (
+                                                <GatedDropdownLink
+                                                    key={item.label}
+                                                    enabled={item.enabled}
+                                                    href={item.href}
+                                                    label={item.label}
+                                                />
+                                            ))}
+                                        </Dropdown.Content>
+                                    </Dropdown>
+                                </div>
                             </div>
                         </div>
 
@@ -314,46 +385,10 @@ export default function Authenticated({
                             Dashboard
                         </ResponsiveNavLink>
                         <GatedResponsiveNavLink
-                            enabled={customersEnabled}
-                            href={route('customers.index')}
-                            active={route().current('customers.*')}
-                            label="Customers"
-                        />
-                        <GatedResponsiveNavLink
                             enabled={quoteBuilderEnabled}
                             href={route('quotes.index')}
                             active={route().current('quotes.*')}
                             label="Quotes"
-                        />
-                        <GatedResponsiveNavLink
-                            enabled={quoteBuilderEnabled}
-                            href={route('materials.index')}
-                            active={route().current('materials.*')}
-                            label="Materials"
-                        />
-                        <GatedResponsiveNavLink
-                            enabled={quoteBuilderEnabled}
-                            href={route('services.index')}
-                            active={route().current('services.*')}
-                            label="Services"
-                        />
-                        <GatedResponsiveNavLink
-                            enabled={quoteBuilderEnabled}
-                            href={route('business-partners.index')}
-                            active={route().current('business-partners.*')}
-                            label="Business partners"
-                        />
-                        <GatedResponsiveNavLink
-                            enabled={quoteBuilderEnabled}
-                            href={route('equipment.index')}
-                            active={route().current('equipment.*')}
-                            label="Equipment"
-                        />
-                        <GatedResponsiveNavLink
-                            enabled={quoteBuilderEnabled}
-                            href={route('markup-defaults.index')}
-                            active={route().current('markup-defaults.*')}
-                            label="Markup"
                         />
                         <GatedResponsiveNavLink
                             enabled={jobBoardEnabled}
@@ -361,18 +396,23 @@ export default function Authenticated({
                             active={route().current('jobs.*')}
                             label="Jobs"
                         />
-                        <GatedResponsiveNavLink
-                            enabled={quickbooksEnabled}
-                            href={route('quickbooks.show')}
-                            active={route().current('quickbooks.*')}
-                            label="QuickBooks"
-                        />
-                        <ResponsiveNavLink
-                            href={route('team.index')}
-                            active={route().current('team.*')}
-                        >
-                            Team
-                        </ResponsiveNavLink>
+                    </div>
+
+                    <div className="border-t border-gray-200 pb-1 pt-4">
+                        <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            Setup
+                        </div>
+                        <div className="mt-1 space-y-1">
+                            {setupNavItems.map((item) => (
+                                <GatedResponsiveNavLink
+                                    key={item.label}
+                                    enabled={item.enabled}
+                                    href={item.href}
+                                    active={item.active}
+                                    label={item.label}
+                                />
+                            ))}
+                        </div>
                     </div>
 
                     {availableShops.length > 1 && (
