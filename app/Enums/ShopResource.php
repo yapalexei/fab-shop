@@ -17,6 +17,7 @@ enum ShopResource: string
     case Services = 'services';
     case BusinessPartners = 'business-partners';
     case Equipment = 'equipment';
+    case Tooling = 'tooling';
     case Markup = 'markup';
     case QuickBooks = 'quickbooks';
     case Team = 'team';
@@ -33,6 +34,7 @@ enum ShopResource: string
             self::Services => 'Services',
             self::BusinessPartners => 'Business partners',
             self::Equipment => 'Equipment',
+            self::Tooling => 'Tooling',
             self::Markup => 'Default markup',
             self::QuickBooks => 'QuickBooks',
             self::Team => 'Team',
@@ -81,6 +83,7 @@ enum ShopResource: string
             self::Services => $catalog('services'),
             self::BusinessPartners => $catalog('business partners'),
             self::Equipment => $catalog('equipment'),
+            self::Tooling => $catalog('tooling'),
             self::Markup => [
                 'view' => 'See default markups',
                 'update' => 'Change default markups for new quote lines',

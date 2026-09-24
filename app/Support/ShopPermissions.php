@@ -4,7 +4,7 @@ namespace App\Support;
 
 use App\Enums\ShopResource;
 use App\Models\Shop;
-use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -54,6 +54,7 @@ final class ShopPermissions
                 ...self::allActions(ShopResource::Services),
                 ...self::allActions(ShopResource::BusinessPartners),
                 ...self::allActions(ShopResource::Equipment),
+                ...self::allActions(ShopResource::Tooling),
                 ...self::allActions(ShopResource::Markup),
                 'quickbooks.view', 'quickbooks.update',
                 ...self::allActions(ShopResource::Team),
@@ -62,7 +63,7 @@ final class ShopPermissions
                 'customers.view', 'customers.create', 'customers.update',
                 'quotes.view', 'quotes.create', 'quotes.update',
                 'jobs.view', 'jobs.update',
-                'materials.view', 'services.view', 'business-partners.view', 'equipment.view',
+                'materials.view', 'services.view', 'business-partners.view', 'equipment.view', 'tooling.view',
                 'markup.view',
                 'team.view',
             ],
@@ -72,18 +73,32 @@ final class ShopPermissions
 
     /**
      * Make sure every permission row exists (permission rows are global -
-     * only their assignment to roles is per shop).
+     * only their assignment to roles is per shop). One query when they
+     * already do.
      */
     public static function ensurePermissionsExist(): void
     {
-        foreach (self::all() as $name) {
-            Permission::findOrCreate($name, 'web');
+        $existing = DB::table('permissions')->where('guard_name', 'web')->pluck('name')->all();
+        $missing = array_diff(self::all(), $existing);
+
+        if ($missing === []) {
+            return;
         }
+
+        DB::table('permissions')->insertOrIgnore(array_map(fn (string $name) => [
+            'name' => $name, 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now(),
+        ], array_values($missing)));
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     /**
      * Create the shop's three roles and give Admin/Staff their defaults.
      * Only adds missing grants - never revokes one the owner already set.
+     *
+     * Grants are inserted directly rather than via givePermissionTo(), which
+     * flushes Spatie's permission cache on every call - fine for one shop,
+     * minutes of churn when a migration runs this across every shop.
      */
     public static function seedRoles(Shop $shop): void
     {
@@ -95,11 +110,21 @@ final class ShopPermissions
 
         Role::findOrCreate('Owner');
 
+        $permissionIds = DB::table('permissions')->where('guard_name', 'web')->pluck('id', 'name');
+        $rows = [];
+
         foreach (self::EDITABLE_ROLES as $roleName) {
-            Role::findOrCreate($roleName)->givePermissionTo(self::defaultsFor($roleName));
+            $roleId = Role::findOrCreate($roleName)->id;
+
+            foreach (self::defaultsFor($roleName) as $permission) {
+                $rows[] = ['permission_id' => $permissionIds[$permission], 'role_id' => $roleId];
+            }
         }
 
+        DB::table('role_has_permissions')->insertOrIgnore($rows);
+
         $registrar->setPermissionsTeamId($previousTeam);
+        $registrar->forgetCachedPermissions();
     }
 
     /**

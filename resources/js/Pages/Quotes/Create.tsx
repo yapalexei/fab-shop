@@ -5,6 +5,7 @@ import QuoteForm, {
     MarkupDefaults,
     MaterialOption,
     ServiceOption,
+    ToolOption,
 } from '@/Components/QuoteForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
@@ -15,6 +16,7 @@ export default function Create({
     materials,
     services,
     equipmentList,
+    tools,
     employees,
     markupDefaults,
 }: PageProps<{
@@ -22,6 +24,7 @@ export default function Create({
     materials: MaterialOption[];
     services: ServiceOption[];
     equipmentList: EquipmentOption[];
+    tools: ToolOption[];
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
 }>) {
@@ -43,6 +46,7 @@ export default function Create({
                             materials={materials}
                             services={services}
                             equipmentList={equipmentList}
+                            tools={tools}
                             employees={employees}
                             markupDefaults={markupDefaults}
                             submitUrl={route('quotes.store')}

@@ -15,6 +15,7 @@ use App\Models\Plan;
 use App\Models\Quote;
 use App\Models\Service;
 use App\Models\Shop;
+use App\Models\Tool;
 use App\Models\User;
 use App\Support\ShopPermissions;
 use Database\Seeders\PlanSeeder;
@@ -66,6 +67,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             [$material, $partner] = $this->createMaterialCatalog($shop);
             [$service] = $this->createServiceCatalog($shop);
             $equipment = $this->createEquipment($shop);
+            $this->createTooling($shop);
             $this->createMarkupDefaults($shop);
             $quote = $this->createWonQuote($shop, $customer, $material, $partner, $service, $welder, $equipment);
             $this->createInProgressJob($shop, $quote, $customer);
@@ -183,9 +185,27 @@ class SeedTeamJobDemo extends DemoSeedCommand
         return Equipment::factory()->for($shop)->create(['name' => 'CNC Plasma Table', 'billing_method' => 'hourly', 'rate' => 45]);
     }
 
+    /**
+     * The same 1/4in bit twice - once rated for steel, once for aluminum -
+     * to show why a tool records what it can cut.
+     */
+    private function createTooling(Shop $shop): void
+    {
+        $tools = [
+            ['name' => '1/4in cobalt drill bit', 'cuts' => ['carbon-steel', 'stainless-steel'], 'cost' => 6.50, 'unit' => 'each'],
+            ['name' => '1/4in drill bit', 'cuts' => ['aluminum'], 'cost' => 3.25, 'unit' => 'each'],
+            ['name' => '2in bi-metal hole saw', 'cuts' => ['carbon-steel', 'aluminum', 'wood'], 'cost' => 1.40, 'unit' => 'hole'],
+            ['name' => '4.5in cut-off wheel', 'cuts' => ['carbon-steel', 'stainless-steel'], 'cost' => 0.35, 'unit' => 'cut'],
+        ];
+
+        foreach ($tools as $tool) {
+            Tool::factory()->for($shop)->create($tool);
+        }
+    }
+
     private function createMarkupDefaults(Shop $shop): void
     {
-        $defaults = [LineItemType::Material->value => 25, LineItemType::Labor->value => 40, LineItemType::Equipment->value => 15];
+        $defaults = [LineItemType::Material->value => 25, LineItemType::Labor->value => 40, LineItemType::Equipment->value => 15, LineItemType::Tooling->value => 20];
 
         foreach ($defaults as $type => $percent) {
             (new MarkupDefault)->forceFill([

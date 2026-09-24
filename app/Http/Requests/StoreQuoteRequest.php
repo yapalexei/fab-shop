@@ -68,6 +68,10 @@ class StoreQuoteRequest extends FormRequest
                 'nullable',
                 Rule::exists('equipment', 'id')->where('shop_id', $this->user()->current_shop_id),
             ],
+            'line_items.*.tool_id' => [
+                'nullable',
+                Rule::exists('tools', 'id')->where('shop_id', $this->user()->current_shop_id),
+            ],
         ];
     }
 
@@ -94,6 +98,7 @@ class StoreQuoteRequest extends FormRequest
             'line_items.*.business_partner_id' => 'business partner',
             'line_items.*.user_id' => 'employee',
             'line_items.*.equipment_id' => 'equipment',
+            'line_items.*.tool_id' => 'tool',
         ];
     }
 }

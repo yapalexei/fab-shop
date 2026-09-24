@@ -140,6 +140,13 @@ export default function Authenticated({
             visible: can('equipment.view'),
         },
         {
+            label: 'Tooling',
+            href: route('tools.index'),
+            active: route().current('tools.*'),
+            enabled: quoteBuilderEnabled,
+            visible: can('tooling.view'),
+        },
+        {
             label: 'Markup',
             href: route('markup-defaults.index'),
             active: route().current('markup-defaults.*'),

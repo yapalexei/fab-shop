@@ -8,7 +8,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 interface MarkupDefaultRow {
-    line_item_type: 'material' | 'labor' | 'equipment';
+    line_item_type: 'material' | 'labor' | 'equipment' | 'tooling';
     default_markup_percent: number;
 }
 
@@ -16,6 +16,7 @@ const typeLabels: Record<string, string> = {
     material: 'Material',
     labor: 'Labor',
     equipment: 'Equipment',
+    tooling: 'Tooling',
 };
 
 export default function Index({

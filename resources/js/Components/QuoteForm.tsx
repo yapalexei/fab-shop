@@ -10,7 +10,7 @@ import { useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 export interface LineItem {
-    type: 'material' | 'labor' | 'equipment';
+    type: 'material' | 'labor' | 'equipment' | 'tooling';
     description: string;
     quantity: number | string;
     unit_cost: number | string;
@@ -21,6 +21,7 @@ export interface LineItem {
     business_partner_id: number | string | null;
     user_id: number | string | null;
     equipment_id: number | string | null;
+    tool_id: number | string | null;
 }
 
 export interface MaterialOption {
@@ -42,13 +43,22 @@ export interface EquipmentOption {
     rate: number;
 }
 
+export interface ToolOption {
+    id: number;
+    name: string;
+    /** What it's rated to cut, e.g. "Carbon steel, Stainless steel". */
+    cuts: string;
+    cost: number;
+    unit: string;
+}
+
 export interface EmployeeOption {
     user_id: number;
     name: string;
     hourly_rate: number | null;
 }
 
-export type MarkupDefaults = Record<'material' | 'labor' | 'equipment', number>;
+export type MarkupDefaults = Record<LineItem['type'], number>;
 
 export interface QuoteFormData {
     customer_id: number | string;
@@ -74,6 +84,7 @@ export function createEmptyLineItem(markupDefaults: MarkupDefaults): LineItem {
         business_partner_id: null,
         user_id: null,
         equipment_id: null,
+        tool_id: null,
     };
 }
 
@@ -82,6 +93,7 @@ export default function QuoteForm({
     materials,
     services,
     equipmentList,
+    tools,
     employees,
     markupDefaults,
     initialData,
@@ -93,6 +105,7 @@ export default function QuoteForm({
     materials: MaterialOption[];
     services: ServiceOption[];
     equipmentList: EquipmentOption[];
+    tools: ToolOption[];
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
     initialData: QuoteFormData;
@@ -209,6 +222,7 @@ export default function QuoteForm({
                                         materials={materials}
                                         services={services}
                                         equipmentList={equipmentList}
+                                        tools={tools}
                                         employees={employees}
                                         markupDefaults={markupDefaults}
                                         onChange={patchLineItem}

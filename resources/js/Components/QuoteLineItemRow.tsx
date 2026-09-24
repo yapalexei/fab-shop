@@ -6,6 +6,7 @@ import {
     MarkupDefaults,
     MaterialOption,
     ServiceOption,
+    ToolOption,
 } from '@/Components/QuoteForm';
 
 const currency = new Intl.NumberFormat('en-US', {
@@ -30,6 +31,7 @@ export default function QuoteLineItemRow({
     materials,
     services,
     equipmentList,
+    tools,
     employees,
     markupDefaults,
     onChange,
@@ -41,6 +43,7 @@ export default function QuoteLineItemRow({
     materials: MaterialOption[];
     services: ServiceOption[];
     equipmentList: EquipmentOption[];
+    tools: ToolOption[];
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
     onChange: (index: number, patch: Partial<LineItem>) => void;
@@ -59,6 +62,7 @@ export default function QuoteLineItemRow({
             business_partner_id: null,
             user_id: null,
             equipment_id: null,
+            tool_id: null,
         });
     };
 
@@ -147,13 +151,26 @@ export default function QuoteLineItemRow({
         });
     };
 
+    const selectTool = (toolId: string) => {
+        if (toolId === '') {
+            onChange(index, { tool_id: null });
+            return;
+        }
+        const tool = tools.find((t) => t.id === Number(toolId));
+        onChange(index, {
+            tool_id: Number(toolId),
+            description: tool ? `${tool.name} (${tool.cuts})` : item.description,
+            unit_cost: tool?.cost ?? item.unit_cost,
+        });
+    };
+
     const selectedMaterial = materials.find((m) => m.id === Number(item.material_id));
 
     const rowErrors = (
         [
             'type', 'description', 'quantity', 'unit_cost', 'markup_percent',
             'override_total', 'material_id', 'service_id', 'business_partner_id',
-            'user_id', 'equipment_id',
+            'user_id', 'equipment_id', 'tool_id',
         ] as (keyof LineItem)[]
     )
         .map((field) => getError(field))
@@ -173,6 +190,7 @@ export default function QuoteLineItemRow({
                         <option value="material">Material</option>
                         <option value="labor">Labor</option>
                         <option value="equipment">Equipment</option>
+                        <option value="tooling">Tooling</option>
                     </select>
                 </td>
 
@@ -271,6 +289,22 @@ export default function QuoteLineItemRow({
                                             ? '/hr'
                                             : ' flat'}
                                         )
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+
+                        {item.type === 'tooling' && (
+                            <select
+                                className="block w-48 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                value={item.tool_id ?? ''}
+                                onChange={(e) => selectTool(e.target.value)}
+                            >
+                                <option value="">Custom (not in catalog)</option>
+                                {tools.map((tool) => (
+                                    <option key={tool.id} value={tool.id}>
+                                        {tool.name} — {tool.cuts} (
+                                        {currency.format(tool.cost)}/{tool.unit})
                                     </option>
                                 ))}
                             </select>

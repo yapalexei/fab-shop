@@ -19,6 +19,7 @@ use App\Http\Controllers\ShopSettingsController;
 use App\Http\Controllers\ShopSwitchController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeamMemberAccessController;
+use App\Http\Controllers\ToolController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -94,6 +95,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('feature:quote-builder');
 
     Route::resource('equipment', EquipmentController::class)
+        ->except('show')
+        ->middleware('feature:quote-builder');
+
+    Route::resource('tools', ToolController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
 

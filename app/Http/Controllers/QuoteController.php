@@ -14,6 +14,7 @@ use App\Models\MarkupDefault;
 use App\Models\Material;
 use App\Models\Quote;
 use App\Models\Service;
+use App\Models\Tool;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\Auth;
@@ -93,6 +94,7 @@ class QuoteController extends Controller implements HasMiddleware
                     'business_partner_id' => $item->business_partner_id,
                     'user_id' => $item->user_id,
                     'equipment_id' => $item->equipment_id,
+                    'tool_id' => $item->tool_id,
                 ]),
             ],
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
@@ -126,7 +128,8 @@ class QuoteController extends Controller implements HasMiddleware
     /**
      * Shared data the quote builder needs to offer catalog-backed line items:
      * which materials/services each business partner supplies (with price),
-     * equipment costs, employees with their hourly rate, and this shop's
+     * equipment costs, tooling (with what it cuts), employees with their
+     * hourly rate, and this shop's
      * default markup per line-item type.
      *
      * @return array<string, mixed>
@@ -162,6 +165,14 @@ class QuoteController extends Controller implements HasMiddleware
                     'name' => $item->name,
                     'billing_method' => $item->billing_method->value,
                     'rate' => (float) $item->rate,
+                ]),
+            'tools' => Tool::query()->orderBy('name')->get()
+                ->map(fn (Tool $tool) => [
+                    'id' => $tool->id,
+                    'name' => $tool->name,
+                    'cuts' => $tool->cutsLabel(),
+                    'cost' => (float) $tool->cost,
+                    'unit' => $tool->unit,
                 ]),
             'employees' => $shop->members()->get()->map(fn ($member) => [
                 'user_id' => $member->id,
