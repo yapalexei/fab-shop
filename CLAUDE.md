@@ -12,13 +12,13 @@ Vertical SaaS for quoting, job-tracking, and invoicing for small custom/ornament
 
 The app runs via Laravel Sail (Docker), not the host PHP — `.env`'s `DB_HOST=pgsql`/`MAIL_HOST=mailpit` only resolve inside Sail's Docker network, so bare `php artisan` / `npm` on the host will fail to connect. Use `./vendor/bin/sail artisan ...`, `./vendor/bin/sail npm ...`, `./vendor/bin/sail test`, etc. (alias `sail` to `./vendor/bin/sail` for less typing). Bring the stack up with `./vendor/bin/sail up -d`.
 
-Services: `pgsql` (Postgres, matches production, default port 5432) and `mailpit` (catches all outgoing mail — inbox UI at `http://localhost:8025`). App runs at `http://localhost` (port 80).
+Services: `pgsql` (Postgres, matches production, default port 5432), `redis` (queue backend for Horizon), `mailpit` (catches all outgoing mail — inbox UI at `http://localhost:8025`), and `horizon` (see below). App runs at `http://localhost` (port 80).
 
-The test suite also runs against a real Postgres `testing` database (via `phpunit.xml`), not sqlite — so `./vendor/bin/sail test` needs the `pgsql` container up.
+The test suite also runs against a real Postgres `testing` database (via `phpunit.xml`), not sqlite — so `./vendor/bin/sail test` needs the `pgsql` container up. Tests force `QUEUE_CONNECTION=sync` and `CACHE_STORE=array` (also in `phpunit.xml`), so they never touch Redis or Horizon.
 
-Two background processes aren't started automatically and need their own terminal when testing anything that depends on them:
-- `./vendor/bin/sail artisan queue:work` — quote PDF generation/email (F2) queue through the `database` queue connection; nothing sends until a worker is running.
-- `./vendor/bin/sail artisan reverb:start` — the job board's live updates (F3) over Reverb, port 8080 (also exposed in `compose.yaml`). Job board broadcasts use `ShouldBroadcastNow` specifically so they don't *need* a worker, but Reverb itself still has to be running to accept the WebSocket connection.
+**Queue worker:** the `horizon` service runs `artisan horizon` as its own container (overriding Sail's default entrypoint, same image) and starts automatically with `./vendor/bin/sail up -d` — quote PDF generation/email (F2) and any future queued work just processes on its own, no manual `queue:work` needed. Dashboard at `http://localhost/horizon` (gated by `HorizonServiceProvider::gate()` outside local env). `QUEUE_CONNECTION=redis` — Horizon only supports Redis.
+
+**Reverb** (job board live updates, F3) is the one background piece that still isn't automatic — `./vendor/bin/sail artisan reverb:start` needs its own terminal, port 8080 (exposed in `compose.yaml`). Job board broadcasts use `ShouldBroadcastNow` specifically so they don't *need* a queue worker, but Reverb itself still has to be running to accept the WebSocket connection. Unlike the queue worker, Reverb isn't a Horizon-managed process and there's no equivalent "just works" story for it yet — a `reverb` Sail service would be the natural next step if this becomes a recurring friction point.
 
 `./vendor/bin/sail artisan storage:link` is required once per environment for anything served off the `public` disk (job photos) — quote PDFs don't need it since they're streamed through a controller route instead.
 
