@@ -5,6 +5,61 @@ import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
 
+function GatedNavLink({
+    enabled,
+    href,
+    active,
+    label,
+}: {
+    enabled: boolean;
+    href: string;
+    active: boolean;
+    label: string;
+}) {
+    if (enabled) {
+        return (
+            <NavLink href={href} active={active}>
+                {label}
+            </NavLink>
+        );
+    }
+
+    return (
+        <span
+            className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-300"
+            title={`Upgrade your plan to unlock ${label}`}
+        >
+            {label}
+        </span>
+    );
+}
+
+function GatedResponsiveNavLink({
+    enabled,
+    href,
+    active,
+    label,
+}: {
+    enabled: boolean;
+    href: string;
+    active: boolean;
+    label: string;
+}) {
+    if (enabled) {
+        return (
+            <ResponsiveNavLink href={href} active={active}>
+                {label}
+            </ResponsiveNavLink>
+        );
+    }
+
+    return (
+        <span className="block py-2 pe-4 ps-3 text-base font-medium text-gray-300">
+            {label}
+        </span>
+    );
+}
+
 export default function Authenticated({
     header,
     children,
@@ -12,6 +67,7 @@ export default function Authenticated({
     const { auth, enabledFeatures } = usePage().props;
     const user = auth.user;
     const customersEnabled = enabledFeatures.includes('customers');
+    const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -35,21 +91,18 @@ export default function Authenticated({
                                 >
                                     Dashboard
                                 </NavLink>
-                                {customersEnabled ? (
-                                    <NavLink
-                                        href={route('customers.index')}
-                                        active={route().current('customers.*')}
-                                    >
-                                        Customers
-                                    </NavLink>
-                                ) : (
-                                    <span
-                                        className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-300"
-                                        title="Upgrade your plan to unlock Customers"
-                                    >
-                                        Customers
-                                    </span>
-                                )}
+                                <GatedNavLink
+                                    enabled={customersEnabled}
+                                    href={route('customers.index')}
+                                    active={route().current('customers.*')}
+                                    label="Customers"
+                                />
+                                <GatedNavLink
+                                    enabled={quoteBuilderEnabled}
+                                    href={route('quotes.index')}
+                                    active={route().current('quotes.*')}
+                                    label="Quotes"
+                                />
                             </div>
                         </div>
 
@@ -154,18 +207,18 @@ export default function Authenticated({
                         >
                             Dashboard
                         </ResponsiveNavLink>
-                        {customersEnabled ? (
-                            <ResponsiveNavLink
-                                href={route('customers.index')}
-                                active={route().current('customers.*')}
-                            >
-                                Customers
-                            </ResponsiveNavLink>
-                        ) : (
-                            <span className="block py-2 pe-4 ps-3 text-base font-medium text-gray-300">
-                                Customers
-                            </span>
-                        )}
+                        <GatedResponsiveNavLink
+                            enabled={customersEnabled}
+                            href={route('customers.index')}
+                            active={route().current('customers.*')}
+                            label="Customers"
+                        />
+                        <GatedResponsiveNavLink
+                            enabled={quoteBuilderEnabled}
+                            href={route('quotes.index')}
+                            active={route().current('quotes.*')}
+                            label="Quotes"
+                        />
                     </div>
 
                     <div className="border-t border-gray-200 pb-1 pt-4">
