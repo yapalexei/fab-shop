@@ -1,10 +1,11 @@
+import FormErrorSummary from '@/Components/FormErrorSummary';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import { useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { Fragment, FormEventHandler } from 'react';
 
 export interface LineItem {
     type: 'material' | 'labor';
@@ -61,10 +62,20 @@ export default function QuoteForm({
     const { data, setData, post, put, processing, errors } =
         useForm<QuoteFormData>(initialData);
 
+    // Laravel validates array fields as e.g. "line_items.0.description",
+    // which falls outside useForm's keyof-QuoteFormData error typing.
+    const errorMap = errors as Record<string, string>;
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         (method === 'post' ? post : put)(submitUrl);
     };
+
+    const lineItemError = (index: number, field: keyof LineItem) =>
+        errorMap[`line_items.${index}.${field}`];
+
+    const lineItemErrorClass = (index: number, field: keyof LineItem) =>
+        lineItemError(index, field) ? 'border-red-400' : '';
 
     const updateLineItem = (
         index: number,
@@ -101,6 +112,8 @@ export default function QuoteForm({
 
     return (
         <form onSubmit={submit}>
+            <FormErrorSummary errors={errorMap} />
+
             <div>
                 <InputLabel htmlFor="customer_id" value="Customer" />
                 <select
@@ -168,118 +181,155 @@ export default function QuoteForm({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
-                            {data.line_items.map((item, index) => (
-                                <tr key={index}>
-                                    <td className="px-3 py-2">
-                                        <select
-                                            className="block w-28 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                            value={item.type}
-                                            onChange={(e) =>
-                                                updateLineItem(
-                                                    index,
-                                                    'type',
-                                                    e.target.value,
-                                                )
-                                            }
-                                        >
-                                            <option value="material">
-                                                Material
-                                            </option>
-                                            <option value="labor">
-                                                Labor
-                                            </option>
-                                        </select>
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <TextInput
-                                            className="block w-48"
-                                            value={item.description}
-                                            onChange={(e) =>
-                                                updateLineItem(
-                                                    index,
-                                                    'description',
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <TextInput
-                                            type="number"
-                                            step="0.01"
-                                            className="block w-20"
-                                            value={item.quantity}
-                                            onChange={(e) =>
-                                                updateLineItem(
-                                                    index,
-                                                    'quantity',
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <TextInput
-                                            type="number"
-                                            step="0.01"
-                                            className="block w-24"
-                                            value={item.unit_cost}
-                                            onChange={(e) =>
-                                                updateLineItem(
-                                                    index,
-                                                    'unit_cost',
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <TextInput
-                                            type="number"
-                                            step="0.01"
-                                            className="block w-20"
-                                            value={item.markup_percent}
-                                            onChange={(e) =>
-                                                updateLineItem(
-                                                    index,
-                                                    'markup_percent',
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <TextInput
-                                            type="number"
-                                            step="0.01"
-                                            className="block w-24"
-                                            placeholder="auto"
-                                            value={item.override_total ?? ''}
-                                            onChange={(e) =>
-                                                updateLineItem(
-                                                    index,
-                                                    'override_total',
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                    <td className="whitespace-nowrap px-3 py-2 text-right text-sm text-gray-900">
-                                        {currency.format(lineTotal(item))}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                removeLineItem(index)
-                                            }
-                                            className="text-sm text-red-600 hover:text-red-900"
-                                        >
-                                            Remove
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {data.line_items.map((item, index) => {
+                                const rowErrors = (
+                                    [
+                                        'type',
+                                        'description',
+                                        'quantity',
+                                        'unit_cost',
+                                        'markup_percent',
+                                        'override_total',
+                                    ] as (keyof LineItem)[]
+                                )
+                                    .map((field) => lineItemError(index, field))
+                                    .filter(Boolean) as string[];
+
+                                return (
+                                    <Fragment key={index}>
+                                        <tr>
+                                            <td className="px-3 py-2">
+                                                <select
+                                                    className="block w-28 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    value={item.type}
+                                                    onChange={(e) =>
+                                                        updateLineItem(
+                                                            index,
+                                                            'type',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                >
+                                                    <option value="material">
+                                                        Material
+                                                    </option>
+                                                    <option value="labor">
+                                                        Labor
+                                                    </option>
+                                                </select>
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    className={`block w-48 ${lineItemErrorClass(index, 'description')}`}
+                                                    value={item.description}
+                                                    onChange={(e) =>
+                                                        updateLineItem(
+                                                            index,
+                                                            'description',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    required
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0.01"
+                                                    className={`block w-20 ${lineItemErrorClass(index, 'quantity')}`}
+                                                    value={item.quantity}
+                                                    onChange={(e) =>
+                                                        updateLineItem(
+                                                            index,
+                                                            'quantity',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    required
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    className={`block w-24 ${lineItemErrorClass(index, 'unit_cost')}`}
+                                                    value={item.unit_cost}
+                                                    onChange={(e) =>
+                                                        updateLineItem(
+                                                            index,
+                                                            'unit_cost',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    required
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    className={`block w-20 ${lineItemErrorClass(index, 'markup_percent')}`}
+                                                    value={item.markup_percent}
+                                                    onChange={(e) =>
+                                                        updateLineItem(
+                                                            index,
+                                                            'markup_percent',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    required
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    className={`block w-24 ${lineItemErrorClass(index, 'override_total')}`}
+                                                    placeholder="auto"
+                                                    value={item.override_total ?? ''}
+                                                    onChange={(e) =>
+                                                        updateLineItem(
+                                                            index,
+                                                            'override_total',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
+                                            </td>
+                                            <td className="whitespace-nowrap px-3 py-2 text-right text-sm text-gray-900">
+                                                {currency.format(
+                                                    lineTotal(item),
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        removeLineItem(index)
+                                                    }
+                                                    className="text-sm text-red-600 hover:text-red-900"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {rowErrors.length > 0 && (
+                                            <tr>
+                                                <td
+                                                    colSpan={8}
+                                                    className="bg-red-50 px-3 py-1 text-sm text-red-600"
+                                                >
+                                                    {rowErrors.join(' ')}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </Fragment>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

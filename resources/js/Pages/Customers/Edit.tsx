@@ -1,6 +1,7 @@
 import CustomerFields, {
     CustomerFormData,
 } from '@/Components/CustomerFields';
+import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
@@ -45,6 +46,8 @@ export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
                     <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
                         <form onSubmit={submit}>
+                            <FormErrorSummary errors={errors} />
+
                             <CustomerFields
                                 data={data}
                                 setData={setData}

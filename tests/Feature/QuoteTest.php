@@ -113,6 +113,23 @@ test('a quote requires at least one line item', function () {
     ])->assertSessionHasErrors('line_items');
 });
 
+test('an incomplete line item returns a field-specific, friendly error', function () {
+    $shop = Shop::factory()->create();
+    $customer = Customer::factory()->for($shop)->create();
+    $user = actingAsShopMember($shop);
+
+    $response = $this->actingAs($user)->post(route('quotes.store'), [
+        'customer_id' => $customer->id,
+        'status' => 'draft',
+        'line_items' => [
+            ['type' => 'material', 'description' => '', 'quantity' => 1, 'unit_cost' => 0, 'markup_percent' => 0],
+        ],
+    ]);
+
+    $response->assertSessionHasErrors(['line_items.0.description']);
+    expect(session('errors')->get('line_items.0.description')[0])->toBe('The description field is required.');
+});
+
 test('the quote builder route is locked for a shop without the feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
