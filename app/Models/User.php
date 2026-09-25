@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Support\ShopPermissions;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,9 +18,14 @@ use Spatie\Permission\Traits\HasRoles;
 // current_shop_id is deliberately not fillable - mass-assigning it would let
 // a request switch a user into a shop they aren't a member of. Set it via
 // direct property assignment + save() after checking membership, not update().
+//
+// implements MustVerifyEmail: Authenticatable already provides the trait's
+// hasVerifiedEmail()/markEmailAsVerified() methods unconditionally - this
+// interface is the only thing the framework's `verified` middleware and
+// EmailVerificationPromptController actually check for.
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable;

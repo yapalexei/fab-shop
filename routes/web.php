@@ -4,6 +4,7 @@ use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipmentController;
+use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobStatusController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialTypeController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteController;
@@ -26,9 +28,26 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', MarketingController::class)->name('marketing');
 
-Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified'])->name('dashboard');
+// No auth/guest middleware - the visitor may have no account yet, an
+// account under a different email, or already be exactly who's invited.
+// InvitationController sorts out which of those it is.
+Route::get('/invitations/{token}', [InvitationController::class, 'show'])->name('invitations.show');
+Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])
+    ->middleware('throttle:6,1')
+    ->name('invitations.accept');
 
-Route::middleware('auth')->group(function () {
+// Deliberately auth+verified only, never 'onboarded' - this is what
+// EnsureShopIsOnboarded redirects into.
+Route::middleware(['auth', 'verified'])->prefix('onboarding')->name('onboarding.')->group(function () {
+    Route::get('/', [OnboardingController::class, 'show'])->name('show');
+    Route::post('/shop', [OnboardingController::class, 'storeShop'])->name('shop');
+    Route::post('/team', [OnboardingController::class, 'storeTeam'])->name('team');
+    Route::post('/catalog', [OnboardingController::class, 'storeCatalog'])->name('catalog');
+});
+
+Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified', 'onboarded'])->name('dashboard');
+
+Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -104,6 +123,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('shop')->group(function () {
         Route::get('/team', [TeamController::class, 'index'])->name('team.index')->middleware('can:team.view');
         Route::patch('/team/{member}', [TeamController::class, 'update'])->name('team.update')->middleware('can:team.update');
+        Route::post('/team/invite', [TeamController::class, 'invite'])->name('team.invite')->middleware('can:manage-shop');
 
         Route::middleware('can:team.manage-access')->group(function () {
             Route::get('/team/{member}/access', [TeamMemberAccessController::class, 'edit'])->name('team.access.edit');

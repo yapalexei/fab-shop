@@ -23,6 +23,10 @@ class ShopFactory extends Factory
             'name' => fake()->company(),
             'trial_started_at' => now(),
             'trial_ends_at' => now()->addDays(14),
+            // Factory shops are already fully set up - only the real
+            // onboarding wizard (and tests of it) deal with onboarded_at
+            // being null.
+            'onboarded_at' => now(),
         ];
     }
 

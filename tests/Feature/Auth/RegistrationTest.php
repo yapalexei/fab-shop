@@ -1,18 +1,20 @@
 <?php
 
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Support\Facades\Notification;
+
 test('registration screen can be rendered', function () {
     $response = $this->get('/register');
 
     $response->assertStatus(200);
 });
 
-test('new users can register', function () {
+test('new users can register but have no shop yet - that comes from onboarding', function () {
     $response = $this->post('/register', [
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
-        'shop_name' => 'Test Shop',
     ]);
 
     $this->assertAuthenticated();
@@ -20,8 +22,31 @@ test('new users can register', function () {
 
     $user = auth()->user();
 
-    expect($user->currentShop->name)->toBe('Test Shop')
-        ->and($user->ownedShops)->toHaveCount(1)
-        ->and($user->shops)->toHaveCount(1)
-        ->and($user->hasRole('Owner'))->toBeTrue();
+    expect($user->hasVerifiedEmail())->toBeFalse()
+        ->and($user->currentShop)->toBeNull()
+        ->and($user->hasRole('Owner'))->toBeFalse();
+});
+
+test('registering sends a verification email', function () {
+    Notification::fake();
+
+    $this->post('/register', [
+        'name' => 'Test User',
+        'email' => 'test@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    Notification::assertSentTo(auth()->user(), VerifyEmail::class);
+});
+
+test('an unverified new user is sent to verify their email, not the dashboard', function () {
+    $this->post('/register', [
+        'name' => 'Test User',
+        'email' => 'test@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $this->get(route('dashboard'))->assertRedirect(route('verification.notice'));
 });

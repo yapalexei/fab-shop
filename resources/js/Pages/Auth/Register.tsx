@@ -12,9 +12,6 @@ export default function Register() {
         email: '',
         password: '',
         password_confirmation: '',
-        shop_name: '',
-        // Becomes the shop's timezone - changeable later in Shop settings.
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -45,22 +42,6 @@ export default function Register() {
                     />
 
                     <InputError message={errors.name} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="shop_name" value="Shop name" />
-
-                    <TextInput
-                        id="shop_name"
-                        name="shop_name"
-                        value={data.shop_name}
-                        className="mt-1 block w-full"
-                        autoComplete="organization"
-                        onChange={(e) => setData('shop_name', e.target.value)}
-                        required
-                    />
-
-                    <InputError message={errors.shop_name} className="mt-2" />
                 </div>
 
                 <div className="mt-4">

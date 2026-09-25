@@ -4,6 +4,9 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Support\ShopPermissions;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +27,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // Not registered by default outside Fortify/Jetstream - without this,
+        // Registered fires (it already does, in RegisteredUserController) but
+        // nothing actually emails the verification link.
+        Event::listen(Registered::class, SendEmailVerificationNotification::class);
 
         // Owner-only: editing what each *role* can do. Never delegable, or
         // an Admin could grant their own role anything.

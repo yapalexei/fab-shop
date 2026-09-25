@@ -1,8 +1,10 @@
+import FormErrorSummary from '@/Components/FormErrorSummary';
+import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { FormEventHandler, useState } from 'react';
 
 interface Member {
     id: number;
@@ -12,6 +14,95 @@ interface Member {
     is_owner: boolean;
     can_edit_access: boolean;
     hourly_rate: number | null;
+}
+
+interface PendingInvitation {
+    email: string;
+    role: string;
+    expires_at: string;
+}
+
+function InviteForm({ roles }: { roles: string[] }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        email: '',
+        role: roles[roles.length - 1] ?? 'Staff',
+    });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        post(route('team.invite'), {
+            preserveScroll: true,
+            onSuccess: () => reset('email'),
+        });
+    };
+
+    return (
+        <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+                Invite by email
+            </h3>
+            <form onSubmit={submit} className="mt-4">
+                <FormErrorSummary errors={errors} />
+                <div className="flex flex-wrap items-start gap-2">
+                    <TextInput
+                        type="email"
+                        placeholder="email@example.com"
+                        className="w-64"
+                        value={data.email}
+                        onChange={(e) => setData('email', e.target.value)}
+                        required
+                    />
+                    <select
+                        className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        value={data.role}
+                        onChange={(e) => setData('role', e.target.value)}
+                    >
+                        {roles.map((role) => (
+                            <option key={role} value={role}>
+                                {role}
+                            </option>
+                        ))}
+                    </select>
+                    <PrimaryButton disabled={processing}>
+                        Send invite
+                    </PrimaryButton>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+function PendingInvitations({
+    invitations,
+}: {
+    invitations: PendingInvitation[];
+}) {
+    if (invitations.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+                Pending invitations
+            </h3>
+            <ul className="mt-3 divide-y divide-gray-100">
+                {invitations.map((invitation) => (
+                    <li
+                        key={invitation.email}
+                        className="flex items-center justify-between py-2 text-sm"
+                    >
+                        <span className="text-gray-900">
+                            {invitation.email}
+                        </span>
+                        <span className="text-gray-500">
+                            {invitation.role}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
 }
 
 function RateCell({
@@ -74,10 +165,16 @@ export default function Index({
     members,
     canManageTeam,
     canManageAccess,
+    canInvite,
+    invitableRoles,
+    pendingInvitations,
 }: PageProps<{
     members: Member[];
     canManageTeam: boolean;
     canManageAccess: boolean;
+    canInvite: boolean;
+    invitableRoles: string[];
+    pendingInvitations: PendingInvitation[];
 }>) {
     return (
         <AuthenticatedLayout
@@ -91,6 +188,11 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+                    {canInvite && <InviteForm roles={invitableRoles} />}
+                    {canInvite && (
+                        <PendingInvitations invitations={pendingInvitations} />
+                    )}
+
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">

@@ -16,7 +16,7 @@ Core features, in plain terms (full dependency table is below):
 - **QuickBooks Online sync (F4)** - customers and invoices sync automatically
 - **Subscription billing (F0.8)** - the shop pays for the product itself
 - **Material/scrap tracking (F5), mobile/PWA + API (F6), weld/qualification records (F7)** - the Scenario C follow-on
-- **Marketing site, tier comparison & guided onboarding (F8)** - planned, not started; see [Planned: Marketing site, tier comparison & guided onboarding](#planned-marketing-site-tier-comparison--guided-onboarding-f8) below
+- **Marketing site, tier comparison & guided onboarding (F8)** - built; see [Marketing site, tier comparison & guided onboarding](#marketing-site-tier-comparison--guided-onboarding-f8---built) below
 - **CSV import for catalog data (F9)** - planned, not started; see [Planned: CSV import for catalog data](#planned-csv-import-for-catalog-data-f9) below
 
 **Dependency shape, in plain terms:** Foundation (accounts, shops, roles) has to exist before anything else - nothing else can start until it's done. Customers have to exist before Quotes can be created. Quotes have to exist before a Quote can become a Job. Jobs have to exist before the status board, material tracking, weld records, or mobile status views have anything to show. Subscription billing and QuickBooks sync are the two features that don't block, or get blocked by, that chain - each can be built independently once its own light prerequisite (the Shop model; stable Customer/Quote data shapes) is in place.
@@ -82,43 +82,37 @@ F1.1, built after F1 shipped with only freeform line items. Gives quote line ite
 - **`QuoteLineItem` gains nullable**: `material_id` + `business_partner_id` (material line - partner picks whose price), `service_id` + `business_partner_id` (outsourced labor line), `user_id` (internal labor line - mutually exclusive with service/partner), `equipment_id` (equipment line). Selecting any of these pre-fills `unit_cost`; everything stays editable/overridable per line - still "live/manual pricing," just with a smarter default than typing from scratch every time.
 - Setting a user's `hourly_rate` needs some UI even though the full staff-invite flow (F0's deferred "Invite staff" step) doesn't exist yet - add a minimal team-members list scoped to just this, not the full invite flow.
 
-## Planned: Marketing site, tier comparison & guided onboarding (F8)
+## Marketing site, tier comparison & guided onboarding (F8) - built
 
-**Not started - defined here for review. Do not begin implementation until explicitly told to.**
-
-Three pieces, one feature. Today `/` is still Breeze's stock `Welcome.tsx`, and signup (`RegisteredUserController::store()`) creates the `User` *and* the `Shop` in a single request, logs straight in, and never asks for email verification even though `MustVerifyEmail` is scaffolded-but-commented-out on `User` and Breeze's verify-email routes/views/mailable already exist unused. That's the gap this closes.
+Three pieces. `/` (`MarketingController`, `Welcome.tsx`) replaced Breeze's stock welcome page; signup (`RegisteredUserController`) now creates only the `User`; onboarding (`OnboardingController`, `EnsureShopIsOnboarded` middleware) builds the `Shop` afterward. See `CLAUDE.md`'s "Signup and onboarding (F8b/F8c)" section for the implementation details (model/column names, why `Invitation` isn't tenant-scoped, the async-state gotcha in the skip buttons, etc.) - kept here is what each piece does and why.
 
 ### F8a. Public marketing page
 
-- Replaces `Welcome.tsx` at `/` with real content: what the product does (quoting, job board, QuickBooks sync, tooling/material tracking) and a tier comparison (Free / Start-up / Pro).
-- The tier comparison reads live from `Plan`/`Feature`/`plan_feature` (already seeded by `PlanSeeder`) instead of hardcoded marketing copy - so what a tier lists as included can never drift from what `Shop::hasFeature()` actually enforces.
-- An existing signed-in shop on a lower tier should link to the same comparison content for "Upgrade" rather than a duplicate pricing view.
-- CTAs go to the existing `/register`. Keep `/login`/`/register` as separate routes rather than folding them into the marketing page - simpler, and the marketing page stays static-ish.
+- Real content at `/`: what the product does (quoting, job board, QuickBooks sync, tooling/material tracking) and a tier comparison (Free / Start-up / Pro).
+- The tier comparison reads live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`) instead of hardcoded marketing copy - so what a tier lists as included can never drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks F5-F7 as "Coming soon" regardless of which plan grants them, since nothing implements them yet.
+- `/login`/`/register` stayed separate routes rather than folding into the marketing page.
 
 ### F8b. Verified signup, deferred shop creation
 
-- Signup collects only name/email/password - no `shop_name` field, no `Shop` row created yet.
-- Enable `MustVerifyEmail` on `User` (currently commented out); Breeze's verification mailable/routes already exist and just need to be switched on.
-- After verifying, a user with no shop (`current_shop_id` null, `ownedShops` empty) is routed into onboarding instead of the Dashboard, which already sits behind `auth`+`verified` middleware.
-- **Open decision:** shop name/timezone move to onboarding step 1 rather than staying on the signup form (keeps signup to just credentials) - flag if you'd rather keep it on `/register`.
+- Signup collects only name/email/password - no `shop_name` field, no `Shop` row created at that point.
+- `User implements MustVerifyEmail`; `AppServiceProvider` wires `Registered -> SendEmailVerificationNotification` (not registered by default outside Fortify/Jetstream, so `Registered` firing alone wasn't enough).
+- A verified user with no shop (or whose shop hasn't finished onboarding) is routed into onboarding instead of the Dashboard - resolved the open question from the original spec: shop name/timezone moved to onboarding step 1, off the signup form.
 
 ### F8c. Onboarding wizard
 
 Runs once, right after first verified login, before the real Dashboard is reachable.
 
-- New `shops.onboarded_at` nullable timestamp, backfilled to `created_at` for every existing/demo shop in the migration so nobody already using the app gets routed into it retroactively. A shop with it null is redirected to the wizard from any route except the wizard itself and logout.
-- Steps, each saved as it's completed (not one final submit, so a refresh mid-wizard resumes rather than loses progress):
-  1. **Shop & plan** - name, timezone, pick a tier. F0.8 (Stripe/Cashier) isn't built yet, so picking Start-up/Pro here can only record `plan_id` and start the normal 14-day trial - it can't actually charge anyone. Say so plainly in the UI rather than implying a card is being collected.
-  2. **Invite your team** (skippable) - the "Invite staff" step the original F0 flow diagram always called for but the build never implemented; today adding a teammate means creating them directly (the demo commands' approach), with no invite-by-email path anywhere in the app. Needs: an `Invitation` model (`shop_id`, `email`, `role`, `token`, `expires_at`, `accepted_at`), a mailable, and an accept-invite route that creates or attaches the `User` and the `shop_user` row. Substantial enough to scope/estimate as its own unit of work inside F8.
-  3. **Starter catalog** (skippable) - a light "add a few things to get going" form touching Materials, Services, Business Partners, Equipment, Tooling, Material types, and Markup defaults, or "Import from CSV" straight into F9's importer if that's built by then, or "Skip - I'll add these later." Keep it to a handful of quick-add rows, not the full CRUD forms - the goal is one buildable quote, not a populated catalog.
-  4. **Done** - sets `onboarded_at = now()`, redirects to the Dashboard.
-- Acceptance cases to test once built: a verified user with no shop is redirected to the wizard from any URL; a shop with `onboarded_at` set is never sent back even if a later step looks incomplete; refreshing mid-wizard resumes at the right step; skipping steps 2-3 still reaches a working, empty-catalog Dashboard identical to today's.
-
-**Dependencies:** F0.9 (gating/Plan model - built). Ideally F0.8 (Stripe billing - not built; ship F8 first only if the plan-picking step is honest that paid tiers aren't charged yet). The team-invite sub-piece needs nothing beyond F0 (Owner role, `shop_user` pivot - built).
+- `shops.onboarded_at` (null while mid-wizard) + `shops.onboarding_step` (`team`/`catalog`) - backfilled to already-onboarded for every existing/demo shop, and defaulted that way in `ShopFactory` and the demo commands, so only a real signup ever starts mid-wizard.
+- Steps, each persisted on its own submit so a refresh mid-wizard resumes rather than loses progress:
+  1. **Shop & plan** - name, timezone, pick a tier. Since F0.8 (Stripe/Cashier) still isn't built, picking Start-up/Pro only records `plan_id` and starts the normal 14-day trial - the UI says so plainly rather than implying a card is collected.
+  2. **Invite your team** (skippable) - the "Invite staff" step the original F0 flow diagram always called for but F0 never implemented. Built as `App\Models\Invitation` + `App\Actions\SendShopInvitation` + `App\Notifications\ShopInvitationSent` (on-demand, since the invitee usually has no account yet) + `InvitationController` (public, five modes: accepted/expired/ready/login-required/create-account). Also exposed on the Team page itself (owner-only), not just during onboarding - inviting doesn't stop being needed once a shop is a week old.
+  3. **Starter catalog** (skippable) - quick-add rows (name, plus unit for materials) for Materials, Services, and Business Partners specifically - Equipment and Tooling were dropped from this step since their `Store*Request` rules need more than a name (a rate, a material rating) to mean anything, which doesn't fit "quick add." Material types and Markup defaults were left out too - the former is already auto-seeded per shop, the latter defaults sensibly to 0%. Add the rest later under Setup.
+  4. **Done** - folded into submitting the catalog step (no separate confirmation screen): sets `onboarded_at`, redirects to the Dashboard.
+- Covered in `tests/Feature/OnboardingTest.php` and `tests/Feature/InvitationTest.php`: redirect-to-onboarding from any route; resuming mid-wizard; blank rows dropped not rejected; skip still reaches a working empty-catalog Dashboard; an accepted invite only grants the one shop it was for, never any other the invitee might create or join later.
 
 ## Planned: CSV import for catalog data (F9)
 
-**Not started - defined here for review, same as F8.**
+**Not started - defined here for review.**
 
 Owner-only for v1 (could later become its own `{resource}.import` shop permission, consistent with the per-resource permission model already built, but start Owner-gated like `manage-shop`). Covers Customers, Materials, Services, Business Partners, and Equipment as named; Tooling and Material types fit the same shape and are natural to include too - flag if v1 should stay limited to the original five. ("Clients" in the request is read as the same entity as Customers - there's one contact-record model in the app.)
 
@@ -156,7 +150,7 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F5 | Material/scrap tracking tied to job cost | F3 | Real per-job margin - the natural upsell after F1's estimate vs. actual |
 | F6 | Mobile/PWA shell + Sanctum-based API endpoints for job status | F3 (for the data it displays), Sanctum scaffolding from F0 | First real use of the API-readiness groundwork from F0 |
 | F7 | Weld/qualification record tracking (WPS/PQR, certs tied to jobs) | F3 | Compliance/liability differentiator vs. generic tools |
-| F8 | Marketing site, tier comparison & guided onboarding (public page; verified signup; onboarding wizard incl. staff invite-by-email) | F0.9 (built); ideally F0.8 (not built - see spec) | Prospects can evaluate tiers before signing up; new shops get walked through setup instead of landing on an empty dashboard. **Not started - see spec above.** |
+| F8 | Marketing site, tier comparison & guided onboarding (public page; verified signup; onboarding wizard incl. staff invite-by-email) | F0.9 (built); F0.8 not built, so the plan-pick step can't charge yet | Prospects can evaluate tiers before signing up; new shops get walked through setup instead of landing on an empty dashboard. **Built.** |
 | F9 | CSV import for catalog data (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) | F0.5; F1.1; tooling work (built) | Bulk-loads an existing shop's records instead of one-at-a-time entry. **Not started - see spec above.** |
 
 F1 through F7 should each check their own entitlement via F0.9's feature gate before exposing their UI/API - this is a cross-cutting concern like tenant scoping, not a per-feature afterthought.
@@ -242,7 +236,7 @@ flowchart TD
 
 Acceptance cases this implies: signup with an existing email, invite acceptance with an expired token, a Staff role attempting an Owner-only action.
 
-As built, F0 shipped without the invite/accept steps (D and H connect directly - an owner adds teammates directly rather than by email invite) and without email verification gating the Dashboard. F8 below is where those catch up to this original diagram, plus the marketing/tier-pick/wizard steps this diagram didn't anticipate.
+As F0 originally shipped, it lacked the invite/accept steps (D and H connected directly - an owner added teammates directly rather than by email invite) and email verification didn't gate the Dashboard. F8 (below) closed both gaps, plus added the marketing/tier-pick/wizard steps this diagram didn't originally anticipate - see "Marketing, signup & onboarding" further down for the diagram as it actually works now.
 
 ### Quote to job lifecycle (F1-F2)
 
@@ -292,7 +286,7 @@ sequenceDiagram
 
 Acceptance cases: OAuth token expiry mid-sync, a customer that already exists in QuickBooks (dedupe, not duplicate), a push that fails and needs retry rather than silently dropping the invoice.
 
-### Marketing, signup & onboarding, revised (F8, planned)
+### Marketing, signup & onboarding, as built (F8)
 
 ```mermaid
 flowchart TD

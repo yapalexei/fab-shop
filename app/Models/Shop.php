@@ -30,6 +30,7 @@ class Shop extends Model
     protected $fillable = [
         'name', 'owner_id', 'plan_id', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
         'timezone', 'stale_quote_days', 'win_rate_window_days', 'job_board_drag_enabled',
+        'onboarded_at', 'onboarding_step',
     ];
 
     protected function casts(): array
@@ -38,6 +39,7 @@ class Shop extends Model
             'trial_started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'trial_ended_notified_at' => 'datetime',
+            'onboarded_at' => 'datetime',
             'stale_quote_days' => 'integer',
             'win_rate_window_days' => 'integer',
             'job_board_drag_enabled' => 'boolean',
@@ -104,6 +106,17 @@ class Shop extends Model
     public function jobBoardDragEnabled(): bool
     {
         return $this->job_board_drag_enabled ?? config('shop.defaults.job_board_drag_enabled');
+    }
+
+    /**
+     * Whether this shop has completed the onboarding wizard. False for a
+     * shop mid-wizard (or, transiently, for a verified user with no shop
+     * row yet) - the `onboarded` middleware uses this to gate the rest of
+     * the app until it's true.
+     */
+    public function isOnboarded(): bool
+    {
+        return $this->onboarded_at !== null;
     }
 
     public function onTrial(): bool

@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\SendShopInvitation;
+use App\Http\Requests\SendTeamInvitationRequest;
 use App\Http\Requests\UpdateTeamMemberRateRequest;
+use App\Models\Invitation;
 use App\Models\User;
+use App\Support\ShopPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -37,6 +41,14 @@ class TeamController extends Controller
             ]),
             'canManageTeam' => Gate::allows('team.update'),
             'canManageAccess' => $canManageAccess,
+            // Inviting is owner-only for now - it grants shop access, not
+            // just an editable setting, so it stays off the delegable
+            // team.manage-access permission on purpose.
+            'canInvite' => $isOwner,
+            'invitableRoles' => ShopPermissions::EDITABLE_ROLES,
+            'pendingInvitations' => $isOwner
+                ? Invitation::where('shop_id', $shop->id)->whereNull('accepted_at')->latest()->get(['email', 'role', 'expires_at'])
+                : [],
         ]);
     }
 
@@ -51,5 +63,19 @@ class TeamController extends Controller
         ]);
 
         return redirect()->route('team.index');
+    }
+
+    /**
+     * Invite someone by email - the same action onboarding's team step
+     * uses, reachable any time afterwards too (people join a shop well
+     * after it's set up, not just during onboarding).
+     */
+    public function invite(SendTeamInvitationRequest $request, SendShopInvitation $sendInvitation): RedirectResponse
+    {
+        $shop = Auth::user()->currentShop;
+
+        $invitation = $sendInvitation($shop, $request->validated('email'), $request->validated('role'), Auth::user());
+
+        return redirect()->route('team.index')->with('status', "Invited {$invitation->email}.");
     }
 }

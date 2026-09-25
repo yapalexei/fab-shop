@@ -2,23 +2,23 @@
 
 use App\Jobs\PushJobInvoiceToQuickBooks;
 use App\Models\Shop;
+use App\Models\User;
 use App\Services\QuickBooks\QuickBooksClient;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
-test('signup records the browser\'s timezone and a fixed 14-day UTC trial window', function () {
+test('onboarding records the browser\'s timezone and a fixed 14-day UTC trial window', function () {
     $this->seed(PlanSeeder::class);
     Carbon::setTestNow('2026-09-24 22:00:00');
+    $user = User::factory()->create();
 
-    $this->post('/register', [
-        'name' => 'Pat', 'email' => 'pat@example.com',
-        'password' => 'password', 'password_confirmation' => 'password',
-        'shop_name' => 'West Coast Fab', 'timezone' => 'America/Los_Angeles',
+    $this->actingAs($user)->post(route('onboarding.shop'), [
+        'name' => 'West Coast Fab', 'timezone' => 'America/Los_Angeles', 'plan' => 'free',
     ]);
 
-    $shop = auth()->user()->currentShop;
+    $shop = $user->fresh()->currentShop;
 
     expect($shop->timezone)->toBe('America/Los_Angeles')
         ->and($shop->trial_started_at->toIso8601String())->toBe('2026-09-24T22:00:00+00:00')
@@ -47,16 +47,15 @@ test('changing the shop\'s timezone does not move the trial window', function ()
     expect($shop->onTrial())->toBeFalse();
 });
 
-test('signup with an unrecognisable timezone falls back to the default instead of failing', function () {
+test('onboarding with an unrecognisable timezone is rejected rather than silently accepted', function () {
     $this->seed(PlanSeeder::class);
+    $user = User::factory()->create();
 
-    $this->post('/register', [
-        'name' => 'Pat', 'email' => 'pat@example.com',
-        'password' => 'password', 'password_confirmation' => 'password',
-        'shop_name' => 'Somewhere Fab', 'timezone' => 'Not/AZone',
-    ])->assertRedirect(route('dashboard', absolute: false));
+    $this->actingAs($user)->post(route('onboarding.shop'), [
+        'name' => 'Somewhere Fab', 'timezone' => 'Not/AZone', 'plan' => 'free',
+    ])->assertSessionHasErrors('timezone');
 
-    expect(auth()->user()->currentShop->timezone)->toBeNull();
+    expect($user->fresh()->currentShop)->toBeNull();
 });
 
 test('the expired-trial check runs hourly so each shop hears about it soon after its own midnight', function () {

@@ -94,6 +94,7 @@ class SeedMultiShopDemo extends DemoSeedCommand
             'owner_id' => $owner->id,
             'plan_id' => Plan::where('key', 'start-up')->value('id'),
             'trial_ends_at' => null,
+            'onboarded_at' => now(),
             'timezone' => $timezone,
         ]);
 

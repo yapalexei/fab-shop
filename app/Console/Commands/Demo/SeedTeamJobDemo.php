@@ -96,6 +96,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             'owner_id' => $owner->id,
             'plan_id' => Plan::where('key', 'pro')->value('id'),
             'trial_ends_at' => null,
+            'onboarded_at' => now(),
             'timezone' => 'America/Los_Angeles',
             'job_board_drag_enabled' => true,
         ]);
