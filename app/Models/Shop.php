@@ -136,19 +136,49 @@ class Shop extends Model
         return $this->suspended_at !== null;
     }
 
+    /**
+     * The shop's overall/default trial window - what's shown as "your trial
+     * ends <date>" and what NotifyExpiredTrials and the platform admin
+     * dashboard key off. Individual features can run on a longer or shorter
+     * window than this (see onTrialFor()); this stays the anchor for the
+     * default-length case and for anything that isn't feature-specific.
+     */
     public function onTrial(): bool
     {
         return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
     }
 
     /**
+     * Whether $feature is still free under the shop's trial - which can run
+     * longer or shorter than the shop's overall trial_ends_at if a platform
+     * admin gave that specific feature a different trial_days
+     * (FeatureSetting::trialDaysFor()). Expressed as an offset from
+     * trial_ends_at rather than trial_started_at + trial_days directly, so
+     * a feature at the default length (the common case - every feature
+     * starts at Shop::TRIAL_DAYS) reduces to exactly onTrial(), and a
+     * platform admin manually extending trial_ends_at for one shop shifts
+     * every feature's window with it rather than only the default-length
+     * ones.
+     */
+    public function onTrialFor(Feature $feature): bool
+    {
+        if ($this->trial_ends_at === null) {
+            return false;
+        }
+
+        $offsetDays = FeatureSetting::trialDaysFor($feature) - self::TRIAL_DAYS;
+
+        return $this->trial_ends_at->copy()->addDays($offsetDays)->isFuture();
+    }
+
+    /**
      * True if the feature is in the shop's current plan, the shop bought it
-     * standalone as an add-on, or the shop is still on trial (trial shops
-     * get every feature during the trial window).
+     * standalone as an add-on, or the shop is still within that feature's
+     * own trial window.
      */
     public function hasFeature(Feature $feature): bool
     {
-        return $this->onTrial()
+        return $this->onTrialFor($feature)
             || ($this->plan?->hasFeature($feature) ?? false)
             || $this->hasActiveFeatureSubscription($feature);
     }
@@ -174,9 +204,15 @@ class Shop extends Model
      */
     public function enabledFeatures(): Collection
     {
-        if ($this->onTrial()) {
-            return collect(Feature::cases());
-        }
+        $trialDays = FeatureSetting::trialDaysMap();
+
+        $trialFeatures = $this->trial_ends_at === null
+            ? collect()
+            : collect(Feature::cases())->filter(function (Feature $feature) use ($trialDays) {
+                $offsetDays = $trialDays[$feature->value] - self::TRIAL_DAYS;
+
+                return $this->trial_ends_at->copy()->addDays($offsetDays)->isFuture();
+            });
 
         $bundled = $this->plan?->features() ?? collect();
 
@@ -186,7 +222,7 @@ class Shop extends Model
             ->pluck('feature')
             ->map(fn (string $feature) => Feature::from($feature));
 
-        return $bundled->merge($addons)->unique();
+        return $trialFeatures->merge($bundled)->merge($addons)->unique();
     }
 
     /**

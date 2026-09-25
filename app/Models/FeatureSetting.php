@@ -54,6 +54,33 @@ class FeatureSetting extends Model
     }
 
     /**
+     * How many days $feature stays free during a shop's trial. Falls back
+     * to Shop::TRIAL_DAYS when the feature has no row yet (e.g. a fresh
+     * install that hasn't run ensureDefaults()), so gating never breaks
+     * just because the admin-editable row is missing.
+     */
+    public static function trialDaysFor(Feature $feature): int
+    {
+        return static::query()->where('feature', $feature->value)->value('trial_days') ?? Shop::TRIAL_DAYS;
+    }
+
+    /**
+     * Every feature's trial length in one query, keyed by Feature::value -
+     * for Shop::enabledFeatures(), which otherwise checks every feature and
+     * would run trialDaysFor()'s query once per feature per page load.
+     *
+     * @return Collection<string, int>
+     */
+    public static function trialDaysMap(): Collection
+    {
+        $rows = static::query()->pluck('trial_days', 'feature');
+
+        return collect(Feature::cases())->mapWithKeys(
+            fn (Feature $feature) => [$feature->value => $rows[$feature->value] ?? Shop::TRIAL_DAYS],
+        );
+    }
+
+    /**
      * Give every Feature case a settings row if it doesn't have one yet -
      * idempotent, same pattern as MaterialTypes::seedDefaults(), so adding a
      * new Feature case later just needs this run again rather than a new

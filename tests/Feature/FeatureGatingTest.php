@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Feature;
+use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\ShopFeatureSubscription;
@@ -114,4 +115,60 @@ test('hasFeature checks the shop passed in, not the authenticated user\'s curren
     $this->actingAs($user);
 
     expect($targetShop->hasFeature(Feature::MaterialTracking))->toBeTrue();
+});
+
+test('a feature with a longer admin-set trial stays free after the shop\'s default trial ends', function () {
+    FeatureSetting::ensureDefaults();
+    FeatureSetting::query()->where('feature', Feature::MaterialTracking->value)->update(['trial_days' => 30]);
+
+    // trial_ends_at is 14 days from signup (the default) and has already
+    // passed - but MaterialTracking's own trial runs to day 30, so it's
+    // still within its own window 20 days after trial_ends_at.
+    $shop = Shop::factory()->create([
+        'trial_started_at' => now()->subDays(20),
+        'trial_ends_at' => now()->subDays(6),
+        'plan_id' => null,
+    ]);
+
+    expect($shop->hasFeature(Feature::MaterialTracking))->toBeTrue()
+        ->and($shop->hasFeature(Feature::Customers))->toBeFalse();
+});
+
+test('a feature with a shorter admin-set trial locks before the shop\'s default trial ends', function () {
+    FeatureSetting::ensureDefaults();
+    FeatureSetting::query()->where('feature', Feature::QualificationRecords->value)->update(['trial_days' => 3]);
+
+    // QualificationRecords' own trial (3 days from signup) already lapsed,
+    // even though the shop's overall 14-day trial_ends_at is still future.
+    $shop = Shop::factory()->create([
+        'trial_started_at' => now()->subDays(5),
+        'trial_ends_at' => now()->addDays(9),
+        'plan_id' => null,
+    ]);
+
+    expect($shop->hasFeature(Feature::QualificationRecords))->toBeFalse()
+        ->and($shop->hasFeature(Feature::Customers))->toBeTrue();
+});
+
+test('enabledFeatures reflects a per-feature trial extension past the default trial window', function () {
+    FeatureSetting::ensureDefaults();
+    FeatureSetting::query()->where('feature', Feature::MaterialTracking->value)->update(['trial_days' => 30]);
+
+    $shop = Shop::factory()->create([
+        'trial_started_at' => now()->subDays(20),
+        'trial_ends_at' => now()->subDays(6),
+        'plan_id' => null,
+    ]);
+
+    expect($shop->enabledFeatures())->toContain(Feature::MaterialTracking)
+        ->and($shop->enabledFeatures())->not->toContain(Feature::Customers);
+});
+
+test('a shop with no trial at all gets no feature from onTrialFor regardless of trial_days', function () {
+    FeatureSetting::ensureDefaults();
+    FeatureSetting::query()->where('feature', Feature::MaterialTracking->value)->update(['trial_days' => 365]);
+
+    $shop = Shop::factory()->create(['trial_started_at' => null, 'trial_ends_at' => null, 'plan_id' => null]);
+
+    expect($shop->hasFeature(Feature::MaterialTracking))->toBeFalse();
 });
