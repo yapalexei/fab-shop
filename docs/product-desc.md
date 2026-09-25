@@ -42,7 +42,7 @@ Core features, in plain terms (full dependency table is below):
 
 ## Subscription tiers & feature gating
 
-Starting proposal, mapped to the pricing in the Product & Launch Plan tab - adjust the exact feature split freely, the mechanism below works regardless of where you draw the lines.
+Starting proposal, mapped to the pricing in the Product & Launch Plan tab - adjust the exact feature split freely, the mechanism below works regardless of where you draw the lines. See "Feature add-ons, admin-editable pricing/trials & the Solo tier - built" below for how this was actually extended once real tiers and pricing needed to be pinned down.
 
 ### Tier x feature matrix
 
@@ -68,6 +68,19 @@ Starting proposal, mapped to the pricing in the Product & Launch Plan tab - adju
 - **Trial expiry job:** a daily scheduled command checks for shops past `trial_ends_at` still on the free plan and, since gating is computed rather than stored, this job's real job is just sending the "your trial ended" notification/email - not changing any access-control data.
 
 Build F0.9 (this) right after F0.8 (billing) and before F1 - every feature from F1 onward should call `Shop::hasFeature()` as part of its own build, not receive gating bolted on afterward.
+
+## Feature add-ons, admin-editable pricing/trials & the Solo tier - built
+
+Extends F0.9 once tier pricing needed to be a real business lever instead of code - see `CLAUDE.md`'s own notes on `FeatureSetting`/`ShopFeatureSubscription` for implementation specifics (fillable columns, the `withoutGlobalScopes()` trap, etc.); what's below is what it does and why.
+
+- **Four tiers, not three**: added **Solo** ($29/mo placeholder, 1 seat) between Free and Start-up - Customers + Quote builder only, deliberately without the job board, so it's a real trimmed product for a true one-person shop rather than just Start-up at a discount. Named "Solo" rather than "Hobbyist" - these are paying small businesses running a real shop, not a hobby.
+- **`feature_settings` table** (`App\Models\FeatureSetting`) - one admin-editable row per `Feature` case: `price_cents` (what it costs as a standalone add-on) and `trial_days` (how long it's free during a shop's trial). Seeded lazily (`FeatureSetting::ensureDefaults()`) rather than via a migration per feature, so adding a new `Feature` case never needs a data migration just for its settings row. Editable from a new platform admin page (`/platform-admin/features`), including a bulk "set trial days for every feature" control.
+- **`shop_feature_subscriptions` table** (`App\Models\ShopFeatureSubscription`) - a shop can subscribe to one `Feature` standalone, independent of its plan, toggled active/cancelled per (shop, feature) rather than kept as a full billing history. Shop-facing page at `/shop/addons` (owner-only), which never offers a feature the current plan already bundles.
+- **Per-feature trial length** (`Shop::onTrialFor(Feature): bool`) - a feature can run a longer or shorter trial than the shop's overall `trial_ends_at`, computed as an offset (`FeatureSetting::trialDaysFor($feature) - Shop::TRIAL_DAYS`) rather than a second anchor timestamp, so a feature at the default length reduces to exactly the original `onTrial()` check and a manually-extended `trial_ends_at` shifts every feature's window with it.
+- **`Shop::hasFeature()`/`enabledFeatures()` now check three sources**: plan bundling, active add-on subscription, and per-feature trial window - still one method, still the single source of truth every gate/middleware/Inertia prop calls.
+- **Bundle savings, computed live**: the marketing page and the Add-ons page both show what a plan's bundled features would cost bought individually (`FeatureSetting::priceMap()` summed over the plan's features, minus the plan's own price) - "read live from Plan/Feature, never hardcoded copy," the same rule F8a's tier comparison already followed.
+- **No double-billing on upgrade**: `Shop::cancelSubscriptionsBundledInPlan()` runs after a plan change (currently only reachable via the platform admin's plan override, since F0.8 billing still isn't built) and cancels any active add-on for a feature the new plan already includes.
+- Still simulated, not charged: like every other price on this platform, none of this is wired to a real payment processor - it controls access exactly like a paid plan does, but nothing here calls Stripe.
 
 ## Quote builder catalog: Materials, Services, Business Partners & Equipment
 
