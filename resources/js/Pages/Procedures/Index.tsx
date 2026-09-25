@@ -1,3 +1,4 @@
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -25,9 +26,26 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Procedures
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Procedures
+                    </h2>
+                    {procedures.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Shop-defined processes people get qualified
+                                against - a welding procedure, an NDT method,
+                                equipment that needs an operator card.
+                            </p>
+                            <p>
+                                Tied to Certifications and to a job's
+                                qualification records, so the app can tell
+                                whether a job's work was actually covered by
+                                someone's valid certification.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Procedures" />
@@ -44,8 +62,23 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {procedures.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No procedures yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No procedures yet. These are
+                                        shop-defined processes people get
+                                        qualified against - a welding procedure,
+                                        an NDT method, equipment that needs an
+                                        operator card.
+                                    </p>
+                                    <p>
+                                        Tied to Certifications and to a job's
+                                        qualification records, so the app can
+                                        tell whether a job's work was actually
+                                        covered by someone's valid
+                                        certification.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

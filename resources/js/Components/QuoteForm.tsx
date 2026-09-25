@@ -224,6 +224,7 @@ export default function QuoteForm({
                                 getError={(field: keyof LineItem) =>
                                     errorMap[`line_items.${index}.${field}`]
                                 }
+                                readOnly={readOnly}
                             />
                         ))}
                     </div>

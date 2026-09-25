@@ -1,3 +1,4 @@
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -34,9 +35,24 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Quotes
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Quotes
+                    </h2>
+                    {quotes.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Every quote your shop has built, from draft
+                                through won or lost.
+                            </p>
+                            <p>
+                                A won quote converts into a trackable job on the
+                                job board; a lost one can be archived. This is
+                                the starting point for pricing new work.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Quotes" />
@@ -53,8 +69,20 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {quotes.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No quotes yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No quotes yet. This is every quote your
+                                        shop has built, from draft through won
+                                        or lost.
+                                    </p>
+                                    <p>
+                                        A won quote converts into a trackable
+                                        job on the job board; a lost one can be
+                                        archived. This is the starting point for
+                                        pricing new work.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

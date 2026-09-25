@@ -1,4 +1,5 @@
 import FormErrorSummary from '@/Components/FormErrorSummary';
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -95,9 +96,7 @@ function PendingInvitations({
                         <span className="text-gray-900">
                             {invitation.email}
                         </span>
-                        <span className="text-gray-500">
-                            {invitation.role}
-                        </span>
+                        <span className="text-gray-500">{invitation.role}</span>
                     </li>
                 ))}
             </ul>
@@ -179,9 +178,23 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Team
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Team
+                    </h2>
+                    <PageHelp>
+                        <p>
+                            Everyone with access to this shop - their role, and
+                            (if you can manage the team) their hourly rate for
+                            labor line items.
+                        </p>
+                        <p>
+                            Invite new teammates by email from here. What each
+                            Staff member can additionally do beyond their role's
+                            defaults is set on the Roles &amp; permissions page.
+                        </p>
+                    </PageHelp>
+                </div>
             }
         >
             <Head title="Team" />

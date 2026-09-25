@@ -1,4 +1,5 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -26,9 +27,23 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Customers
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Customers
+                    </h2>
+                    {customers.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Contact records that quotes and jobs attach to.
+                            </p>
+                            <p>
+                                Every quote needs a customer - add one here, or
+                                from the quote builder itself, before pricing
+                                work for them.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Customers" />
@@ -52,8 +67,18 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {customers.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No customers yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No customers yet. Contact records that
+                                        quotes and jobs attach to.
+                                    </p>
+                                    <p>
+                                        Every quote needs a customer - add one
+                                        here, or from the quote builder itself,
+                                        before pricing work for them.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

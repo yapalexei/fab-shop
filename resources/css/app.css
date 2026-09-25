@@ -1,3 +1,191 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Dark theme, applied via the `dark` class on <html> (see
+ * resources/js/lib/theme.ts) rather than the `media` strategy, so an
+ * explicit user choice can override the OS preference it defaults to.
+ *
+ * The app's existing markup was built with a small, consistent vocabulary
+ * of plain Tailwind utilities (bg-white, text-gray-900, border-gray-300...)
+ * rather than semantic tokens - so instead of adding a `dark:` variant next
+ * to every one of those classes across ~40 page files, this layer
+ * overrides that same vocabulary globally by selector specificity
+ * (`.dark .bg-white` beats `.bg-white`). New markup gets dark mode for
+ * free by sticking to this same vocabulary; anything reaching for a color
+ * outside it (a one-off hex, an unlisted shade) needs its own `.dark`
+ * override added here, or its own explicit `dark:` variant inline.
+ *
+ * Plain `color`/`background-color`/`border-color` declarations throughout,
+ * not `@apply` - two of these mappings are intentionally reciprocal
+ * (gray-400 <-> gray-500, gray-300 <-> gray-600), which `@apply` refuses
+ * as a circular dependency even though it's a perfectly normal palette
+ * remap when written as a plain property.
+ */
+@layer utilities {
+    html.dark {
+        color-scheme: dark;
+    }
+
+    .dark body {
+        background-color: theme('colors.gray.900');
+        color: theme('colors.gray.100');
+    }
+
+    /* Surfaces */
+    .dark .bg-white {
+        background-color: theme('colors.gray.900');
+    }
+    .dark .bg-gray-50 {
+        background-color: theme('colors.gray.900');
+    }
+    .dark .bg-gray-100 {
+        background-color: theme('colors.gray.800');
+    }
+    .dark .bg-gray-200 {
+        background-color: theme('colors.gray.700');
+    }
+
+    /* Body text */
+    .dark .text-gray-900 {
+        color: theme('colors.gray.100');
+    }
+    .dark .text-gray-800 {
+        color: theme('colors.gray.200');
+    }
+    .dark .text-gray-700 {
+        color: theme('colors.gray.300');
+    }
+    .dark .text-gray-600 {
+        color: theme('colors.gray.300');
+    }
+    .dark .text-gray-500 {
+        color: theme('colors.gray.400');
+    }
+    .dark .text-gray-400 {
+        color: theme('colors.gray.500');
+    }
+    .dark .text-gray-300 {
+        color: theme('colors.gray.600');
+    }
+
+    /* Borders */
+    .dark .border-gray-100 {
+        border-color: theme('colors.gray.700');
+    }
+    .dark .border-gray-200 {
+        border-color: theme('colors.gray.700');
+    }
+    .dark .border-gray-300 {
+        border-color: theme('colors.gray.600');
+    }
+
+    /* divide-* generates a child combinator, not a plain color rule -
+       target that directly. */
+    .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+    .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+        border-color: theme('colors.gray.700');
+    }
+
+    /* Form controls - @tailwindcss/forms sets an explicit white background
+       in its own base layer, so this needs to win on specificity, and
+       checkboxes/radios/file inputs are excluded since they render their
+       own chrome rather than a plain text field. */
+    .dark input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    .dark select,
+    .dark textarea {
+        background-color: theme('colors.gray.900');
+        border-color: theme('colors.gray.600');
+        color: theme('colors.gray.100');
+    }
+    .dark input::placeholder,
+    .dark textarea::placeholder {
+        color: theme('colors.gray.500');
+    }
+
+    /* Status chips/banners (badges, error/success panels) - pale-background
+       chips read as a jarring bright patch on an otherwise dark page, so
+       these get a dark, tinted background with lightened text instead of
+       just lightened text on their original pale background. */
+    .dark .bg-red-50 {
+        background-color: theme('colors.red.950');
+    }
+    .dark .bg-green-50 {
+        background-color: theme('colors.green.950');
+    }
+    .dark .bg-amber-50 {
+        background-color: theme('colors.amber.950');
+    }
+    .dark .bg-yellow-50 {
+        background-color: theme('colors.yellow.950');
+    }
+    .dark .bg-indigo-50 {
+        background-color: theme('colors.indigo.950');
+    }
+    .dark .bg-red-100 {
+        background-color: theme('colors.red.900');
+    }
+    .dark .bg-green-100 {
+        background-color: theme('colors.green.900');
+    }
+    .dark .bg-amber-100 {
+        background-color: theme('colors.amber.900');
+    }
+
+    .dark .text-red-600 {
+        color: theme('colors.red.400');
+    }
+    .dark .text-red-700 {
+        color: theme('colors.red.400');
+    }
+    .dark .text-red-800 {
+        color: theme('colors.red.300');
+    }
+    .dark .text-red-900 {
+        color: theme('colors.red.300');
+    }
+    .dark .text-green-600 {
+        color: theme('colors.green.400');
+    }
+    .dark .text-green-700 {
+        color: theme('colors.green.400');
+    }
+    .dark .text-green-800 {
+        color: theme('colors.green.300');
+    }
+    .dark .text-amber-600 {
+        color: theme('colors.amber.400');
+    }
+    .dark .text-amber-700 {
+        color: theme('colors.amber.400');
+    }
+    .dark .text-amber-800 {
+        color: theme('colors.amber.300');
+    }
+    .dark .text-yellow-800 {
+        color: theme('colors.yellow.300');
+    }
+    .dark .text-indigo-600 {
+        color: theme('colors.indigo.400');
+    }
+    .dark .text-indigo-700 {
+        color: theme('colors.indigo.300');
+    }
+    .dark .text-indigo-900 {
+        color: theme('colors.indigo.300');
+    }
+
+    .dark .border-red-200 {
+        border-color: theme('colors.red.800');
+    }
+    .dark .border-red-300 {
+        border-color: theme('colors.red.700');
+    }
+    .dark .border-green-300 {
+        border-color: theme('colors.green.700');
+    }
+    .dark .border-indigo-300 {
+        border-color: theme('colors.indigo.700');
+    }
+}

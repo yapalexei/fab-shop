@@ -1,5 +1,6 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
 import InputError from '@/Components/InputError';
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -120,11 +121,13 @@ export default function Index({
     customCount,
     customLimit,
     auth,
-}: PageProps<{
-    types: MaterialTypeRow[];
-    customCount: number;
-    customLimit: number;
-} & { auth: { isOwner: boolean } }>) {
+}: PageProps<
+    {
+        types: MaterialTypeRow[];
+        customCount: number;
+        customLimit: number;
+    } & { auth: { isOwner: boolean } }
+>) {
     const can = useCan();
     const builtIn = types.filter((t) => t.is_default);
     const custom = types.filter((t) => !t.is_default);
@@ -145,9 +148,24 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Material types
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Material types
+                    </h2>
+                    <PageHelp>
+                        <p>
+                            The kinds of material your shop works with - every
+                            shop starts with a built-in set (Carbon steel,
+                            Aluminum, etc.) and can add its own on top, up to a
+                            shop-wide limit.
+                        </p>
+                        <p>
+                            Used to tag catalog materials and rate tooling for
+                            what it can cut, so the quote builder can warn when
+                            a tool doesn't match a quote's materials.
+                        </p>
+                    </PageHelp>
+                </div>
             }
         >
             <Head title="Material types" />

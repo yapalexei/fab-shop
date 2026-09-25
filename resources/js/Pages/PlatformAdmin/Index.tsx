@@ -1,4 +1,5 @@
 import DangerButton from '@/Components/DangerButton';
+import PageHelp from '@/Components/PageHelp';
 import SecondaryButton from '@/Components/SecondaryButton';
 import PlatformAdminLayout from '@/Layouts/PlatformAdminLayout';
 import { PageProps } from '@/types';
@@ -132,9 +133,27 @@ export default function Index({
     return (
         <PlatformAdminLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Shop directory
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Shop directory
+                    </h2>
+                    {shops.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Every shop on the platform - internal,
+                                cross-tenant view, not something a shop's own
+                                users ever see.
+                            </p>
+                            <p>
+                                Suspend a shop, override its plan, or check
+                                potential revenue from here. Actual collected
+                                revenue (Stripe/Square/Plaid) isn't wired up yet
+                                - the MRR figures above are computed, not real
+                                billing data.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Platform admin" />
@@ -162,8 +181,20 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {shops.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No shops yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No shops yet. This is every shop on the
+                                        platform - internal, cross-tenant view,
+                                        not something a shop's own users ever
+                                        see.
+                                    </p>
+                                    <p>
+                                        Suspend a shop, override its plan, or
+                                        check potential revenue from here once
+                                        shops start signing up.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

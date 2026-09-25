@@ -1,4 +1,5 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -31,9 +32,23 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Equipment
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Equipment
+                    </h2>
+                    {equipment.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Shop equipment billed on quotes - a laser table,
+                                a brake press - priced hourly or flat.
+                            </p>
+                            <p>
+                                Used by the quote builder's equipment line
+                                items.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Equipment" />
@@ -57,8 +72,18 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {equipment.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No equipment yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No equipment yet. This is shop equipment
+                                        billed on quotes - a laser table, a
+                                        brake press - priced hourly or flat.
+                                    </p>
+                                    <p>
+                                        Used by the quote builder's equipment
+                                        line items.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

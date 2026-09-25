@@ -1,5 +1,6 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
+import ThemeToggle from '@/Components/ThemeToggle';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode } from 'react';
@@ -29,7 +30,9 @@ export default function PlatformAdminLayout({
                         </span>
                     </div>
 
-                    <div className="relative">
+                    <div className="flex items-center gap-1">
+                        <ThemeToggle />
+
                         <Dropdown>
                             <Dropdown.Trigger>
                                 <button

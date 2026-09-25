@@ -1,4 +1,5 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -15,7 +16,9 @@ interface BusinessPartnerRow {
 export default function Index({
     businessPartners,
     auth,
-}: PageProps<{ businessPartners: BusinessPartnerRow[] } & { auth: { isOwner: boolean } }>) {
+}: PageProps<
+    { businessPartners: BusinessPartnerRow[] } & { auth: { isOwner: boolean } }
+>) {
     const can = useCan();
     const destroy = (partner: BusinessPartnerRow) => {
         if (confirm(`Delete ${partner.name}?`)) {
@@ -26,9 +29,27 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Business partners
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Business partners
+                    </h2>
+                    {businessPartners.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Outside companies your shop works with -
+                                suppliers, subcontractors, or both. The same
+                                business can supply materials and perform
+                                services, so there's no separate vendor/supplier
+                                split.
+                            </p>
+                            <p>
+                                A partner's prices are set on its own edit page,
+                                and those are exactly what the quote builder
+                                offers when a line item picks that partner.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Business partners" />
@@ -54,8 +75,22 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {businessPartners.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No business partners yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No business partners yet. These are
+                                        outside companies your shop works with -
+                                        suppliers, subcontractors, or both. The
+                                        same business can supply materials and
+                                        perform services.
+                                    </p>
+                                    <p>
+                                        A partner's prices, set on its own edit
+                                        page, are exactly what the quote builder
+                                        offers when a line item picks that
+                                        partner.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

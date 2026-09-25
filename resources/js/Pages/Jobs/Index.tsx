@@ -1,5 +1,6 @@
 import JobMoveDialog from '@/Components/JobMoveDialog';
 import JobStatusActions, { JobTransition } from '@/Components/JobStatusActions';
+import PageHelp from '@/Components/PageHelp';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import {
@@ -283,9 +284,26 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Jobs
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Jobs
+                    </h2>
+                    {jobs.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                The job board - every job converted from a won
+                                quote, tracked from cutting through shipped and
+                                invoiced.
+                            </p>
+                            <p>
+                                This is the daily-use screen for the shop floor.
+                                Click a job to log status changes, photos,
+                                material usage, and qualification records
+                                against it.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Jobs" />
@@ -302,8 +320,18 @@ export default function Index({
                     )}
 
                     {jobs.length === 0 ? (
-                        <div className="rounded-lg bg-white p-6 text-gray-500 shadow-sm">
-                            No jobs yet - convert a won quote to create one.
+                        <div className="rounded-lg bg-white p-6 shadow-sm">
+                            <PageHelp empty>
+                                <p>
+                                    No jobs yet. This is the job board - every
+                                    job converted from a won quote, tracked from
+                                    cutting through shipped and invoiced.
+                                </p>
+                                <p>
+                                    Convert a won quote to create one - go to
+                                    Quotes, mark one won, then convert it.
+                                </p>
+                            </PageHelp>
                         </div>
                     ) : (
                         <DndContext

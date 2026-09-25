@@ -1,3 +1,4 @@
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -28,9 +29,25 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Certifications
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Certifications
+                    </h2>
+                    {certifications.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Your team's qualifications - cert number,
+                                issuing body, issued/expiry dates - optionally
+                                tied to one of the shop's Procedures.
+                            </p>
+                            <p>
+                                Checked automatically whenever someone logs a
+                                qualification record on a job, to flag work
+                                performed without a valid certification.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Certifications" />
@@ -47,8 +64,22 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {certifications.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No certifications yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No certifications yet. This is your
+                                        team's qualifications - cert number,
+                                        issuing body, issued/expiry dates -
+                                        optionally tied to one of the shop's
+                                        Procedures.
+                                    </p>
+                                    <p>
+                                        Checked automatically whenever someone
+                                        logs a qualification record on a job, to
+                                        flag work performed without a valid
+                                        certification.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

@@ -1,4 +1,5 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -26,9 +27,25 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Materials
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Materials
+                    </h2>
+                    {materials.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                The shop's material catalog - steel, aluminum,
+                                and whatever else you stock.
+                            </p>
+                            <p>
+                                Used by the quote builder's material line items
+                                to pre-fill a description, unit, and supplier
+                                price - a line can still be typed freeform if
+                                the material isn't in here.
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Materials" />
@@ -52,8 +69,21 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {materials.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                No materials yet.
+                            <div className="p-6">
+                                <PageHelp empty>
+                                    <p>
+                                        No materials yet. This is the shop's
+                                        material catalog - steel, aluminum, and
+                                        whatever else you stock.
+                                    </p>
+                                    <p>
+                                        Used by the quote builder's material
+                                        line items to pre-fill a description,
+                                        unit, and supplier price - a line can
+                                        still be typed freeform if the material
+                                        isn't in here.
+                                    </p>
+                                </PageHelp>
                             </div>
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">

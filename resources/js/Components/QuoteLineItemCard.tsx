@@ -10,6 +10,7 @@ import {
     ServiceOption,
     ToolOption,
 } from '@/Components/QuoteForm';
+import { useState } from 'react';
 
 const currency = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -40,6 +41,7 @@ export default function QuoteLineItemCard({
     onChange,
     onRemove,
     getError,
+    readOnly = false,
 }: {
     item: LineItem;
     index: number;
@@ -53,7 +55,18 @@ export default function QuoteLineItemCard({
     onChange: (index: number, patch: Partial<LineItem>) => void;
     onRemove: (index: number) => void;
     getError: (field: keyof LineItem) => string | undefined;
+    /** The whole form is view-only - never show the edit form, just the row. */
+    readOnly?: boolean;
 }) {
+    // A brand-new item (added via "Add line item") has no description yet,
+    // so it opens straight into edit mode; anything loaded with one already
+    // set (an existing quote, or an item you've already filled in) starts
+    // collapsed to the compact row. Only read on mount - typing a
+    // description afterwards doesn't re-collapse an item you're editing.
+    const [isEditing, setIsEditing] = useState(
+        () => item.description.trim() === '',
+    );
+
     const errorClass = (field: keyof LineItem) =>
         getError(field) ? 'border-red-400' : '';
 
@@ -84,7 +97,9 @@ export default function QuoteLineItemCard({
     };
 
     const selectMaterialPartner = (partnerId: string) => {
-        const material = materials.find((m) => m.id === Number(item.material_id));
+        const material = materials.find(
+            (m) => m.id === Number(item.material_id),
+        );
         const partner = material?.partners.find(
             (p) => p.business_partner_id === Number(partnerId),
         );
@@ -147,7 +162,9 @@ export default function QuoteLineItemCard({
             onChange(index, { equipment_id: null });
             return;
         }
-        const equipment = equipmentList.find((e) => e.id === Number(equipmentId));
+        const equipment = equipmentList.find(
+            (e) => e.id === Number(equipmentId),
+        );
         onChange(index, {
             equipment_id: Number(equipmentId),
             description: equipment?.name ?? item.description,
@@ -163,7 +180,9 @@ export default function QuoteLineItemCard({
         const tool = tools.find((t) => t.id === Number(toolId));
         onChange(index, {
             tool_id: Number(toolId),
-            description: tool ? `${tool.name} (${tool.cuts})` : item.description,
+            description: tool
+                ? `${tool.name} (${tool.cuts})`
+                : item.description,
             unit_cost: tool?.cost ?? item.unit_cost,
         });
     };
@@ -180,13 +199,24 @@ export default function QuoteLineItemCard({
             selectedTool.cut_type_ids.includes(type.id),
         );
 
-    const selectedMaterial = materials.find((m) => m.id === Number(item.material_id));
+    const selectedMaterial = materials.find(
+        (m) => m.id === Number(item.material_id),
+    );
 
     const rowErrors = (
         [
-            'type', 'description', 'quantity', 'unit_cost', 'markup_percent',
-            'override_total', 'material_id', 'service_id', 'business_partner_id',
-            'user_id', 'equipment_id', 'tool_id',
+            'type',
+            'description',
+            'quantity',
+            'unit_cost',
+            'markup_percent',
+            'override_total',
+            'material_id',
+            'service_id',
+            'business_partner_id',
+            'user_id',
+            'equipment_id',
+            'tool_id',
         ] as (keyof LineItem)[]
     )
         .map((field) => getError(field))
@@ -194,6 +224,52 @@ export default function QuoteLineItemCard({
 
     const selectClass =
         'block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+
+    // A collapsed item never hides an invalid one (errors force it back
+    // open), and a read-only form never shows the editable version at all.
+    const editing = !readOnly && (isEditing || rowErrors.length > 0);
+
+    if (!editing) {
+        return (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-4 py-2.5">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium capitalize text-gray-600">
+                        {item.type}
+                    </span>
+                    <span className="truncate text-sm text-gray-900">
+                        {item.description || 'Untitled line item'}
+                    </span>
+                    <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
+                        {item.quantity} ×{' '}
+                        {currency.format(Number(item.unit_cost) || 0)}
+                    </span>
+                </div>
+                <div className="flex shrink-0 items-center gap-4">
+                    <span className="text-sm font-medium text-gray-900">
+                        {currency.format(lineTotal(item))}
+                    </span>
+                    {!readOnly && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setIsEditing(true)}
+                                className="text-sm text-indigo-600 hover:text-indigo-900"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onRemove(index)}
+                                className="text-sm text-red-600 hover:text-red-900"
+                            >
+                                Remove
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="rounded-md border border-gray-200 bg-white p-4">
@@ -223,9 +299,14 @@ export default function QuoteLineItemCard({
                                 value={item.material_id ?? ''}
                                 onChange={(e) => selectMaterial(e.target.value)}
                             >
-                                <option value="">Custom (not in catalog)</option>
+                                <option value="">
+                                    Custom (not in catalog)
+                                </option>
                                 {materials.map((material) => (
-                                    <option key={material.id} value={material.id}>
+                                    <option
+                                        key={material.id}
+                                        value={material.id}
+                                    >
                                         {material.name}
                                     </option>
                                 ))}
@@ -249,7 +330,8 @@ export default function QuoteLineItemCard({
                                         key={partner.business_partner_id}
                                         value={partner.business_partner_id}
                                     >
-                                        {partner.name} ({currency.format(partner.price)})
+                                        {partner.name} (
+                                        {currency.format(partner.price)})
                                     </option>
                                 ))}
                             </select>
@@ -282,7 +364,9 @@ export default function QuoteLineItemCard({
                                         ))}
                                     </optgroup>
                                 )}
-                                {services.some((s) => s.partners.length > 0) && (
+                                {services.some(
+                                    (s) => s.partners.length > 0,
+                                ) && (
                                     <optgroup label="Outsourced services">
                                         {services.flatMap((service) =>
                                             service.partners.map((partner) => (
@@ -292,7 +376,10 @@ export default function QuoteLineItemCard({
                                                 >
                                                     {service.name} —{' '}
                                                     {partner.name} (
-                                                    {currency.format(partner.price)})
+                                                    {currency.format(
+                                                        partner.price,
+                                                    )}
+                                                    )
                                                 </option>
                                             )),
                                         )}
@@ -308,11 +395,18 @@ export default function QuoteLineItemCard({
                             <select
                                 className={`mt-1 ${selectClass}`}
                                 value={item.equipment_id ?? ''}
-                                onChange={(e) => selectEquipment(e.target.value)}
+                                onChange={(e) =>
+                                    selectEquipment(e.target.value)
+                                }
                             >
-                                <option value="">Custom (not in catalog)</option>
+                                <option value="">
+                                    Custom (not in catalog)
+                                </option>
                                 {equipmentList.map((equipment) => (
-                                    <option key={equipment.id} value={equipment.id}>
+                                    <option
+                                        key={equipment.id}
+                                        value={equipment.id}
+                                    >
                                         {equipment.name} (
                                         {currency.format(equipment.rate)}
                                         {equipment.billing_method === 'hourly'
@@ -333,11 +427,14 @@ export default function QuoteLineItemCard({
                                 value={item.tool_id ?? ''}
                                 onChange={(e) => selectTool(e.target.value)}
                             >
-                                <option value="">Custom (not in catalog)</option>
+                                <option value="">
+                                    Custom (not in catalog)
+                                </option>
                                 {tools.map((tool) => (
                                     <option key={tool.id} value={tool.id}>
                                         {tool.name} — {tool.cuts} (
-                                        {currency.format(tool.cost)}/{tool.unit})
+                                        {currency.format(tool.cost)}/{tool.unit}
+                                        )
                                     </option>
                                 ))}
                             </select>
@@ -345,13 +442,22 @@ export default function QuoteLineItemCard({
                     )}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={() => onRemove(index)}
-                    className="mt-6 shrink-0 text-sm text-red-600 hover:text-red-900"
-                >
-                    Remove
-                </button>
+                <div className="mt-6 flex shrink-0 items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setIsEditing(false)}
+                        className="text-sm text-gray-500 hover:text-gray-700"
+                    >
+                        Done
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onRemove(index)}
+                        className="text-sm text-red-600 hover:text-red-900"
+                    >
+                        Remove
+                    </button>
+                </div>
             </div>
 
             {toolMismatch && selectedTool && (

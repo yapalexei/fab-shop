@@ -1,4 +1,5 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
+import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import { MaterialOption } from '@/Components/ToolFields';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -24,7 +25,11 @@ export default function Index({
     tools,
     materialOptions,
     auth,
-}: PageProps<{ tools: ToolRow[]; materialOptions: MaterialOption[] } & { auth: { isOwner: boolean } }>) {
+}: PageProps<
+    { tools: ToolRow[]; materialOptions: MaterialOption[] } & {
+        auth: { isOwner: boolean };
+    }
+>) {
     const can = useCan();
     const [material, setMaterial] = useState<number | null>(null);
 
@@ -45,9 +50,26 @@ export default function Index({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Tooling
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                        Tooling
+                    </h2>
+                    {tools.length > 0 && (
+                        <PageHelp>
+                            <p>
+                                Consumable tooling billed onto quotes - drill
+                                bits, hole saws, cut-off wheels - priced per
+                                unit and tagged with the material types each one
+                                is rated to cut.
+                            </p>
+                            <p>
+                                Used by the quote builder's tooling line items,
+                                and by the quote's tooling-mismatch warning (a
+                                tool rated for none of a quote's materials).
+                            </p>
+                        </PageHelp>
+                    )}
+                </div>
             }
         >
             <Head title="Tooling" />
@@ -92,11 +114,30 @@ export default function Index({
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {visible.length === 0 ? (
-                            <div className="p-6 text-gray-500">
-                                {tools.length === 0
-                                    ? 'No tooling yet - add drill bits, hole saws, cut-off wheels and the like to bill them on quotes.'
-                                    : `No tooling rated for ${labelFor(material ?? 0)}.`}
-                            </div>
+                            tools.length === 0 ? (
+                                <div className="p-6">
+                                    <PageHelp empty>
+                                        <p>
+                                            No tooling yet. This is consumable
+                                            tooling billed onto quotes - drill
+                                            bits, hole saws, cut-off wheels -
+                                            priced per unit and tagged with the
+                                            material types each one is rated to
+                                            cut.
+                                        </p>
+                                        <p>
+                                            Used by the quote builder's tooling
+                                            line items, and by the quote's
+                                            tooling-mismatch warning.
+                                        </p>
+                                    </PageHelp>
+                                </div>
+                            ) : (
+                                <div className="p-6 text-gray-500">
+                                    No tooling rated for{' '}
+                                    {labelFor(material ?? 0)}.
+                                </div>
+                            )
                         ) : (
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
