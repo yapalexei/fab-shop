@@ -134,7 +134,7 @@ function Column({
             : 'bg-gray-50 opacity-50';
 
     return (
-        <div className="w-72 shrink-0 overflow-hidden rounded-lg border border-gray-300 shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm">
             <div className="flex items-center justify-between border-b border-gray-300 bg-gray-100 px-3 py-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-700">
                     {stage.label}
@@ -345,20 +345,40 @@ export default function Index({
                             onDragCancel={() => setDraggingJob(null)}
                             accessibility={{ announcements }}
                         >
-                            <div className="flex gap-4 overflow-x-auto pb-4">
-                                {stages.map((stage) => (
-                                    <Column
-                                        key={stage.value}
-                                        stage={stage}
-                                        jobs={jobs.filter(
-                                            (job) =>
-                                                job.stage === stage.value &&
-                                                !job.cancelled,
-                                        )}
-                                        draggingJob={draggingJob}
-                                        dragEnabled={dragEnabled}
-                                    />
-                                ))}
+                            {/* Cancels the page wrapper's own side padding so
+                                the tracks run edge-to-edge with the screen,
+                                not just the padded content column - then
+                                reapplies the same padding as scroll gutters. */}
+                            <div className="-mx-4 overflow-x-auto pb-4 sm:-mx-6 lg:-mx-8">
+                                <div
+                                    className="grid gap-4 px-4 sm:px-6 lg:px-8"
+                                    style={{
+                                        // Columns split the available width
+                                        // evenly down to a 320px floor each
+                                        // (1280px / 4) - past 4 stages that
+                                        // floor pushes total width beyond
+                                        // 1280px, so the wrapper above
+                                        // scrolls horizontally instead of
+                                        // squeezing every column thinner.
+                                        gridTemplateColumns: `repeat(${stages.length}, minmax(320px, 1fr))`,
+                                        minWidth: '1280px',
+                                    }}
+                                >
+                                    {stages.map((stage) => (
+                                        <Column
+                                            key={stage.value}
+                                            stage={stage}
+                                            jobs={jobs.filter(
+                                                (job) =>
+                                                    job.stage ===
+                                                        stage.value &&
+                                                    !job.cancelled,
+                                            )}
+                                            draggingJob={draggingJob}
+                                            dragEnabled={dragEnabled}
+                                        />
+                                    ))}
+                                </div>
                             </div>
 
                             {/* Rendered outside the scrolling board so the card
