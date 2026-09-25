@@ -1,3 +1,4 @@
+import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import {
     EmployeeOption,
@@ -26,7 +27,7 @@ export function lineTotal(item: LineItem): number {
         : computed;
 }
 
-export default function QuoteLineItemRow({
+export default function QuoteLineItemCard({
     item,
     index,
     materials,
@@ -191,29 +192,34 @@ export default function QuoteLineItemRow({
         .map((field) => getError(field))
         .filter(Boolean) as string[];
 
-    return (
-        <>
-            <tr>
-                <td className="px-3 py-2 align-top">
-                    <select
-                        className="block w-28 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                        value={item.type}
-                        onChange={(e) =>
-                            changeType(e.target.value as LineItem['type'])
-                        }
-                    >
-                        <option value="material">Material</option>
-                        <option value="labor">Labor</option>
-                        <option value="equipment">Equipment</option>
-                        <option value="tooling">Tooling</option>
-                    </select>
-                </td>
+    const selectClass =
+        'block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
 
-                <td className="px-3 py-2 align-top">
-                    <div className="space-y-1">
-                        {item.type === 'material' && (
+    return (
+        <div className="rounded-md border border-gray-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+                <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                        <InputLabel value="Type" />
+                        <select
+                            className={`mt-1 ${selectClass}`}
+                            value={item.type}
+                            onChange={(e) =>
+                                changeType(e.target.value as LineItem['type'])
+                            }
+                        >
+                            <option value="material">Material</option>
+                            <option value="labor">Labor</option>
+                            <option value="equipment">Equipment</option>
+                            <option value="tooling">Tooling</option>
+                        </select>
+                    </div>
+
+                    {item.type === 'material' && (
+                        <div>
+                            <InputLabel value="Material" />
                             <select
-                                className="block w-48 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className={`mt-1 ${selectClass}`}
                                 value={item.material_id ?? ''}
                                 onChange={(e) => selectMaterial(e.target.value)}
                             >
@@ -224,11 +230,14 @@ export default function QuoteLineItemRow({
                                     </option>
                                 ))}
                             </select>
-                        )}
+                        </div>
+                    )}
 
-                        {item.type === 'material' && selectedMaterial && (
+                    {item.type === 'material' && selectedMaterial && (
+                        <div>
+                            <InputLabel value="Supplier price" />
                             <select
-                                className="block w-48 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className={`mt-1 ${selectClass}`}
                                 value={item.business_partner_id ?? ''}
                                 onChange={(e) =>
                                     selectMaterialPartner(e.target.value)
@@ -244,11 +253,14 @@ export default function QuoteLineItemRow({
                                     </option>
                                 ))}
                             </select>
-                        )}
+                        </div>
+                    )}
 
-                        {item.type === 'labor' && (
+                    {item.type === 'labor' && (
+                        <div>
+                            <InputLabel value="Labor source" />
                             <select
-                                className="block w-48 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className={`mt-1 ${selectClass}`}
                                 value={laborSourceValue()}
                                 onChange={(e) =>
                                     selectLaborSource(e.target.value)
@@ -287,11 +299,14 @@ export default function QuoteLineItemRow({
                                     </optgroup>
                                 )}
                             </select>
-                        )}
+                        </div>
+                    )}
 
-                        {item.type === 'equipment' && (
+                    {item.type === 'equipment' && (
+                        <div>
+                            <InputLabel value="Equipment" />
                             <select
-                                className="block w-48 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className={`mt-1 ${selectClass}`}
                                 value={item.equipment_id ?? ''}
                                 onChange={(e) => selectEquipment(e.target.value)}
                             >
@@ -307,11 +322,14 @@ export default function QuoteLineItemRow({
                                     </option>
                                 ))}
                             </select>
-                        )}
+                        </div>
+                    )}
 
-                        {item.type === 'tooling' && (
+                    {item.type === 'tooling' && (
+                        <div>
+                            <InputLabel value="Tool" />
                             <select
-                                className="block w-48 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className={`mt-1 ${selectClass}`}
                                 value={item.tool_id ?? ''}
                                 onChange={(e) => selectTool(e.target.value)}
                             >
@@ -323,106 +341,112 @@ export default function QuoteLineItemRow({
                                     </option>
                                 ))}
                             </select>
-                        )}
+                        </div>
+                    )}
+                </div>
 
-                        {toolMismatch && selectedTool && (
-                            <p
-                                role="alert"
-                                className="w-48 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800"
-                            >
-                                Rated for {selectedTool.cuts} - this quote's
-                                materials are{' '}
-                                {quoteMaterialTypes
-                                    .map((type) => type.name)
-                                    .join(', ')}
-                                .
-                            </p>
-                        )}
+                <button
+                    type="button"
+                    onClick={() => onRemove(index)}
+                    className="mt-6 shrink-0 text-sm text-red-600 hover:text-red-900"
+                >
+                    Remove
+                </button>
+            </div>
 
-                        <TextInput
-                            className={`block w-48 ${errorClass('description')}`}
-                            placeholder="Description"
-                            value={item.description}
-                            onChange={(e) =>
-                                onChange(index, { description: e.target.value })
-                            }
-                            required
-                        />
-                    </div>
-                </td>
+            {toolMismatch && selectedTool && (
+                <p
+                    role="alert"
+                    className="mt-3 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800"
+                >
+                    Rated for {selectedTool.cuts} - this quote's materials are{' '}
+                    {quoteMaterialTypes.map((type) => type.name).join(', ')}.
+                </p>
+            )}
 
-                <td className="px-3 py-2 align-top">
+            <div className="mt-3">
+                <InputLabel value="Description" />
+                <TextInput
+                    className={`mt-1 block w-full ${errorClass('description')}`}
+                    value={item.description}
+                    onChange={(e) =>
+                        onChange(index, { description: e.target.value })
+                    }
+                    required
+                />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div>
+                    <InputLabel value="Qty" />
                     <TextInput
                         type="number"
                         step="0.01"
                         min="0.01"
-                        className={`block w-20 ${errorClass('quantity')}`}
+                        className={`mt-1 block w-full ${errorClass('quantity')}`}
                         value={item.quantity}
                         onChange={(e) =>
                             onChange(index, { quantity: e.target.value })
                         }
                         required
                     />
-                </td>
-                <td className="px-3 py-2 align-top">
+                </div>
+                <div>
+                    <InputLabel value="Unit cost" />
                     <TextInput
                         type="number"
                         step="0.01"
                         min="0"
-                        className={`block w-24 ${errorClass('unit_cost')}`}
+                        className={`mt-1 block w-full ${errorClass('unit_cost')}`}
                         value={item.unit_cost}
                         onChange={(e) =>
                             onChange(index, { unit_cost: e.target.value })
                         }
                         required
                     />
-                </td>
-                <td className="px-3 py-2 align-top">
+                </div>
+                <div>
+                    <InputLabel value="Markup %" />
                     <TextInput
                         type="number"
                         step="0.01"
                         min="0"
-                        className={`block w-20 ${errorClass('markup_percent')}`}
+                        className={`mt-1 block w-full ${errorClass('markup_percent')}`}
                         value={item.markup_percent}
                         onChange={(e) =>
                             onChange(index, { markup_percent: e.target.value })
                         }
                         required
                     />
-                </td>
-                <td className="px-3 py-2 align-top">
+                </div>
+                <div>
+                    <InputLabel value="Override total" />
                     <TextInput
                         type="number"
                         step="0.01"
                         min="0"
-                        className={`block w-24 ${errorClass('override_total')}`}
+                        className={`mt-1 block w-full ${errorClass('override_total')}`}
                         placeholder="auto"
                         value={item.override_total ?? ''}
                         onChange={(e) =>
                             onChange(index, { override_total: e.target.value })
                         }
                     />
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right align-top text-sm text-gray-900">
+                </div>
+            </div>
+
+            <div className="mt-3 flex justify-between border-t border-gray-100 pt-2 text-sm">
+                <span className="text-gray-500">Line total</span>
+                <span className="font-medium text-gray-900">
                     {currency.format(lineTotal(item))}
-                </td>
-                <td className="px-3 py-2 align-top">
-                    <button
-                        type="button"
-                        onClick={() => onRemove(index)}
-                        className="text-sm text-red-600 hover:text-red-900"
-                    >
-                        Remove
-                    </button>
-                </td>
-            </tr>
+                </span>
+            </div>
+
             {rowErrors.length > 0 && (
-                <tr>
-                    <td colSpan={8} className="bg-red-50 px-3 py-1 text-sm text-red-600">
-                        {rowErrors.join(' ')}
-                    </td>
-                </tr>
+                <p className="mt-2 rounded bg-red-50 px-2 py-1 text-sm text-red-600">
+                    {rowErrors.join(' ')}
+                </p>
             )}
-        </>
+        </div>
     );
 }

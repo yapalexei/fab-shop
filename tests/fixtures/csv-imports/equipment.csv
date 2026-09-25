@@ -1,0 +1,5 @@
+name,billing_method,rate,notes
+CNC Plasma Table,hourly,45,
+Box Brake,flat,25,Per bend job
+MIG Welder Station 1,hourly,18,
+Sandblast Cabinet,hourly,20,

@@ -1,0 +1,3 @@
+name,unit,material_type,notes
+Good Steel Sheet,sheet,Carbon steel,This row should import fine
+Mystery Metal,each,Unobtainium,This row should be rejected - unknown material type

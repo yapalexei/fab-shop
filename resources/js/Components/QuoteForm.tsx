@@ -2,9 +2,9 @@ import FormErrorSummary from '@/Components/FormErrorSummary';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
-import QuoteLineItemRow, {
+import QuoteLineItemCard, {
     lineTotal,
-} from '@/Components/QuoteLineItemRow';
+} from '@/Components/QuoteLineItemCard';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
@@ -206,56 +206,26 @@ export default function QuoteForm({
                 <div className="mt-6">
                     <InputLabel value="Line items" />
 
-                    <div className="mt-2 overflow-x-auto rounded-md border border-gray-200">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                                        Type
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                                        Source / description
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                                        Qty
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                                        Unit cost
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                                        Markup %
-                                    </th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
-                                        Override total
-                                    </th>
-                                    <th className="px-3 py-2 text-right text-xs font-medium uppercase text-gray-500">
-                                        Line total
-                                    </th>
-                                    <th />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white">
-                                {data.line_items.map((item, index) => (
-                                    <QuoteLineItemRow
-                                        key={index}
-                                        item={item}
-                                        index={index}
-                                        materials={materials}
-                                        services={services}
-                                        equipmentList={equipmentList}
-                                        tools={tools}
-                                        quoteMaterialTypes={quoteMaterialTypes}
-                                        employees={employees}
-                                        markupDefaults={markupDefaults}
-                                        onChange={patchLineItem}
-                                        onRemove={removeLineItem}
-                                        getError={(field) =>
-                                            errorMap[`line_items.${index}.${field}`]
-                                        }
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="mt-2 space-y-3">
+                        {data.line_items.map((item, index) => (
+                            <QuoteLineItemCard
+                                key={index}
+                                item={item}
+                                index={index}
+                                materials={materials}
+                                services={services}
+                                equipmentList={equipmentList}
+                                tools={tools}
+                                quoteMaterialTypes={quoteMaterialTypes}
+                                employees={employees}
+                                markupDefaults={markupDefaults}
+                                onChange={patchLineItem}
+                                onRemove={removeLineItem}
+                                getError={(field: keyof LineItem) =>
+                                    errorMap[`line_items.${index}.${field}`]
+                                }
+                            />
+                        ))}
                     </div>
 
                     <InputError message={errors.line_items} className="mt-2" />

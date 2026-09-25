@@ -1,0 +1,4 @@
+name,cuts,cost,unit,notes
+Good Drill Bit,Carbon steel,6.50,each,This row should import fine
+No Cuts Listed,,4.00,each,This row should be rejected - no cuts given
+Bad Cuts Tool,Unobtainium,5.00,each,This row should be rejected - unknown material type

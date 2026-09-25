@@ -1,0 +1,3 @@
+name,billing_method,rate,notes
+Plasma Cutter,hourly,45,This row should import fine
+Bad Row,weekly,10,This row should be rejected - invalid billing method
