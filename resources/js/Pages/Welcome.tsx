@@ -1,4 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
+import { formatCents } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 
@@ -19,6 +20,8 @@ interface Tier {
     name: string;
     userLimit: number;
     isTrialOnly: boolean;
+    monthlyPriceCents: number;
+    savingsCents: number;
     features: TierFeature[];
 }
 
@@ -69,6 +72,21 @@ function TierCard({
             <p className="mt-1 text-sm text-gray-500">
                 Up to {tier.userLimit} user{tier.userLimit === 1 ? '' : 's'}
             </p>
+
+            {!tier.isTrialOnly && (
+                <div className="mt-2">
+                    <span className="text-2xl font-bold text-gray-900">
+                        {formatCents(tier.monthlyPriceCents)}
+                    </span>
+                    <span className="text-sm text-gray-500">/mo</span>
+                    {tier.savingsCents > 0 && (
+                        <p className="mt-1 text-xs font-medium text-green-700">
+                            Save {formatCents(tier.savingsCents)}/mo bundled vs.
+                            buying these features separately
+                        </p>
+                    )}
+                </div>
+            )}
 
             {tier.isTrialOnly ? (
                 <p className="mt-4 flex-1 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-900">

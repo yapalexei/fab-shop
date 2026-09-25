@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Feature;
+use App\Models\FeatureSetting;
 use App\Models\Plan;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,6 +29,7 @@ class MarketingController extends Controller
     public function __invoke(): Response
     {
         $plans = Plan::query()->get()->keyBy('key');
+        $prices = FeatureSetting::priceMap();
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
@@ -39,15 +42,16 @@ class MarketingController extends Controller
             ]),
             'tiers' => collect(self::TIER_ORDER)
                 ->filter(fn (string $key) => $plans->has($key))
-                ->map(fn (string $key) => $this->tier($plans[$key]))
+                ->map(fn (string $key) => $this->tier($plans[$key], $prices))
                 ->values(),
         ]);
     }
 
     /**
+     * @param  Collection<string, int>  $prices
      * @return array<string, mixed>
      */
-    private function tier(Plan $plan): array
+    private function tier(Plan $plan, Collection $prices): array
     {
         // The free plan has no permanent features of its own - a new shop's
         // access during its 14-day trial comes from Shop::onTrial(), not
@@ -56,11 +60,22 @@ class MarketingController extends Controller
         $isTrialOnly = $plan->key === 'free';
         $granted = $isTrialOnly ? collect() : $plan->features();
 
+        // What the bundled features would cost bought individually as
+        // add-ons, vs. what the plan actually charges - the "save $X/mo
+        // bundled" figure. Never negative: a plan priced above the sum of
+        // its own features' add-on prices (shouldn't happen, but pricing is
+        // still placeholder/admin-edited) just shows no savings rather than
+        // a confusing negative number.
+        $standaloneValueCents = $granted->sum(fn (Feature $feature) => $prices[$feature->value]);
+        $savingsCents = max(0, $standaloneValueCents - $plan->monthly_price_cents);
+
         return [
             'key' => $plan->key,
             'name' => $plan->name,
             'userLimit' => $plan->user_limit,
             'isTrialOnly' => $isTrialOnly,
+            'monthlyPriceCents' => $plan->monthly_price_cents,
+            'savingsCents' => $savingsCents,
             'features' => collect(Feature::cases())->map(fn (Feature $feature) => [
                 'key' => $feature->value,
                 'included' => $granted->contains($feature),

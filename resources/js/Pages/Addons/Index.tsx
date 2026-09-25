@@ -101,7 +101,13 @@ export default function Index({ addons }: PageProps<{ addons: AddonRow[] }>) {
                                     <div className="mt-1 text-sm text-gray-500">
                                         {addon.tagline}
                                     </div>
-                                    {!addon.bundledInPlan && (
+                                    {addon.bundledInPlan ? (
+                                        <div className="mt-1 text-xs text-gray-400">
+                                            Saves{' '}
+                                            {formatCents(addon.priceCents)}
+                                            /mo vs. subscribing separately
+                                        </div>
+                                    ) : (
                                         <div className="mt-1 text-xs text-gray-400">
                                             {formatCents(addon.priceCents)} / mo
                                         </div>
