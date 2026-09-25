@@ -1,6 +1,7 @@
 import JobMoveDialog from '@/Components/JobMoveDialog';
 import JobStatusActions, { JobTransition } from '@/Components/JobStatusActions';
 import PageHelp from '@/Components/PageHelp';
+import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import {
@@ -200,6 +201,53 @@ export default function Index({
     const cancelledJobs = jobs.filter((j) => j.cancelled);
     const shopId = usePage().props.auth.user.current_shop_id;
 
+    // Bookmarkable/refresh-safe (a wall-mounted display can just open the
+    // ?kiosk=1 URL directly) rather than plain component state - kept in
+    // sync with the URL via replaceState, not an Inertia visit, so toggling
+    // never round-trips to the server for a purely client-side layout mode.
+    const [kiosk, setKiosk] = useState(() =>
+        new URLSearchParams(window.location.search).has('kiosk'),
+    );
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        if (kiosk) {
+            url.searchParams.set('kiosk', '1');
+        } else {
+            url.searchParams.delete('kiosk');
+        }
+        window.history.replaceState(window.history.state, '', url);
+    }, [kiosk]);
+
+    // Pressing Esc leaves real browser fullscreen without going through our
+    // exit button - drop the kiosk layout too so nav doesn't stay hidden.
+    useEffect(() => {
+        const onFullscreenChange = () => {
+            if (!document.fullscreenElement) setKiosk(false);
+        };
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () =>
+            document.removeEventListener(
+                'fullscreenchange',
+                onFullscreenChange,
+            );
+    }, []);
+
+    const enterKiosk = () => {
+        setKiosk(true);
+        // Best-effort - some contexts (embedded iframes, denied permission)
+        // block the Fullscreen API entirely. The layout still hides nav and
+        // goes edge-to-edge either way.
+        document.documentElement.requestFullscreen?.().catch(() => {});
+    };
+
+    const exitKiosk = () => {
+        setKiosk(false);
+        if (document.fullscreenElement) {
+            document.exitFullscreen?.().catch(() => {});
+        }
+    };
+
     const [draggingJob, setDraggingJob] = useState<JobRow | null>(null);
     const [pendingMove, setPendingMove] = useState<{
         job: JobRow;
@@ -282,6 +330,151 @@ export default function Index({
         }
     };
 
+    const boardContent = (
+        <>
+            {dropHint && (
+                <div
+                    role="status"
+                    className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800"
+                >
+                    {dropHint}
+                </div>
+            )}
+
+            {jobs.length === 0 ? (
+                <div className="rounded-lg bg-white p-6 shadow-sm">
+                    <PageHelp empty>
+                        <p>
+                            No jobs yet. This is the job board - every job
+                            converted from a won quote, tracked from cutting
+                            through shipped and invoiced.
+                        </p>
+                        <p>
+                            Convert a won quote to create one - go to Quotes,
+                            mark one won, then convert it.
+                        </p>
+                    </PageHelp>
+                </div>
+            ) : (
+                <DndContext
+                    sensors={sensors}
+                    // The column under the pointer is the target - not
+                    // whichever one the (wide) dragged card overlaps most.
+                    collisionDetection={pointerWithin}
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEnd}
+                    onDragCancel={() => setDraggingJob(null)}
+                    accessibility={{ announcements }}
+                >
+                    {/* Cancels the immediate wrapper's own side padding so
+                        the tracks run edge-to-edge with the screen, not just
+                        the padded content column - then reapplies the same
+                        padding as scroll gutters. Works identically in the
+                        normal and kiosk shells since both give this
+                        component the same px-4 sm:px-6 lg:px-8 to cancel. */}
+                    <div className="-mx-4 overflow-x-auto pb-4 sm:-mx-6 lg:-mx-8">
+                        <div
+                            className="grid gap-4 px-4 sm:px-6 lg:px-8"
+                            style={{
+                                // Columns split the available width evenly
+                                // down to a 320px floor each (1280px / 4) -
+                                // past 4 stages that floor pushes the grid
+                                // beyond 1280px, so the wrapper above
+                                // scrolls horizontally instead of squeezing
+                                // every column thinner.
+                                gridTemplateColumns: `repeat(${stages.length}, minmax(320px, 1fr))`,
+                                minWidth: '1280px',
+                            }}
+                        >
+                            {stages.map((stage) => (
+                                <Column
+                                    key={stage.value}
+                                    stage={stage}
+                                    jobs={jobs.filter(
+                                        (job) =>
+                                            job.stage === stage.value &&
+                                            !job.cancelled,
+                                    )}
+                                    draggingJob={draggingJob}
+                                    dragEnabled={dragEnabled}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Rendered outside the scrolling board so the card
+                        isn't clipped while it's dragged across it. */}
+                    <DragOverlay>
+                        {draggingJob && (
+                            <div className="w-72 cursor-grabbing space-y-2 rounded-md border border-indigo-300 bg-white p-3 shadow-lg">
+                                <JobCardBody job={draggingJob} />
+                            </div>
+                        )}
+                    </DragOverlay>
+                </DndContext>
+            )}
+        </>
+    );
+
+    const cancelledJobsSection = cancelledJobs.length > 0 && (
+        <details className="rounded-lg bg-white p-4 shadow-sm">
+            <summary className="cursor-pointer text-sm font-medium text-gray-600">
+                Cancelled jobs ({cancelledJobs.length})
+            </summary>
+            <div className="mt-3 space-y-2">
+                {cancelledJobs.map((job) => (
+                    <div
+                        key={job.id}
+                        className="flex items-center justify-between text-sm"
+                    >
+                        <Link
+                            href={route('jobs.show', job.id)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                        >
+                            {job.job_number} - {job.customer}
+                        </Link>
+                        <span className="text-gray-500">
+                            {currency.format(job.total)}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </details>
+    );
+
+    const jobMoveDialog = (
+        <JobMoveDialog
+            job={pendingMove?.job ?? null}
+            transition={pendingMove?.transition ?? null}
+            onClose={() => setPendingMove(null)}
+        />
+    );
+
+    // Kiosk: no top nav, no page chrome beyond a minimal exit affordance -
+    // just the board, full screen (and real browser fullscreen too, when
+    // the Fullscreen API is available - see enterKiosk).
+    if (kiosk) {
+        return (
+            <>
+                <Head title="Jobs" />
+                <div className="min-h-screen bg-gray-100">
+                    <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+                        <h1 className="text-lg font-semibold text-gray-700">
+                            Jobs
+                        </h1>
+                        <SecondaryButton onClick={exitKiosk}>
+                            Exit kiosk mode
+                        </SecondaryButton>
+                    </div>
+                    <div className="px-4 pb-6 sm:px-6 lg:px-8">
+                        {boardContent}
+                    </div>
+                </div>
+                {jobMoveDialog}
+            </>
+        );
+    }
+
     return (
         <AuthenticatedLayout
             header={
@@ -290,19 +483,24 @@ export default function Index({
                         Jobs
                     </h2>
                     {jobs.length > 0 && (
-                        <PageHelp>
-                            <p>
-                                The job board - every job converted from a won
-                                quote, tracked from cutting through shipped and
-                                invoiced.
-                            </p>
-                            <p>
-                                This is the daily-use screen for the shop floor.
-                                Click a job to log status changes, photos,
-                                material usage, and qualification records
-                                against it.
-                            </p>
-                        </PageHelp>
+                        <>
+                            <PageHelp>
+                                <p>
+                                    The job board - every job converted from a
+                                    won quote, tracked from cutting through
+                                    shipped and invoiced.
+                                </p>
+                                <p>
+                                    This is the daily-use screen for the shop
+                                    floor. Click a job to log status changes,
+                                    photos, material usage, and qualification
+                                    records against it.
+                                </p>
+                            </PageHelp>
+                            <SecondaryButton onClick={enterKiosk}>
+                                Kiosk mode
+                            </SecondaryButton>
+                        </>
                     )}
                 </div>
             }
@@ -311,121 +509,12 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-full space-y-6 px-4 sm:px-6 lg:px-8">
-                    {dropHint && (
-                        <div
-                            role="status"
-                            className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800"
-                        >
-                            {dropHint}
-                        </div>
-                    )}
-
-                    {jobs.length === 0 ? (
-                        <div className="rounded-lg bg-white p-6 shadow-sm">
-                            <PageHelp empty>
-                                <p>
-                                    No jobs yet. This is the job board - every
-                                    job converted from a won quote, tracked from
-                                    cutting through shipped and invoiced.
-                                </p>
-                                <p>
-                                    Convert a won quote to create one - go to
-                                    Quotes, mark one won, then convert it.
-                                </p>
-                            </PageHelp>
-                        </div>
-                    ) : (
-                        <DndContext
-                            sensors={sensors}
-                            // The column under the pointer is the target - not
-                            // whichever one the (wide) dragged card overlaps most.
-                            collisionDetection={pointerWithin}
-                            onDragStart={onDragStart}
-                            onDragEnd={onDragEnd}
-                            onDragCancel={() => setDraggingJob(null)}
-                            accessibility={{ announcements }}
-                        >
-                            {/* Cancels the page wrapper's own side padding so
-                                the tracks run edge-to-edge with the screen,
-                                not just the padded content column - then
-                                reapplies the same padding as scroll gutters. */}
-                            <div className="-mx-4 overflow-x-auto pb-4 sm:-mx-6 lg:-mx-8">
-                                <div
-                                    className="grid gap-4 px-4 sm:px-6 lg:px-8"
-                                    style={{
-                                        // Columns split the available width
-                                        // evenly down to a 320px floor each
-                                        // (1280px / 4) - past 4 stages that
-                                        // floor pushes total width beyond
-                                        // 1280px, so the wrapper above
-                                        // scrolls horizontally instead of
-                                        // squeezing every column thinner.
-                                        gridTemplateColumns: `repeat(${stages.length}, minmax(320px, 1fr))`,
-                                        minWidth: '1280px',
-                                    }}
-                                >
-                                    {stages.map((stage) => (
-                                        <Column
-                                            key={stage.value}
-                                            stage={stage}
-                                            jobs={jobs.filter(
-                                                (job) =>
-                                                    job.stage ===
-                                                        stage.value &&
-                                                    !job.cancelled,
-                                            )}
-                                            draggingJob={draggingJob}
-                                            dragEnabled={dragEnabled}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Rendered outside the scrolling board so the card
-                                isn't clipped while it's dragged across it. */}
-                            <DragOverlay>
-                                {draggingJob && (
-                                    <div className="w-72 cursor-grabbing space-y-2 rounded-md border border-indigo-300 bg-white p-3 shadow-lg">
-                                        <JobCardBody job={draggingJob} />
-                                    </div>
-                                )}
-                            </DragOverlay>
-                        </DndContext>
-                    )}
-
-                    {cancelledJobs.length > 0 && (
-                        <details className="rounded-lg bg-white p-4 shadow-sm">
-                            <summary className="cursor-pointer text-sm font-medium text-gray-600">
-                                Cancelled jobs ({cancelledJobs.length})
-                            </summary>
-                            <div className="mt-3 space-y-2">
-                                {cancelledJobs.map((job) => (
-                                    <div
-                                        key={job.id}
-                                        className="flex items-center justify-between text-sm"
-                                    >
-                                        <Link
-                                            href={route('jobs.show', job.id)}
-                                            className="text-indigo-600 hover:text-indigo-900"
-                                        >
-                                            {job.job_number} - {job.customer}
-                                        </Link>
-                                        <span className="text-gray-500">
-                                            {currency.format(job.total)}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </details>
-                    )}
+                    {boardContent}
+                    {cancelledJobsSection}
                 </div>
             </div>
 
-            <JobMoveDialog
-                job={pendingMove?.job ?? null}
-                transition={pendingMove?.transition ?? null}
-                onClose={() => setPendingMove(null)}
-            />
+            {jobMoveDialog}
         </AuthenticatedLayout>
     );
 }
