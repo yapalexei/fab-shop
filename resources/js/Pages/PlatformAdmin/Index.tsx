@@ -2,6 +2,7 @@ import DangerButton from '@/Components/DangerButton';
 import PageHelp from '@/Components/PageHelp';
 import SecondaryButton from '@/Components/SecondaryButton';
 import PlatformAdminLayout from '@/Layouts/PlatformAdminLayout';
+import { formatCents } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
 
@@ -28,14 +29,6 @@ interface PlanOption {
 interface Revenue {
     active_mrr_cents: number;
     trial_potential_mrr_cents: number;
-}
-
-function formatCents(cents: number): string {
-    return (cents / 100).toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0,
-    });
 }
 
 function StatCard({

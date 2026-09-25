@@ -214,6 +214,13 @@ export default function Authenticated({
             enabled: quickbooksEnabled,
             visible: can('quickbooks.view'),
         },
+        {
+            label: 'Add-ons',
+            href: route('shop.addons.index'),
+            active: route().current('shop.addons.*'),
+            enabled: true,
+            visible: auth.isOwner,
+        },
     ].filter((item) => item.visible);
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
