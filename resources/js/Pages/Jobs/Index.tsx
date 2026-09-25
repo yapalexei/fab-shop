@@ -135,8 +135,8 @@ function Column({
             : 'bg-gray-50 opacity-50';
 
     return (
-        <div className="overflow-hidden rounded-lg border border-gray-300 shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-300 bg-gray-100 px-3 py-2">
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-300 shadow-sm">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-300 bg-gray-100 px-3 py-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-700">
                     {stage.label}
                 </h3>
@@ -146,7 +146,13 @@ function Column({
             </div>
             <div
                 ref={setNodeRef}
-                className={`min-h-[28rem] space-y-3 p-2 transition ${dropStyle}`}
+                // h-full/flex-1 only bite when an ancestor actually has a
+                // real height (kiosk mode's h-screen chain) - otherwise
+                // they resolve to auto and min-h-[28rem] is what governs,
+                // same as before. overflow-y-auto only ever activates once
+                // something constrains this box shorter than its content,
+                // so it's inert in the normal (auto-height) case too.
+                className={`min-h-[28rem] flex-1 space-y-3 overflow-y-auto p-2 transition ${dropStyle}`}
             >
                 {jobs.map((job) => (
                     <JobCard
@@ -331,11 +337,15 @@ export default function Index({
     };
 
     const boardContent = (
-        <>
+        // flex/h-full only take effect when an ancestor gives this a real
+        // height (kiosk mode's h-screen chain) - in the normal page flow
+        // there's no such ancestor, so this collapses back to auto-height
+        // stacking, same as the fragment it replaced.
+        <div className="flex h-full flex-col gap-6">
             {dropHint && (
                 <div
                     role="status"
-                    className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800"
+                    className="shrink-0 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800"
                 >
                     {dropHint}
                 </div>
@@ -371,18 +381,25 @@ export default function Index({
                         the padded content column - then reapplies the same
                         padding as scroll gutters. Works identically in the
                         normal and kiosk shells since both give this
-                        component the same px-4 sm:px-6 lg:px-8 to cancel. */}
-                    <div className="-mx-4 overflow-x-auto pb-4 sm:-mx-6 lg:-mx-8">
+                        component the same px-4 sm:px-6 lg:px-8 to cancel.
+                        flex-1/min-h-0/h-full again only bite in kiosk mode -
+                        in normal mode this whole block just sizes to its
+                        content and the page scrolls, same as before. */}
+                    <div className="-mx-4 min-h-0 flex-1 overflow-x-auto pb-4 sm:-mx-6 lg:-mx-8">
                         <div
-                            className="grid gap-4 px-4 sm:px-6 lg:px-8"
+                            className="grid h-full gap-4 px-4 sm:px-6 lg:px-8"
                             style={{
                                 // Columns split the available width evenly
                                 // down to a 320px floor each (1280px / 4) -
                                 // past 4 stages that floor pushes the grid
                                 // beyond 1280px, so the wrapper above
                                 // scrolls horizontally instead of squeezing
-                                // every column thinner.
+                                // every column thinner. The 1fr row lets
+                                // columns stretch to fill a real height
+                                // (kiosk) while still sizing to content in
+                                // an auto-height ancestor (normal mode).
                                 gridTemplateColumns: `repeat(${stages.length}, minmax(320px, 1fr))`,
+                                gridTemplateRows: '1fr',
                                 minWidth: '1280px',
                             }}
                         >
@@ -413,7 +430,7 @@ export default function Index({
                     </DragOverlay>
                 </DndContext>
             )}
-        </>
+        </div>
     );
 
     const cancelledJobsSection = cancelledJobs.length > 0 && (
@@ -457,8 +474,14 @@ export default function Index({
         return (
             <>
                 <Head title="Jobs" />
-                <div className="min-h-screen bg-gray-100">
-                    <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+                {/* h-screen (not min-h-screen) + flex-col is the actual
+                    height source the whole board/column/scrollbar chain
+                    below stretches into, so the board's bottom - and its
+                    horizontal scrollbar, once there are more than 4 stages
+                    - lands flush with the bottom of the screen instead of
+                    floating above leftover empty space. */}
+                <div className="flex h-screen flex-col overflow-hidden bg-gray-100">
+                    <div className="flex shrink-0 items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
                         <h1 className="text-lg font-semibold text-gray-700">
                             Jobs
                         </h1>
@@ -466,7 +489,7 @@ export default function Index({
                             Exit kiosk mode
                         </SecondaryButton>
                     </div>
-                    <div className="px-4 pb-6 sm:px-6 lg:px-8">
+                    <div className="min-h-0 flex-1 px-4 sm:px-6 lg:px-8">
                         {boardContent}
                     </div>
                 </div>
