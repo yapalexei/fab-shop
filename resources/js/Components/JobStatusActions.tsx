@@ -5,6 +5,7 @@ export interface JobTransition {
     value: string;
     label: string;
     is_forward: boolean;
+    role: 'not_started' | 'shipped' | 'invoiced' | null;
 }
 
 /**

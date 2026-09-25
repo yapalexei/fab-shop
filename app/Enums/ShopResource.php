@@ -13,6 +13,7 @@ enum ShopResource: string
     case Customers = 'customers';
     case Quotes = 'quotes';
     case Jobs = 'jobs';
+    case JobStages = 'job-stages';
     case Materials = 'materials';
     case Services = 'services';
     case BusinessPartners = 'business-partners';
@@ -33,6 +34,7 @@ enum ShopResource: string
             self::Customers => 'Customers',
             self::Quotes => 'Quotes',
             self::Jobs => 'Jobs',
+            self::JobStages => 'Job board stages',
             self::Materials => 'Materials',
             self::Services => 'Services',
             self::BusinessPartners => 'Business partners',
@@ -84,6 +86,12 @@ enum ShopResource: string
                 'create' => 'Convert won quotes into jobs',
                 'update' => 'Move jobs between stations and add/remove photos',
                 'cancel' => 'Cancel jobs - this cannot be undone',
+            ],
+            self::JobStages => [
+                'view' => 'See the job board\'s configured stages',
+                'create' => 'Add custom stages to the job board',
+                'update' => 'Rename and reorder custom stages',
+                'delete' => 'Delete custom stages - only ones no job currently sits in',
             ],
             self::Materials => $catalog('materials'),
             self::Services => $catalog('services'),

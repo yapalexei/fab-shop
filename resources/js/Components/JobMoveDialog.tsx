@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 export interface MovableJob {
     id: number;
     job_number: string;
-    status_label: string;
+    stage_label: string;
 }
 
 /**
@@ -53,8 +53,8 @@ export default function JobMoveDialog({
         router.patch(
             route('jobs.status', job.id),
             isCancel
-                ? { status: transition.value, reason }
-                : { status: transition.value },
+                ? { cancel: true, reason }
+                : { job_stage_id: transition.value },
             {
                 preserveScroll: true,
                 onFinish: () => {
@@ -80,13 +80,13 @@ export default function JobMoveDialog({
                     <p className="mt-2 text-sm text-gray-600">
                         Currently at{' '}
                         <span className="font-medium">
-                            {shown.job.status_label}
+                            {shown.job.stage_label}
                         </span>
                         .
                         {!isCancel &&
                             !shown.transition.is_forward &&
                             ' Material and time already used stay on the job - the move is recorded in its history.'}
-                        {shown.transition.value === 'invoiced' &&
+                        {shown.transition.role === 'invoiced' &&
                             ' It will be invoiced and, if QuickBooks is connected, the invoice pushed there.'}
                     </p>
 

@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\Feature;
-use App\Enums\JobStatus;
 use App\Models\BusinessPartner;
 use App\Models\Job;
 use App\Models\JobMaterialUsage;
@@ -26,7 +25,7 @@ function usageFor(Job $job, array $attributes): JobMaterialUsage
 test('logging material usage records the entry against the job', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
 
     $this->actingAs($user)->post(route('jobs.material-usage.store', $job), [
         'description' => '1/4in Steel Plate', 'quantity' => 3, 'unit' => 'sheet',
@@ -43,7 +42,7 @@ test('logging material usage records the entry against the job', function () {
 test('logging material usage records a matching activity entry', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
 
     $this->actingAs($user)->post(route('jobs.material-usage.store', $job), [
         'description' => 'Scrap plate', 'quantity' => 1, 'unit_cost' => 20, 'type' => 'scrap',
@@ -57,7 +56,7 @@ test('logging material usage records a matching activity entry', function () {
 test('a material usage entry can reference a catalog material', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $material = Material::factory()->for($shop)->create();
 
     $this->actingAs($user)->post(route('jobs.material-usage.store', $job), [
@@ -71,7 +70,7 @@ test('a material usage entry can reference a catalog material', function () {
 test('a usage entry cannot reference another shop\'s material', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $foreignMaterial = Material::factory()->for(Shop::factory()->create())->create();
 
     $this->actingAs($user)->post(route('jobs.material-usage.store', $job), [
@@ -83,7 +82,7 @@ test('a usage entry cannot reference another shop\'s material', function () {
 test('a usage entry can be removed, and it logs why', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $usage = usageFor($job, [
         'description' => 'Extra bracket', 'quantity' => 1, 'unit_cost' => 15, 'type' => 'used',
     ]);
@@ -98,8 +97,8 @@ test('a usage entry can be removed, and it logs why', function () {
 test('a usage entry from a different job cannot be deleted through this job', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $jobA = jobForShop($shop, JobStatus::Cutting);
-    $jobB = jobForShop($shop, JobStatus::Cutting);
+    $jobA = jobForShop($shop, 'in_progress');
+    $jobB = jobForShop($shop, 'in_progress');
     $usage = usageFor($jobB, [
         'description' => 'x', 'quantity' => 1, 'unit_cost' => 1, 'type' => 'used',
     ]);
@@ -114,7 +113,7 @@ test('a user cannot see or log material usage on another shop\'s job', function 
     $shop = Shop::factory()->create();
     $otherShop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $foreignJob = jobForShop($otherShop, JobStatus::Cutting);
+    $foreignJob = jobForShop($otherShop, 'in_progress');
 
     $this->actingAs($user)->get(route('jobs.show', $foreignJob))->assertNotFound();
     $this->actingAs($user)->post(route('jobs.material-usage.store', $foreignJob), [
@@ -126,7 +125,7 @@ test('someone without jobs.update cannot log or remove material usage', function
     $shop = Shop::factory()->create();
     $staff = actingAsShopMember($shop, 'Staff');
     $shop->members()->updateExistingPivot($staff->id, ['permission_overrides' => ['jobs.update' => false]]);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $usage = usageFor($job, [
         'description' => 'x', 'quantity' => 1, 'unit_cost' => 1, 'type' => 'used',
     ]);
@@ -143,7 +142,7 @@ test('material tracking is locked for a shop without the feature', function () {
     $plan->syncFeatures([Feature::JobBoard]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
 
     $this->actingAs($user)->post(route('jobs.material-usage.store', $job), [
         'description' => 'x', 'quantity' => 1, 'unit_cost' => 1, 'type' => 'used',
@@ -159,7 +158,7 @@ test('material tracking is locked for a shop without the feature', function () {
 test('the job page includes material tracking data for a shop with the feature', function () {
     $shop = Shop::factory()->create(); // trial shop - has every feature
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     usageFor($job, ['description' => 'Used plate', 'quantity' => 2, 'unit_cost' => 10, 'type' => 'used']);
     usageFor($job, ['description' => 'Scrap plate', 'quantity' => 1, 'unit_cost' => 5, 'type' => 'scrap']);
 
@@ -172,7 +171,7 @@ test('the job page includes material tracking data for a shop with the feature',
 
 test('estimated material cost comes from the quote\'s material line items, before markup', function () {
     $shop = Shop::factory()->create();
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $job->quote->lineItems()->create([
         'type' => 'material', 'description' => 'Steel', 'quantity' => 2, 'unit_cost' => 50, 'markup_percent' => 25,
     ]);
@@ -185,7 +184,7 @@ test('estimated material cost comes from the quote\'s material line items, befor
 
 test('material cost variance combines used and scrap against the estimate', function () {
     $shop = Shop::factory()->create();
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $job->quote->lineItems()->create([
         'type' => 'material', 'description' => 'Steel', 'quantity' => 2, 'unit_cost' => 50, 'markup_percent' => 0,
     ]);
@@ -202,7 +201,7 @@ test('material cost variance combines used and scrap against the estimate', func
 test('the material picker suggests the cheapest known supplier price', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $material = Material::factory()->for($shop)->create();
     $cheap = BusinessPartner::factory()->for($shop)->create();
     $pricey = BusinessPartner::factory()->for($shop)->create();

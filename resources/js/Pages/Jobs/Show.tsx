@@ -34,8 +34,9 @@ interface HistoryEntry {
 interface JobDetail {
     id: number;
     job_number: string;
-    status: string;
-    status_label: string;
+    stage: string;
+    stage_label: string;
+    cancelled: boolean;
     available_transitions: JobTransition[];
     total: number;
     customer: { name: string; email: string | null };
@@ -99,7 +100,12 @@ export default function Show({
                                     Status
                                 </dt>
                                 <dd className="text-sm font-medium text-gray-900">
-                                    {job.status_label}
+                                    {job.stage_label}
+                                    {job.cancelled && (
+                                        <span className="ms-2 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                                            Cancelled
+                                        </span>
+                                    )}
                                 </dd>
                             </div>
                             <div>

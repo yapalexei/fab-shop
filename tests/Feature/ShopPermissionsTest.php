@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\JobStatus;
 use App\Models\Customer;
 use App\Models\Material;
 use App\Models\Quote;
@@ -254,7 +253,8 @@ test('staff defaults: quote and move jobs, read-only catalog, no deletes or canc
     $staff = actingAsShopMember($shop, 'Staff');
     $customer = Customer::factory()->for($shop)->create();
     $material = Material::factory()->for($shop)->create();
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
+    $shipped = resolveJobStage($shop, 'shipped');
 
     $this->actingAs($staff)->get(route('customers.create'))->assertOk();
     $this->actingAs($staff)->delete(route('customers.destroy', $customer))->assertForbidden();
@@ -264,9 +264,9 @@ test('staff defaults: quote and move jobs, read-only catalog, no deletes or canc
     $this->actingAs($staff)->put(route('materials.update', $material), ['name' => 'X', 'unit' => 'ft'])->assertForbidden();
     $this->actingAs($staff)->post(route('materials.store'), ['name' => 'X', 'unit' => 'ft'])->assertForbidden();
 
-    $this->actingAs($staff)->patch(route('jobs.status', $job), ['status' => 'fitting'])->assertRedirect();
-    $this->actingAs($staff)->patch(route('jobs.status', $job), ['status' => 'cancelled'])->assertForbidden();
-    expect($job->fresh()->status)->toBe(JobStatus::Fitting);
+    $this->actingAs($staff)->patch(route('jobs.status', $job), ['job_stage_id' => $shipped->id])->assertRedirect();
+    $this->actingAs($staff)->patch(route('jobs.status', $job), ['cancel' => true])->assertForbidden();
+    expect($job->fresh()->job_stage_id)->toBe($shipped->id);
 
     $this->actingAs($staff)->get(route('quickbooks.show'))->assertForbidden();
     $this->actingAs($staff)->get(route('shop.settings.edit'))->assertForbidden();
@@ -275,7 +275,7 @@ test('staff defaults: quote and move jobs, read-only catalog, no deletes or canc
 test('staff are only offered the job moves they are allowed to make', function () {
     $shop = Shop::factory()->create();
     $staff = actingAsShopMember($shop, 'Staff');
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
 
     $this->actingAs($staff)->get(route('jobs.show', $job))
         ->assertInertia(fn ($page) => $page->where('job.available_transitions', fn ($transitions) => ! collect($transitions)->contains('value', 'cancelled')));

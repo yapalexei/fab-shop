@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Feature;
+use App\Support\JobStages;
 use App\Support\MaterialTypes;
 use Carbon\CarbonImmutable;
 use Database\Factories\ShopFactory;
@@ -23,9 +24,12 @@ class Shop extends Model
 
     protected static function booted(): void
     {
-        // Every shop starts with the built-in material types - at signup,
-        // in demo data and in test factories alike.
-        static::created(fn (Shop $shop) => MaterialTypes::seedDefaults($shop));
+        // Every shop starts with the built-in material types and job board
+        // pipeline - at signup, in demo data and in test factories alike.
+        static::created(function (Shop $shop) {
+            MaterialTypes::seedDefaults($shop);
+            JobStages::seedDefaults($shop);
+        });
     }
 
     protected $fillable = [

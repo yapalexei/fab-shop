@@ -24,7 +24,7 @@ trait AuthorizesShopResource
         return [
             new Middleware("can:{$resource->permission('view')}", only: ['index', 'show', 'edit']),
             new Middleware("can:{$resource->permission('create')}", only: ['create', 'store']),
-            new Middleware("can:{$resource->permission('update')}", only: ['update']),
+            new Middleware("can:{$resource->permission('update')}", only: ['update', 'reorder']),
             new Middleware("can:{$resource->permission('delete')}", only: ['destroy']),
         ];
     }

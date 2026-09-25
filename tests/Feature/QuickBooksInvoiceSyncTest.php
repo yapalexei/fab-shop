@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\JobStageRole;
 use App\Jobs\PushJobInvoiceToQuickBooks;
 use App\Models\Customer;
 use App\Models\Job;
+use App\Models\JobStage;
 use App\Models\Quote;
 use App\Models\Shop;
 use App\Services\QuickBooks\QuickBooksClient;
@@ -36,10 +38,12 @@ function jobWithLineItem(Shop $shop, array $customerAttrs = []): Job
         'quantity' => 2, 'unit_cost' => 50, 'markup_percent' => 20,
     ]);
 
+    $invoiced = JobStage::query()->where('shop_id', $shop->id)->where('role', JobStageRole::Invoiced)->firstOrFail();
+
     $job = new Job;
     $job->forceFill([
         'shop_id' => $shop->id, 'quote_id' => $quote->id, 'customer_id' => $customer->id,
-        'job_number' => 'J-0001', 'status' => 'invoiced',
+        'job_number' => 'J-0001', 'job_stage_id' => $invoiced->id,
     ])->save();
 
     return $job;
@@ -151,10 +155,12 @@ test('marking a job invoiced dispatches the quickbooks push', function () {
 
     $shop = connectedShop();
     $job = jobWithLineItem($shop, ['email' => 'buyer@example.com']);
-    $job->forceFill(['status' => 'shipped'])->save();
+    $shipped = JobStage::query()->where('shop_id', $shop->id)->where('role', JobStageRole::Shipped)->firstOrFail();
+    $invoiced = JobStage::query()->where('shop_id', $shop->id)->where('role', JobStageRole::Invoiced)->firstOrFail();
+    $job->forceFill(['job_stage_id' => $shipped->id])->save();
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->patch(route('jobs.status', $job), ['status' => 'invoiced'])->assertRedirect();
+    $this->actingAs($user)->patch(route('jobs.status', $job), ['job_stage_id' => $invoiced->id])->assertRedirect();
 
     Queue::assertPushed(PushJobInvoiceToQuickBooks::class, fn ($pushed) => $pushed->fabricationJob->is($job));
 });
