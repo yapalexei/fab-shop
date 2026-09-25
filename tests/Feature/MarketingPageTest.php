@@ -19,16 +19,20 @@ test('tier contents on the marketing page are read live from the seeded plans', 
 
     $this->get('/')->assertInertia(fn ($page) => $page
         ->component('Welcome')
-        ->has('tiers', 3)
+        ->has('tiers', 4)
         ->where('tiers.0.key', 'free')
         ->where('tiers.0.isTrialOnly', true)
-        ->where('tiers.1.key', 'start-up')
-        ->where('tiers.2.key', 'pro')
-        // Start-up includes the job board but not QuickBooks sync; Pro includes both -
-        // matches PlanSeeder exactly, so this test breaks the moment the two drift.
-        ->where('tiers.1.features', fn ($features) => collect($features)->firstWhere('key', 'job-board')['included'] === true
+        ->where('tiers.1.key', 'solo')
+        ->where('tiers.2.key', 'start-up')
+        ->where('tiers.3.key', 'pro')
+        // Solo includes quoting but not the job board; Start-up includes the
+        // job board but not QuickBooks sync; Pro includes both - matches
+        // PlanSeeder exactly, so this test breaks the moment the two drift.
+        ->where('tiers.1.features', fn ($features) => collect($features)->firstWhere('key', 'quote-builder')['included'] === true
+            && collect($features)->firstWhere('key', 'job-board')['included'] === false)
+        ->where('tiers.2.features', fn ($features) => collect($features)->firstWhere('key', 'job-board')['included'] === true
             && collect($features)->firstWhere('key', 'quickbooks-sync')['included'] === false)
-        ->where('tiers.2.features', fn ($features) => collect($features)->firstWhere('key', 'quickbooks-sync')['included'] === true));
+        ->where('tiers.3.features', fn ($features) => collect($features)->firstWhere('key', 'quickbooks-sync')['included'] === true));
 });
 
 test('unshipped features are flagged as coming soon regardless of plan', function () {
@@ -36,7 +40,7 @@ test('unshipped features are flagged as coming soon regardless of plan', functio
 
     $this->get('/')->assertInertia(fn ($page) => $page
         ->where('features', fn ($features) => collect($features)->firstWhere('key', 'mobile-api')['shipped'] === false)
-        ->where('tiers.2.key', 'pro'));
+        ->where('tiers.3.key', 'pro'));
 });
 
 test('the page still renders sensibly if plans have not been seeded yet', function () {

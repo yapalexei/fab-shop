@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
 class PlanSeeder extends Seeder
 {
     /**
-     * Seed the three subscription tiers and which features each includes.
+     * Seed the four subscription tiers and which features each includes.
      *
      * Matches the tier x feature matrix in docs/product-desc.md. The "free"
      * plan has no permanent features - a shop's access during its 14-day
@@ -27,6 +27,16 @@ class PlanSeeder extends Seeder
                 'user_limit' => 1,
                 'monthly_price_cents' => 0,
                 'features' => [],
+            ],
+            // Sits below Start-up for a true one-person shop: quoting
+            // without the job board, since a solo operator already knows
+            // their own job's status without a multi-station traveler
+            // board - a real trimmed tier, not just Start-up at a discount.
+            'solo' => [
+                'name' => 'Solo',
+                'user_limit' => 1,
+                'monthly_price_cents' => 2900,
+                'features' => [Feature::Customers, Feature::QuoteBuilder],
             ],
             'start-up' => [
                 'name' => 'Start-up',

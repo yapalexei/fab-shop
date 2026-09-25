@@ -22,7 +22,7 @@ class MarketingController extends Controller
      * missing plan (e.g. a fresh install that hasn't run PlanSeeder yet)
      * is simply left off rather than erroring the page.
      */
-    private const TIER_ORDER = ['free', 'start-up', 'pro'];
+    private const TIER_ORDER = ['free', 'solo', 'start-up', 'pro'];
 
     public function __invoke(): Response
     {
