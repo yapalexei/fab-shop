@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\JobStatus;
+use App\Enums\LineItemType;
+use App\Enums\MaterialUsageType;
 use App\Models\Concerns\BelongsToShop;
 use Database\Factories\JobFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -136,5 +139,50 @@ class Job extends Model implements HasMedia
     public function photos(): Collection
     {
         return $this->getMedia('photos')->sortByDesc('created_at')->values();
+    }
+
+    /**
+     * The job's material-usage ledger - actual consumption/waste, kept
+     * entirely separate from the quote's line items (the estimate).
+     */
+    public function materialUsages(): HasMany
+    {
+        return $this->hasMany(JobMaterialUsage::class);
+    }
+
+    /**
+     * What the quote estimated material would cost the shop - quantity x
+     * unit_cost on the quote's material lines, before markup, since that's
+     * the shop's own cost and the correct basis to compare actual cost
+     * against (not what the customer is charged).
+     */
+    protected function estimatedMaterialCost(): Attribute
+    {
+        return Attribute::get(fn (): float => $this->quote->lineItems
+            ->where('type', LineItemType::Material)
+            ->sum->cost);
+    }
+
+    protected function actualMaterialCost(): Attribute
+    {
+        return Attribute::get(fn (): float => $this->materialUsages
+            ->where('type', MaterialUsageType::Used)
+            ->sum->cost);
+    }
+
+    protected function scrapCost(): Attribute
+    {
+        return Attribute::get(fn (): float => $this->materialUsages
+            ->where('type', MaterialUsageType::Scrap)
+            ->sum->cost);
+    }
+
+    /**
+     * Actual + scrap cost against what was estimated - positive means the
+     * job cost more material than quoted, eating into its margin.
+     */
+    protected function materialCostVariance(): Attribute
+    {
+        return Attribute::get(fn (): float => $this->actual_material_cost + $this->scrap_cost - $this->estimated_material_cost);
     }
 }

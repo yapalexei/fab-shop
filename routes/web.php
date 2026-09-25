@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\JobController;
+use App\Http\Controllers\JobMaterialUsageController;
 use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\MarketingController;
@@ -93,6 +94,13 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::delete('jobs/{job}/photos/{media}', [JobPhotoController::class, 'destroy'])
         ->name('jobs.photos.destroy')
         ->middleware(['feature:job-board', 'can:jobs.update']);
+
+    Route::post('jobs/{job}/material-usage', [JobMaterialUsageController::class, 'store'])
+        ->name('jobs.material-usage.store')
+        ->middleware(['feature:job-board', 'feature:material-tracking', 'can:jobs.update']);
+    Route::delete('jobs/{job}/material-usage/{materialUsage}', [JobMaterialUsageController::class, 'destroy'])
+        ->name('jobs.material-usage.destroy')
+        ->middleware(['feature:job-board', 'feature:material-tracking', 'can:jobs.update']);
 
     Route::resource('materials', MaterialController::class)
         ->except('show')

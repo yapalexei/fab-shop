@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\JobStatus;
 use App\Models\Job;
+use App\Models\JobMaterialUsage;
+use App\Models\Material;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -32,6 +35,13 @@ class JobController extends Controller
     public function show(Job $job): Response
     {
         $job->load('quote.lineItems', 'customer', 'activitiesAsSubject.causer');
+
+        $shop = Auth::user()->currentShop;
+        $hasMaterialTracking = $shop->hasFeature(Feature::MaterialTracking);
+
+        if ($hasMaterialTracking) {
+            $job->load('materialUsages.material', 'materialUsages.recordedBy');
+        }
 
         return Inertia::render('Jobs/Show', [
             'job' => [
@@ -64,7 +74,49 @@ class JobController extends Controller
                     'thumb_url' => $photo->getUrl('thumb'),
                 ]),
             ],
+            // Omitted entirely (not just hidden) for a shop without the
+            // feature - same "don't send what they're not entitled to" rule
+            // the dashboard's financials prop follows.
+            'materialTracking' => $hasMaterialTracking ? $this->materialTrackingProps($job) : null,
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function materialTrackingProps(Job $job): array
+    {
+        return [
+            'usages' => $job->materialUsages->sortByDesc('created_at')->values()->map(fn (JobMaterialUsage $usage) => [
+                'id' => $usage->id,
+                'material_id' => $usage->material_id,
+                'description' => $usage->description,
+                'unit' => $usage->unit,
+                'quantity' => (float) $usage->quantity,
+                'unit_cost' => (float) $usage->unit_cost,
+                'cost' => $usage->cost,
+                'type' => $usage->type->value,
+                'notes' => $usage->notes,
+                'recorded_by' => $usage->recordedBy?->name,
+                'created_at' => $usage->created_at->toIso8601String(),
+            ]),
+            'cost_summary' => [
+                'estimated' => $job->estimated_material_cost,
+                'actual' => $job->actual_material_cost,
+                'scrap' => $job->scrap_cost,
+                'variance' => $job->material_cost_variance,
+            ],
+            'materials' => Material::query()->with('businessPartners')->orderBy('name')->get()
+                ->map(fn (Material $material) => [
+                    'id' => $material->id,
+                    'name' => $material->name,
+                    'unit' => $material->unit,
+                    // The cheapest known supplier price, as a starting point
+                    // for unit cost - always overridable, since the whole
+                    // point of tracking actual cost is that it can differ.
+                    'suggested_cost' => $material->businessPartners->min('pivot.price'),
+                ]),
+        ];
     }
 
     /**

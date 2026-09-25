@@ -9,6 +9,7 @@ use App\Models\BusinessPartner;
 use App\Models\Customer;
 use App\Models\Equipment;
 use App\Models\Job;
+use App\Models\JobMaterialUsage;
 use App\Models\MarkupDefault;
 use App\Models\Material;
 use App\Models\MaterialType;
@@ -71,7 +72,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             $this->createTooling($shop);
             $this->createMarkupDefaults($shop);
             $quote = $this->createWonQuote($shop, $customer, $material, $partner, $service, $welder, $equipment);
-            $this->createInProgressJob($shop, $quote, $customer);
+            $this->createInProgressJob($shop, $quote, $customer, $material);
             $this->createShopHistory($shop, $material);
 
             $this->printCredentials([
@@ -274,7 +275,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
         return $quote;
     }
 
-    private function createInProgressJob(Shop $shop, Quote $quote, Customer $customer): Job
+    private function createInProgressJob(Shop $shop, Quote $quote, Customer $customer, Material $material): Job
     {
         $jobNumber = 'J-'.str_pad((string) (Job::where('shop_id', $shop->id)->count() + 1), 4, '0', STR_PAD_LEFT);
 
@@ -289,6 +290,27 @@ class SeedTeamJobDemo extends DemoSeedCommand
 
         foreach ([JobStatus::Cutting, JobStatus::Fitting] as $to) {
             activity()->performedOn($job)->causedBy($shop->owner)->log("Status changed to {$to->label()}");
+        }
+
+        // Shows off material tracking (F5): the quote estimated 10 sheets at
+        // $45 - the shop actually used 9 and scrapped 1 to a cutting error,
+        // at a slightly higher real price than quoted.
+        $usages = [
+            ['description' => $material->name, 'unit' => $material->unit, 'quantity' => 9, 'unit_cost' => 47.50, 'type' => 'used'],
+            ['description' => $material->name, 'unit' => $material->unit, 'quantity' => 1, 'unit_cost' => 47.50, 'type' => 'scrap', 'notes' => 'Mis-cut on the plasma table - replaced.'],
+        ];
+
+        foreach ($usages as $usage) {
+            // Console context has no authenticated user, so BelongsToShop's
+            // creating hook won't fill shop_id - set it explicitly, same as
+            // the Job itself just above.
+            (new JobMaterialUsage)->forceFill([
+                ...$usage,
+                'shop_id' => $shop->id,
+                'job_id' => $job->id,
+                'material_id' => $material->id,
+                'recorded_by' => $shop->owner->id,
+            ])->save();
         }
 
         return $job;

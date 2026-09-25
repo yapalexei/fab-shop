@@ -15,7 +15,8 @@ Core features, in plain terms (full dependency table is below):
 - **Job/traveler status board (F3)** - live tracking from cut through ship
 - **QuickBooks Online sync (F4)** - customers and invoices sync automatically
 - **Subscription billing (F0.8)** - the shop pays for the product itself
-- **Material/scrap tracking (F5), mobile/PWA + API (F6), weld/qualification records (F7)** - the Scenario C follow-on
+- **Material/scrap tracking (F5)** - built; see [Material/scrap tracking](#materialscrap-tracking-f5---built) below
+- **Mobile/PWA + API (F6), weld/qualification records (F7)** - the rest of the Scenario C follow-on, not yet started
 - **Marketing site, tier comparison & guided onboarding (F8)** - built; see [Marketing site, tier comparison & guided onboarding](#marketing-site-tier-comparison--guided-onboarding-f8---built) below
 - **CSV import for catalog data (F9)** - planned, not started; see [Planned: CSV import for catalog data](#planned-csv-import-for-catalog-data-f9) below
 
@@ -110,6 +111,18 @@ Runs once, right after first verified login, before the real Dashboard is reacha
   4. **Done** - folded into submitting the catalog step (no separate confirmation screen): sets `onboarded_at`, redirects to the Dashboard.
 - Covered in `tests/Feature/OnboardingTest.php` and `tests/Feature/InvitationTest.php`: redirect-to-onboarding from any route; resuming mid-wizard; blank rows dropped not rejected; skip still reaches a working empty-catalog Dashboard; an accepted invite only grants the one shop it was for, never any other the invitee might create or join later.
 
+## Material/scrap tracking (F5) - built
+
+`App\Models\JobMaterialUsage` is the actual-consumption ledger, deliberately separate from `QuoteLineItem` (the quote is the *estimate* a job's price is fixed to - see F1.1's own note on `Job::total`). It only ever grows - reversing a job's status (the F3 backward-correction rule) never erases the cost of material already used or scrapped, which is exactly the "historic ledger of events on the job... auditable on the job details page" the F3 design called for.
+
+- Each entry: an optional catalog `material_id` (nullable, same "freeform if not in the catalog" pattern as `QuoteLineItem`), description, unit, quantity, unit cost, and a `type` - `used` or `scrap` (`App\Enums\MaterialUsageType`) - so waste is visible on its own rather than folded silently into "used."
+- `Job` gains computed (never stored) cost-comparison attributes: `estimated_material_cost` (the quote's `material`-type lines, summed at the shop's own cost - pre-markup, not what the customer is charged), `actual_material_cost`, `scrap_cost`, and `material_cost_variance` (actual + scrap - estimated; positive means the job ran over its material estimate). This is the "estimate vs. actual" comparison the original one-line spec called for.
+- Logged from a new panel on the Job detail page - a quick-add form (material picker, or freeform; quantity/unit/cost; used-or-scrap) plus the running list, shown alongside Photos and History. Logging or removing an entry also writes a normal job activity log entry, so it appears interleaved with status changes in the existing History panel.
+- Gated by the `material-tracking` feature (Start-up doesn't include it, Pro does, every plan gets it during the trial) on top of `jobs.update` - no new permission was added; logging usage is scoped as part of working the job, the same way job photos are.
+- The material picker suggests the cheapest known `businessPartners` price for a selected catalog material as a starting point for unit cost - always overridable, since the point of tracking *actual* cost is that it can differ from any predicted default.
+
+Covered in `tests/Feature/JobMaterialUsageTest.php`: cost aggregation (estimated/actual/scrap/variance) math, cross-tenant isolation, feature gating (the job page loads fine without the feature, just without this panel's data), permission gating, and the activity-log entries.
+
 ## Planned: CSV import for catalog data (F9)
 
 **Not started - defined here for review.**
@@ -147,7 +160,7 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F2 | Quote -> job conversion, PDF generation, email send | F1, F1.1 | Turns a won quote into a trackable job |
 | F3 | Job/traveler status board (cut -> fit -> weld -> finish -> ship), live updates via broadcasting | F2 | Replaces the whiteboard; the daily-use screen for the shop floor |
 | F4 | QuickBooks Online sync (customers, invoices) | F0.5, F1 (data model needs to be stable; doesn't strictly need F2/F3) | Removes the QuickBooks re-entry pain flagged repeatedly in research |
-| F5 | Material/scrap tracking tied to job cost | F3 | Real per-job margin - the natural upsell after F1's estimate vs. actual |
+| F5 | Material/scrap tracking tied to job cost | F3 | Real per-job margin - the natural upsell after F1's estimate vs. actual. **Built.** |
 | F6 | Mobile/PWA shell + Sanctum-based API endpoints for job status | F3 (for the data it displays), Sanctum scaffolding from F0 | First real use of the API-readiness groundwork from F0 |
 | F7 | Weld/qualification record tracking (WPS/PQR, certs tied to jobs) | F3 | Compliance/liability differentiator vs. generic tools |
 | F8 | Marketing site, tier comparison & guided onboarding (public page; verified signup; onboarding wizard incl. staff invite-by-email) | F0.9 (built); F0.8 not built, so the plan-pick step can't charge yet | Prospects can evaluate tiers before signing up; new shops get walked through setup instead of landing on an empty dashboard. **Built.** |

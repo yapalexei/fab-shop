@@ -26,18 +26,18 @@ enum Feature: string
     }
 
     /**
-     * Whether this feature actually exists in the app yet. MaterialTracking,
-     * WeldRecords and MobileApi (F5-F7) are already wired into the Pro
-     * plan's feature list for when they ship, but nothing enforces or
-     * exposes them today - the marketing page shows those as "Coming soon"
-     * rather than a checkmark, so a tier's page never claims more than the
-     * app can currently do. Flip to true here the day each one ships.
+     * Whether this feature actually exists in the app yet. WeldRecords and
+     * MobileApi (F6-F7) are already wired into the Pro plan's feature list
+     * for when they ship, but nothing enforces or exposes them today - the
+     * marketing page shows those as "Coming soon" rather than a checkmark,
+     * so a tier's page never claims more than the app can currently do.
+     * Flip to true here the day each one ships.
      */
     public function isShipped(): bool
     {
         return match ($this) {
-            self::Customers, self::QuoteBuilder, self::JobBoard, self::QuickbooksSync => true,
-            self::MaterialTracking, self::WeldRecords, self::MobileApi => false,
+            self::Customers, self::QuoteBuilder, self::JobBoard, self::QuickbooksSync, self::MaterialTracking => true,
+            self::WeldRecords, self::MobileApi => false,
         };
     }
 

@@ -1,3 +1,8 @@
+import JobMaterialTracking, {
+    MaterialCostSummary,
+    MaterialOption,
+    MaterialUsage,
+} from '@/Components/JobMaterialTracking';
 import JobPhotos, { JobPhoto } from '@/Components/JobPhotos';
 import JobStatusActions, {
     JobTransition,
@@ -35,12 +40,21 @@ interface JobDetail {
     photos: JobPhoto[];
 }
 
+interface MaterialTracking {
+    usages: MaterialUsage[];
+    cost_summary: MaterialCostSummary;
+    materials: MaterialOption[];
+}
+
 const currency = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
 });
 
-export default function Show({ job }: PageProps<{ job: JobDetail }>) {
+export default function Show({
+    job,
+    materialTracking,
+}: PageProps<{ job: JobDetail; materialTracking: MaterialTracking | null }>) {
     const formatDateTime = useShopDateTime();
 
     return (
@@ -131,6 +145,15 @@ export default function Show({ job }: PageProps<{ job: JobDetail }>) {
                     </div>
 
                     <JobPhotos jobId={job.id} photos={job.photos} />
+
+                    {materialTracking && (
+                        <JobMaterialTracking
+                            jobId={job.id}
+                            usages={materialTracking.usages}
+                            costSummary={materialTracking.cost_summary}
+                            materials={materialTracking.materials}
+                        />
+                    )}
 
                     <div className="bg-white p-6 shadow sm:rounded-lg">
                         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">

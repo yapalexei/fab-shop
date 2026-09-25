@@ -68,6 +68,14 @@ Gate financial data on the server, not just in the UI - e.g. the dashboard omits
 
 Every status change - button or drag - goes through `JobMoveDialog` for confirmation first. Drag-and-drop (`@dnd-kit/core`, drag handle only so card links and touch-scrolling still work) is a per-shop setting, `shops.job_board_drag_enabled`, off by default (`config('shop.defaults.job_board_drag_enabled')`); the board only enables it for users with `jobs.update`. Moving needs `jobs.update`, cancelling `jobs.cancel` - checked in `JobStatusController` since it depends on the target status.
 
+## Material & scrap tracking (F5)
+
+`JobMaterialUsage` is the actual-consumption ledger, deliberately separate from `QuoteLineItem` (the estimate a job's price is fixed to - see `Job::total`'s own note): it only ever grows, so reversing a job's status never erases the cost of what was already used or scrapped, per the F3 design decision this fulfills. `type` (`App\Enums\MaterialUsageType`: `Used`/`Scrap`) keeps waste visible on its own rather than folded into "used." `Job` gets computed (never stored) `estimated_material_cost` (sum of the quote's `material`-type lines' `cost` - shop's cost, pre-markup, not what the customer is charged), `actual_material_cost`, `scrap_cost`, and `material_cost_variance` (actual + scrap - estimated; positive means the job cost more material than quoted).
+
+Gated by the `material-tracking` feature (`Feature::MaterialTracking`, now `isShipped() => true` - Start-up doesn't include it, Pro does, trial gets everything) on top of `job-board` and `jobs.update` (no separate permission - logging usage is part of working the job, same scoping as job photos). `JobController::show()` omits the `materialTracking` prop entirely for a shop without the feature, same "don't send what they're not entitled to" rule the dashboard's `financials` prop follows - it's not just hidden client-side. Logging or removing an entry also writes a normal `activity()` log entry on the job, so it shows up interleaved with status changes in the existing History panel - unlike job photos, which don't log.
+
+The material picker's "suggested cost" is the material's cheapest known `businessPartners` price, purely a starting point - always overridable, since the entire point of tracking *actual* cost is that it can differ from any predicted default.
+
 ## Frontend formatting
 
 `.prettierrc` matches the repo's style (single quotes, 4 spaces). Much of the existing code was hand-formatted rather than Prettier output, so format only files you create or substantially rewrite - running Prettier over the whole tree reflows lines in files you never touched.
