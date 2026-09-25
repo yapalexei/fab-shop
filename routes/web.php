@@ -26,6 +26,7 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ShopFeatureSubscriptionController;
 use App\Http\Controllers\ShopSettingsController;
 use App\Http\Controllers\ShopSuspendedController;
 use App\Http\Controllers\ShopSwitchController;
@@ -194,6 +195,12 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         Route::middleware('can:shop-settings.update')->group(function () {
             Route::get('/settings', [ShopSettingsController::class, 'edit'])->name('shop.settings.edit');
             Route::patch('/settings', [ShopSettingsController::class, 'update'])->name('shop.settings.update');
+        });
+
+        Route::middleware('can:manage-shop')->group(function () {
+            Route::get('/addons', [ShopFeatureSubscriptionController::class, 'index'])->name('shop.addons.index');
+            Route::post('/addons/{feature}', [ShopFeatureSubscriptionController::class, 'store'])->name('shop.addons.store');
+            Route::delete('/addons/{feature}', [ShopFeatureSubscriptionController::class, 'destroy'])->name('shop.addons.destroy');
         });
     });
 

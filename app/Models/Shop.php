@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 
@@ -67,6 +68,11 @@ class Shop extends Model
     public function quickBooksConnection(): HasOne
     {
         return $this->hasOne(QuickBooksConnection::class);
+    }
+
+    public function featureSubscriptions(): HasMany
+    {
+        return $this->hasMany(ShopFeatureSubscription::class);
     }
 
     /**
@@ -136,12 +142,31 @@ class Shop extends Model
     }
 
     /**
-     * True if the feature is in the shop's current plan, or the shop is still
-     * on trial (trial shops get every feature during the trial window).
+     * True if the feature is in the shop's current plan, the shop bought it
+     * standalone as an add-on, or the shop is still on trial (trial shops
+     * get every feature during the trial window).
      */
     public function hasFeature(Feature $feature): bool
     {
-        return $this->onTrial() || ($this->plan?->hasFeature($feature) ?? false);
+        return $this->onTrial()
+            || ($this->plan?->hasFeature($feature) ?? false)
+            || $this->hasActiveFeatureSubscription($feature);
+    }
+
+    /**
+     * Bypasses the BelongsToShop global scope deliberately: that scope
+     * filters by the *authenticated user's* current shop, which is wrong
+     * here if $this isn't that shop (e.g. a platform-admin context, or no
+     * authenticated user at all in console/queue code) - this checks $this
+     * shop's own subscriptions by id, same as any other relation query.
+     */
+    public function hasActiveFeatureSubscription(Feature $feature): bool
+    {
+        return $this->featureSubscriptions()
+            ->withoutGlobalScopes()
+            ->where('feature', $feature->value)
+            ->whereNull('cancelled_at')
+            ->exists();
     }
 
     /**
@@ -153,6 +178,14 @@ class Shop extends Model
             return collect(Feature::cases());
         }
 
-        return $this->plan?->features() ?? collect();
+        $bundled = $this->plan?->features() ?? collect();
+
+        $addons = $this->featureSubscriptions()
+            ->withoutGlobalScopes()
+            ->whereNull('cancelled_at')
+            ->pluck('feature')
+            ->map(fn (string $feature) => Feature::from($feature));
+
+        return $bundled->merge($addons)->unique();
     }
 }
