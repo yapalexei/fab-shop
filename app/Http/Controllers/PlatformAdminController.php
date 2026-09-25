@@ -41,7 +41,7 @@ class PlatformAdminController extends Controller
                 'seat_limit' => $shop->plan?->user_limit,
                 'created_at' => $shop->created_at,
             ]),
-            'plans' => Plan::orderBy('id')->get(['id', 'name'])->map(fn (Plan $plan) => [
+            'plans' => Plan::orderedByTier()->map(fn (Plan $plan) => [
                 'id' => $plan->id,
                 'name' => $plan->name,
             ]),

@@ -19,16 +19,8 @@ use Inertia\Response;
  */
 class MarketingController extends Controller
 {
-    /**
-     * Tiers are shown in this fixed order regardless of table order. A
-     * missing plan (e.g. a fresh install that hasn't run PlanSeeder yet)
-     * is simply left off rather than erroring the page.
-     */
-    private const TIER_ORDER = ['free', 'solo', 'start-up', 'pro'];
-
     public function __invoke(): Response
     {
-        $plans = Plan::query()->get()->keyBy('key');
         $prices = FeatureSetting::priceMap();
 
         return Inertia::render('Welcome', [
@@ -40,10 +32,7 @@ class MarketingController extends Controller
                 'tagline' => $feature->tagline(),
                 'shipped' => $feature->isShipped(),
             ]),
-            'tiers' => collect(self::TIER_ORDER)
-                ->filter(fn (string $key) => $plans->has($key))
-                ->map(fn (string $key) => $this->tier($plans[$key], $prices))
-                ->values(),
+            'tiers' => Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices)),
         ]);
     }
 

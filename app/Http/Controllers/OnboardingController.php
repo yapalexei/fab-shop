@@ -37,7 +37,11 @@ class OnboardingController extends Controller
 
         if (! $shop) {
             return Inertia::render('Onboarding/ShopStep', [
-                'plans' => Plan::query()->orderBy('id')->get(['key', 'name', 'user_limit']),
+                'plans' => Plan::orderedByTier()->map(fn (Plan $plan) => [
+                    'key' => $plan->key,
+                    'name' => $plan->name,
+                    'user_limit' => $plan->user_limit,
+                ]),
                 'timezones' => \DateTimeZone::listIdentifiers(),
             ]);
         }
