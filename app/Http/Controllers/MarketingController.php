@@ -22,25 +22,40 @@ class MarketingController extends Controller
     public function __invoke(): Response
     {
         $prices = FeatureSetting::priceMap();
+        $features = $this->shippedFeatures();
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
-            'features' => collect(Feature::cases())->map(fn (Feature $feature) => [
+            'features' => $features->map(fn (Feature $feature) => [
                 'key' => $feature->value,
                 'label' => $feature->label(),
                 'tagline' => $feature->tagline(),
                 'shipped' => $feature->isShipped(),
             ]),
-            'tiers' => Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices)),
+            'tiers' => Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices, $features)),
         ]);
     }
 
     /**
+     * Unshipped features (currently just Mobile/API access) are left off
+     * the marketing page entirely rather than teased as "coming soon" - a
+     * deliberate choice, not an oversight; isShipped()'s "coming soon"
+     * rendering in Welcome.tsx stays in place for whenever that changes.
+     *
+     * @return Collection<int, Feature>
+     */
+    private function shippedFeatures(): Collection
+    {
+        return collect(Feature::cases())->filter(fn (Feature $feature) => $feature->isShipped())->values();
+    }
+
+    /**
      * @param  Collection<string, int>  $prices
+     * @param  Collection<int, Feature>  $features
      * @return array<string, mixed>
      */
-    private function tier(Plan $plan, Collection $prices): array
+    private function tier(Plan $plan, Collection $prices, Collection $features): array
     {
         // The free plan has no permanent features of its own - a new shop's
         // access during its 14-day trial comes from Shop::onTrial(), not
@@ -65,7 +80,7 @@ class MarketingController extends Controller
             'isTrialOnly' => $isTrialOnly,
             'monthlyPriceCents' => $plan->monthly_price_cents,
             'savingsCents' => $savingsCents,
-            'features' => collect(Feature::cases())->map(fn (Feature $feature) => [
+            'features' => $features->map(fn (Feature $feature) => [
                 'key' => $feature->value,
                 'included' => $granted->contains($feature),
             ]),

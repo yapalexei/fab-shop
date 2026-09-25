@@ -55,6 +55,54 @@ function Check({ ok }: { ok: boolean }) {
     );
 }
 
+function TierFeatureRow({
+    feature,
+    tier,
+}: {
+    feature: FeatureRow;
+    tier: Tier;
+}) {
+    const row = tier.features.find((f) => f.key === feature.key);
+    const included = row?.included ?? false;
+
+    return (
+        <li className="flex items-center gap-2 text-sm">
+            {feature.shipped ? (
+                <Check ok={included} />
+            ) : (
+                <svg
+                    className="h-5 w-5 shrink-0 text-amber-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                >
+                    <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.28 11.185c.75 1.334-.213 2.98-1.742 2.98H3.72c-1.53 0-2.493-1.646-1.743-2.98L8.257 3.1zM10 13a1 1 0 100-2 1 1 0 000 2zm-.75-6a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0v-3z"
+                        clipRule="evenodd"
+                    />
+                </svg>
+            )}
+            <span
+                className={
+                    feature.shipped
+                        ? included
+                            ? 'text-gray-900'
+                            : 'text-gray-400'
+                        : 'text-gray-500'
+                }
+            >
+                {feature.label}
+                {!feature.shipped && (
+                    <span className="ms-1.5 text-xs text-amber-600">
+                        (coming soon)
+                    </span>
+                )}
+            </span>
+        </li>
+    );
+}
+
 function TierCard({
     tier,
     features,
@@ -64,6 +112,13 @@ function TierCard({
     features: FeatureRow[];
     canRegister: boolean;
 }) {
+    // Split down the middle rather than a 2-col CSS grid with row-major
+    // flow, so the first half fills the left column top-to-bottom and the
+    // rest fills the right - not interleaved left/right/left/right.
+    const half = Math.ceil(features.length / 2);
+    const firstColumn = features.slice(0, half);
+    const secondColumn = features.slice(half);
+
     return (
         <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900">
@@ -93,54 +148,30 @@ function TierCard({
                     Every shipped feature, free for 14 days.
                 </p>
             ) : (
-                <ul className="mt-4 flex-1 space-y-2">
-                    {features.map((feature) => {
-                        const row = tier.features.find(
-                            (f) => f.key === feature.key,
-                        );
-                        const included = row?.included ?? false;
-
-                        return (
-                            <li
+                // 2 columns once the card has room for them (full-width on
+                // mobile, half-width at sm) - back to 1 column at lg, where
+                // the tier grid itself goes to 4-across and each card gets
+                // too narrow for two columns of feature labels.
+                <div className="mt-4 grid flex-1 grid-cols-1 content-start gap-x-6 sm:grid-cols-2 lg:grid-cols-1">
+                    <ul className="space-y-2">
+                        {firstColumn.map((feature) => (
+                            <TierFeatureRow
                                 key={feature.key}
-                                className="flex items-center gap-2 text-sm"
-                            >
-                                {feature.shipped ? (
-                                    <Check ok={included} />
-                                ) : (
-                                    <svg
-                                        className="h-5 w-5 shrink-0 text-amber-400"
-                                        viewBox="0 0 20 20"
-                                        fill="currentColor"
-                                        aria-hidden="true"
-                                    >
-                                        <path
-                                            fillRule="evenodd"
-                                            d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.28 11.185c.75 1.334-.213 2.98-1.742 2.98H3.72c-1.53 0-2.493-1.646-1.743-2.98L8.257 3.1zM10 13a1 1 0 100-2 1 1 0 000 2zm-.75-6a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0v-3z"
-                                            clipRule="evenodd"
-                                        />
-                                    </svg>
-                                )}
-                                <span
-                                    className={
-                                        feature.shipped
-                                            ? included
-                                                ? 'text-gray-900'
-                                                : 'text-gray-400'
-                                            : 'text-gray-500'
-                                    }
-                                >
-                                    {feature.label}
-                                    {!feature.shipped && (
-                                        <span className="ms-1.5 text-xs text-amber-600">
-                                            (coming soon)
-                                        </span>
-                                    )}
-                                </span>
-                            </li>
-                        );
-                    })}
-                </ul>
+                                feature={feature}
+                                tier={tier}
+                            />
+                        ))}
+                    </ul>
+                    <ul className="space-y-2">
+                        {secondColumn.map((feature) => (
+                            <TierFeatureRow
+                                key={feature.key}
+                                feature={feature}
+                                tier={tier}
+                            />
+                        ))}
+                    </ul>
+                </div>
             )}
 
             {canRegister && (
@@ -280,16 +311,16 @@ export default function Welcome({
                     <section id="pricing" className="py-16">
                         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                             <h2 className="text-center text-2xl font-bold text-gray-900">
-                                One plan to try, two to grow into
+                                One plan to try, three to grow into
                             </h2>
                             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-gray-600">
                                 Every plan starts with a full-access, 14-day
-                                free trial - no card required. Pick Start-up
-                                or Pro when the trial ends, or keep exploring
-                                on the free trial until you're ready.
+                                free trial - no card required. Pick Solo,
+                                Start-up or Pro when the trial ends, or keep
+                                exploring on the free trial until you're ready.
                             </p>
 
-                            <div className="mt-10 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+                            <div className="mt-10 grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-4">
                                 {tiers.map((tier) => (
                                     <TierCard
                                         key={tier.key}

@@ -38,11 +38,12 @@ test('tier contents on the marketing page are read live from the seeded plans', 
         ->where('tiers.3.features', fn ($features) => collect($features)->firstWhere('key', 'quickbooks-sync')['included'] === true));
 });
 
-test('unshipped features are flagged as coming soon regardless of plan', function () {
+test('unshipped features are left off the marketing page entirely, not teased as coming soon', function () {
     $this->seed(PlanSeeder::class);
 
     $this->get('/')->assertInertia(fn ($page) => $page
-        ->where('features', fn ($features) => collect($features)->firstWhere('key', 'mobile-api')['shipped'] === false)
+        ->where('features', fn ($features) => collect($features)->firstWhere('key', 'mobile-api') === null)
+        ->where('tiers.3.features', fn ($features) => collect($features)->firstWhere('key', 'mobile-api') === null)
         ->where('tiers.3.key', 'pro'));
 });
 
