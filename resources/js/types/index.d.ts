@@ -13,6 +13,7 @@ export type PageProps<
         user: User;
         permissions: string[];
         isOwner: boolean;
+        isPlatformAdmin: boolean;
     };
     shop: {
         id: number;

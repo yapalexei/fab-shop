@@ -40,6 +40,7 @@ class Shop extends Model
             'trial_ends_at' => 'datetime',
             'trial_ended_notified_at' => 'datetime',
             'onboarded_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'stale_quote_days' => 'integer',
             'win_rate_window_days' => 'integer',
             'job_board_drag_enabled' => 'boolean',
@@ -117,6 +118,16 @@ class Shop extends Model
     public function isOnboarded(): bool
     {
         return $this->onboarded_at !== null;
+    }
+
+    /**
+     * Set only by the platform admin console (never fillable - see the
+     * suspended_at migration). Blocks the shop's own users from the app via
+     * EnsureShopIsActive without touching any of their data.
+     */
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
     }
 
     public function onTrial(): bool

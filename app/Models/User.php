@@ -40,7 +40,19 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_platform_admin' => 'boolean',
         ];
+    }
+
+    /**
+     * A platform-level staff flag, entirely separate from any per-shop role -
+     * granted out-of-band (tinker, or the app:grant-platform-admin command),
+     * never through a user-facing form, since it crosses tenant boundaries
+     * the rest of the app is built to keep sealed.
+     */
+    public function isPlatformAdmin(): bool
+    {
+        return (bool) $this->is_platform_admin;
     }
 
     /**

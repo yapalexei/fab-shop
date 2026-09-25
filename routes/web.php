@@ -15,6 +15,7 @@ use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialTypeController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PlatformAdminController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ShopSettingsController;
+use App\Http\Controllers\ShopSuspendedController;
 use App\Http\Controllers\ShopSwitchController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeamMemberAccessController;
@@ -47,9 +49,25 @@ Route::middleware(['auth', 'verified'])->prefix('onboarding')->name('onboarding.
     Route::post('/catalog', [OnboardingController::class, 'storeCatalog'])->name('catalog');
 });
 
-Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified', 'onboarded'])->name('dashboard');
+Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified', 'active', 'onboarded'])->name('dashboard');
 
-Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
+// Landing spot for a suspended shop's users - deliberately not behind
+// 'active' itself, or a suspended shop could never reach it.
+Route::get('/shop-suspended', [ShopSuspendedController::class, 'show'])
+    ->middleware(['auth', 'verified'])
+    ->name('shop.suspended');
+
+// Internal-only, cross-tenant - see PlatformAdminController's class doc.
+// Deliberately outside 'active'/'onboarded': platform staff aren't acting
+// within a shop here, and may not even belong to one.
+Route::middleware(['auth', 'verified', 'can:platform-admin'])->prefix('platform-admin')->name('platform-admin.')->group(function () {
+    Route::get('/', [PlatformAdminController::class, 'index'])->name('index');
+    Route::post('/shops/{shop}/suspend', [PlatformAdminController::class, 'suspend'])->name('shops.suspend');
+    Route::post('/shops/{shop}/unsuspend', [PlatformAdminController::class, 'unsuspend'])->name('shops.unsuspend');
+    Route::patch('/shops/{shop}/plan', [PlatformAdminController::class, 'updatePlan'])->name('shops.plan');
+});
+
+Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

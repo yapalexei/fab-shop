@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureFeatureEnabled;
+use App\Http\Middleware\EnsureShopIsActive;
 use App\Http\Middleware\EnsureShopIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetPermissionsTeamFromCurrentShop;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'feature' => EnsureFeatureEnabled::class,
             'onboarded' => EnsureShopIsOnboarded::class,
+            'active' => EnsureShopIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

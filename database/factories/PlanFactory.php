@@ -22,6 +22,7 @@ class PlanFactory extends Factory
             'name' => fake()->words(2, true),
             'stripe_price_id' => null,
             'user_limit' => null,
+            'monthly_price_cents' => 0,
         ];
     }
 }

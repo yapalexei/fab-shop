@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
                 // can hide what the server would refuse anyway.
                 'permissions' => $request->user()?->shopPermissions() ?? [],
                 'isOwner' => $request->user() ? Gate::allows('manage-shop') : false,
+                'isPlatformAdmin' => $request->user()?->isPlatformAdmin() ?? false,
             ],
             'shop' => $shop ? [
                 'id' => $shop->id,

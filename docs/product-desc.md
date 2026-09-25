@@ -19,6 +19,7 @@ Core features, in plain terms (full dependency table is below):
 - **Mobile/PWA + API (F6), weld/qualification records (F7)** - the rest of the Scenario C follow-on, not yet started
 - **Marketing site, tier comparison & guided onboarding (F8)** - built; see [Marketing site, tier comparison & guided onboarding](#marketing-site-tier-comparison--guided-onboarding-f8---built) below
 - **CSV import for catalog data (F9)** - built; see [CSV import for catalog data](#csv-import-for-catalog-data-f9---built) below
+- **Platform admin console (F10)** - internal, cross-tenant tool to view/administer all shops (plan, suspend, upgrade); dashboard built, see [Platform admin console](#platform-admin-console-f10---dashboard-built-real-revenue-deferred) below
 
 **Dependency shape, in plain terms:** Foundation (accounts, shops, roles) has to exist before anything else - nothing else can start until it's done. Customers have to exist before Quotes can be created. Quotes have to exist before a Quote can become a Job. Jobs have to exist before the status board, material tracking, weld records, or mobile status views have anything to show. Subscription billing and QuickBooks sync are the two features that don't block, or get blocked by, that chain - each can be built independently once its own light prerequisite (the Shop model; stable Customer/Quote data shapes) is in place.
 
@@ -136,6 +137,21 @@ One mechanism shared by all seven rather than one per resource - see `App\Suppor
 
 Covered in `tests/Feature/CsvImportTest.php`: the acceptance cases above, plus feature gating, owner-only permission gating, cross-tenant isolation, and the material-type custom-type cap holding under import the same as it does through the UI.
 
+## Platform admin console (F10) - dashboard built, real revenue deferred
+
+A platform-level staff flag (`users.is_platform_admin`), entirely separate from the per-shop Owner/Admin/Staff model: those are scoped to one shop via `shop_id` and Spatie's teams feature, while this crosses every shop on purpose. Granted out-of-band only - `php artisan app:grant-platform-admin {email}`, or `forceFill` in tinker - never through a user-facing form or self-elevation of any kind. Gated by its own `platform-admin` Gate (`App\Providers\AppServiceProvider`), checked via `can:platform-admin` route middleware - not a `BelongsToShop`-scoped permission, since it must reach every tenant.
+
+- **Shop directory** (`GET /platform-admin`, `PlatformAdminController::index`) - every shop with its plan, trial status, seat count vs. `Plan::user_limit`, onboarded/suspended state, owner email, and created date. Deliberately reads every shop with no tenant scoping - the one screen in the app that's supposed to cross that boundary, since `Shop` itself isn't `BelongsToShop`-scoped (it's the tenant record, not a tenant-owned one).
+- **Suspend / unsuspend** - `shops.suspended_at` (nullable, not in `Shop::$fillable` - set only via `forceFill` in the controller, same pattern as `onboarded_at`/`current_shop_id`). A suspended shop's members are redirected to a plain notice page (`/shop-suspended`, `ShopSuspended.tsx`) by a new `EnsureShopIsActive` middleware (alias `active`), applied to the same route groups as `onboarded`. Not a 403 - being suspended is a moderation state the shop's own users should understand, not something they did wrong in the request.
+- **Admin-initiated plan change** - a plain `<select>` per shop, `PATCH .../shops/{shop}/plan`, bypassing the shop's own Owner-only onboarding plan-pick UI entirely.
+- **Potential revenue, split in two**, both purely computed from `Plan.monthly_price_cents` x shop counts - **not tied to Stripe, Square, Plaid, or any real collected-payment data**, which remains explicitly deferred:
+  - *Active MRR* - shops past trial, on a paid plan, not suspended.
+  - *Trial-potential MRR* - shops still on trial, i.e. what's on the table if they all convert.
+  - `plans.monthly_price_cents` was added to make this computable at all (`Plan` previously had no price field anywhere) - seeded with placeholder round numbers (Free $0, Start-up $49, Pro $99) pending real pricing decisions; update the seeder (or the row directly) once those are set.
+- **Not built - still an open question, not just an implementation gap**: a platform admin able to view any shop's data at will (customer PII, financial history) is a different trust boundary than anything else in the app, including the per-shop Owner role. No audit logging of admin views/actions exists yet, and there's no written internal-access policy. Add both before this is used against real shop data, not just before a hypothetical future audit.
+
+Depends on: F0 (User/Shop models); F0.8 and F0.9 (Plan/Feature models) for plan/revenue data to exist at all. Independent of the F1-F9 chain otherwise - internal tooling, not shop-facing. Covered in `tests/Feature/PlatformAdminTest.php`: gate enforcement, cross-tenant visibility, suspend/unsuspend locking and restoring access, plan changes, and the active/trial revenue split excluding suspended shops.
+
 ## Feature build order (dependency hierarchy)
 
 Each feature lists what it needs already built. Build strictly top-to-bottom within a chain; features on the same row of the parallel table below can run out of order relative to each other.
@@ -156,6 +172,7 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F7 | Weld/qualification record tracking (WPS/PQR, certs tied to jobs) | F3 | Compliance/liability differentiator vs. generic tools |
 | F8 | Marketing site, tier comparison & guided onboarding (public page; verified signup; onboarding wizard incl. staff invite-by-email) | F0.9 (built); F0.8 not built, so the plan-pick step can't charge yet | Prospects can evaluate tiers before signing up; new shops get walked through setup instead of landing on an empty dashboard. **Built.** |
 | F9 | CSV import for catalog data (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) | F0.5; F1.1; tooling work (built) | Bulk-loads an existing shop's records instead of one-at-a-time entry. **Built.** |
+| F10 | Platform admin console (internal shop directory, moderation/suspend, plan upgrade override, potential-revenue reporting) | F0, F0.8, F0.9 | Lets internal staff administer shops across tenants and see plan distribution. **Dashboard built** - actual (Stripe/Square/Plaid-tied) revenue reporting and admin-access audit logging/policy are explicitly deferred within this feature, see its section above |
 
 F1 through F7 should each check their own entitlement via F0.9's feature gate before exposing their UI/API - this is a cross-cutting concern like tenant scoping, not a per-feature afterthought.
 

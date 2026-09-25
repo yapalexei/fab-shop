@@ -14,7 +14,7 @@ class Plan extends Model
     /** @use HasFactory<PlanFactory> */
     use HasFactory;
 
-    protected $fillable = ['key', 'name', 'stripe_price_id', 'user_limit'];
+    protected $fillable = ['key', 'name', 'stripe_price_id', 'user_limit', 'monthly_price_cents'];
 
     /**
      * Attach a set of features to this plan (replacing whatever it had).
