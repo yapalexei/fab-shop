@@ -1,5 +1,6 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
+import NavLink from '@/Components/NavLink';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -28,6 +29,23 @@ export default function PlatformAdminLayout({
                         <span className="rounded-full bg-gray-900 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-white">
                             Platform admin
                         </span>
+
+                        <div className="ms-6 flex h-16 items-center gap-6">
+                            <NavLink
+                                href={route('platform-admin.index')}
+                                active={route().current('platform-admin.index')}
+                            >
+                                Shop directory
+                            </NavLink>
+                            <NavLink
+                                href={route('platform-admin.features.index')}
+                                active={route().current(
+                                    'platform-admin.features.*',
+                                )}
+                            >
+                                Feature pricing
+                            </NavLink>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-1">

@@ -81,3 +81,13 @@ function actingAsShopRole(Shop $shop, string $role): User
 {
     return actingAsShopMember($shop, $role);
 }
+
+/**
+ * A platform staff user (App\Models\User::$is_platform_admin) - a separate
+ * trust boundary from any per-shop role, so this deliberately doesn't go
+ * through actingAsShopMember.
+ */
+function actingAsPlatformAdmin(): User
+{
+    return User::factory()->create(['is_platform_admin' => true]);
+}
