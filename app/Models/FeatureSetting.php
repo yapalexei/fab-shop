@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\Feature;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 /**
  * Admin-editable price and trial length for a Feature (App\Enums\Feature).
@@ -23,6 +24,33 @@ class FeatureSetting extends Model
             'price_cents' => 'integer',
             'trial_days' => 'integer',
         ];
+    }
+
+    /**
+     * How many days $feature stays free during a shop's trial. Falls back
+     * to Shop::TRIAL_DAYS when the feature has no row yet (e.g. a fresh
+     * install that hasn't run ensureDefaults()), so gating never breaks
+     * just because the admin-editable row is missing.
+     */
+    public static function trialDaysFor(Feature $feature): int
+    {
+        return static::query()->where('feature', $feature->value)->value('trial_days') ?? Shop::TRIAL_DAYS;
+    }
+
+    /**
+     * Every feature's trial length in one query, keyed by Feature::value -
+     * for Shop::enabledFeatures(), which otherwise checks every feature and
+     * would run trialDaysFor()'s query once per feature per page load.
+     *
+     * @return Collection<string, int>
+     */
+    public static function trialDaysMap(): Collection
+    {
+        $rows = static::query()->pluck('trial_days', 'feature');
+
+        return collect(Feature::cases())->mapWithKeys(
+            fn (Feature $feature) => [$feature->value => $rows[$feature->value] ?? Shop::TRIAL_DAYS],
+        );
     }
 
     /**
