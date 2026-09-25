@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands\Demo;
 
-use App\Enums\JobStatus;
+use App\Enums\JobStageRole;
 use App\Enums\LineItemType;
 use App\Enums\QuoteStatus;
 use App\Models\BusinessPartner;
@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Equipment;
 use App\Models\Job;
 use App\Models\JobMaterialUsage;
+use App\Models\JobStage;
 use App\Models\MarkupDefault;
 use App\Models\Material;
 use App\Models\MaterialType;
@@ -278,6 +279,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
     private function createInProgressJob(Shop $shop, Quote $quote, Customer $customer, Material $material): Job
     {
         $jobNumber = 'J-'.str_pad((string) (Job::where('shop_id', $shop->id)->count() + 1), 4, '0', STR_PAD_LEFT);
+        $setup = JobStage::query()->where('shop_id', $shop->id)->whereNull('role')->firstOrFail();
 
         $job = new Job;
         $job->forceFill([
@@ -285,12 +287,10 @@ class SeedTeamJobDemo extends DemoSeedCommand
             'quote_id' => $quote->id,
             'customer_id' => $customer->id,
             'job_number' => $jobNumber,
-            'status' => JobStatus::Fitting,
+            'job_stage_id' => $setup->id,
         ])->save();
 
-        foreach ([JobStatus::Cutting, JobStatus::Fitting] as $to) {
-            activity()->performedOn($job)->causedBy($shop->owner)->log("Status changed to {$to->label()}");
-        }
+        activity()->performedOn($job)->causedBy($shop->owner)->log("Status changed to {$setup->name}");
 
         // Shows off material tracking (F5): the quote estimated 10 sheets at
         // $45 - the shop actually used 9 and scrapped 1 to a cutting error,
@@ -326,22 +326,28 @@ class SeedTeamJobDemo extends DemoSeedCommand
         $customers = collect(['Ridgeline Ranch Supply', 'Oakmont HOA', 'Delgado Brewing Co.', 'Cascade Stair & Rail'])
             ->map(fn (string $name) => Customer::factory()->for($shop)->create(['name' => $name]));
 
-        // [customer index, status, sell price, days ago it was sent/invoiced]
+        $stages = JobStage::query()->where('shop_id', $shop->id)->get();
+        $notStarted = $stages->firstWhere('role', JobStageRole::NotStarted);
+        $setup = $stages->first(fn (JobStage $stage) => $stage->role === null);
+        $shipped = $stages->firstWhere('role', JobStageRole::Shipped);
+        $invoiced = $stages->firstWhere('role', JobStageRole::Invoiced);
+
+        // [customer index, stage, sell price, days ago it was sent/invoiced, cancelled]
         $jobs = [
-            [0, JobStatus::Invoiced, 4200, 150],
-            [1, JobStatus::Invoiced, 2800, 120],
-            [2, JobStatus::Invoiced, 6100, 95],
-            [3, JobStatus::Invoiced, 3900, 62],
-            [0, JobStatus::Invoiced, 5200, 35],
-            [1, JobStatus::Invoiced, 1850, 20],
-            [2, JobStatus::Invoiced, 2400, 1],
-            [3, JobStatus::Shipped, 3300, 4],
-            [2, JobStatus::Welding, 2750, 9],
-            [1, JobStatus::NotStarted, 1600, 1],
-            [0, JobStatus::Cancelled, 900, 40],
+            [0, $invoiced, 4200, 150, false],
+            [1, $invoiced, 2800, 120, false],
+            [2, $invoiced, 6100, 95, false],
+            [3, $invoiced, 3900, 62, false],
+            [0, $invoiced, 5200, 35, false],
+            [1, $invoiced, 1850, 20, false],
+            [2, $invoiced, 2400, 1, false],
+            [3, $shipped, 3300, 4, false],
+            [2, $setup, 2750, 9, false],
+            [1, $notStarted, 1600, 1, false],
+            [0, $notStarted, 900, 40, true],
         ];
 
-        foreach ($jobs as [$customerIndex, $status, $price, $daysAgo]) {
+        foreach ($jobs as [$customerIndex, $stage, $price, $daysAgo, $cancelled]) {
             $customer = $customers[$customerIndex];
             $quote = $this->pricedQuote($shop, $customer, $material, QuoteStatus::Won, $price, now()->subDays($daysAgo + 7));
 
@@ -351,13 +357,16 @@ class SeedTeamJobDemo extends DemoSeedCommand
                 'quote_id' => $quote->id,
                 'customer_id' => $customer->id,
                 'job_number' => 'J-'.str_pad((string) (Job::where('shop_id', $shop->id)->count() + 1), 4, '0', STR_PAD_LEFT),
-                'status' => $status,
-                'invoiced_at' => $status === JobStatus::Invoiced ? now()->subDays($daysAgo) : null,
+                'job_stage_id' => $stage->id,
+                'invoiced_at' => $stage->role === JobStageRole::Invoiced ? now()->subDays($daysAgo) : null,
+                'cancelled_at' => $cancelled ? now()->subDays($daysAgo) : null,
             ])->save();
+
+            $description = $cancelled ? 'Job cancelled' : "Status changed to {$stage->name}";
 
             activity()->performedOn($job)->causedBy($shop->owner)
                 ->tap(fn ($activity) => $activity->created_at = now()->subDays($daysAgo))
-                ->log("Status changed to {$status->label()}");
+                ->log($description);
         }
 
         // Open (one fresh, one stale enough to flag for follow-up) and lost quotes.

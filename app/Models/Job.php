@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\JobStatus;
+use App\Enums\JobStageRole;
 use App\Enums\LineItemType;
 use App\Enums\MaterialUsageType;
 use App\Models\Concerns\BelongsToShop;
@@ -26,13 +26,13 @@ class Job extends Model implements HasMedia
 
     protected $table = 'fabrication_jobs';
 
-    protected $fillable = ['quote_id', 'customer_id', 'job_number', 'status'];
+    protected $fillable = ['quote_id', 'customer_id', 'job_number', 'job_stage_id'];
 
     protected function casts(): array
     {
         return [
-            'status' => JobStatus::class,
             'invoiced_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'quickbooks_synced_at' => 'datetime',
         ];
     }
@@ -45,6 +45,11 @@ class Job extends Model implements HasMedia
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function jobStage(): BelongsTo
+    {
+        return $this->belongsTo(JobStage::class);
     }
 
     /**
@@ -68,41 +73,56 @@ class Job extends Model implements HasMedia
     }
 
     /**
-     * The traveler board's state machine: single-step forward is always
-     * legal (the normal path through every station), a job can be cancelled
-     * from anywhere it isn't already cancelled, and a backward correction is
-     * only legal while the job is still "in hand" on the shop floor -
-     * Finishing/Shipped/Invoiced can't be walked back, only cancelled.
+     * The traveler board's state machine, driven by the shop's own ordered
+     * job_stages rather than a fixed enum: any later stage is a legal
+     * forward move - skipping stages a job doesn't need is allowed on
+     * purpose, not just single-step - and a backward correction is only
+     * legal while the job hasn't shipped yet. Cancellation isn't a stage to
+     * transition to any more (see cancelled_at/canBeCancelled()); it's a
+     * separate side flag, same shape as suspended_at/onboarded_at elsewhere
+     * on this app.
      */
-    public function canTransitionTo(JobStatus $target): bool
+    public function canTransitionTo(JobStage $target): bool
     {
-        if ($target === JobStatus::Cancelled) {
-            return $this->status !== JobStatus::Cancelled;
-        }
-
-        if ($this->status === JobStatus::Cancelled || $this->status === JobStatus::Invoiced) {
+        if ($this->isCancelled() || $this->jobStage->role === JobStageRole::Invoiced) {
             return false;
         }
 
-        $currentOrder = $this->status->order();
-        $targetOrder = $target->order();
-
-        if ($targetOrder === $currentOrder + 1) {
+        if ($target->position > $this->jobStage->position) {
             return true;
         }
 
-        return $targetOrder < $currentOrder && $this->status->isInShop();
+        // Once shipped, only cancellation remains legal - no backward moves.
+        return $this->jobStage->role !== JobStageRole::Shipped
+            && $target->position < $this->jobStage->position;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->cancelled_at !== null;
+    }
+
+    public function canBeCancelled(): bool
+    {
+        return ! $this->isCancelled();
     }
 
     /**
-     * @return array<int, JobStatus>
+     * @return Collection<int, JobStage>
      */
-    public function availableTransitions(): array
+    public function availableTransitions(): Collection
     {
-        return array_values(array_filter(
-            JobStatus::cases(),
-            fn (JobStatus $target) => $this->canTransitionTo($target),
-        ));
+        return $this->shopJobStages()->filter(fn (JobStage $target) => $this->canTransitionTo($target))->values();
+    }
+
+    /**
+     * Every stage configured for this job's shop, in position order.
+     *
+     * @return Collection<int, JobStage>
+     */
+    public function shopJobStages(): Collection
+    {
+        return JobStage::query()->where('shop_id', $this->shop_id)->orderBy('position')->get();
     }
 
     public function getActivitylogOptions(): LogOptions

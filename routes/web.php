@@ -12,6 +12,7 @@ use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobMaterialUsageController;
 use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobQualificationRecordController;
+use App\Http\Controllers\JobStageController;
 use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MarkupDefaultController;
@@ -134,6 +135,13 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::delete('jobs/{job}/qualification-records/{qualificationRecord}', [JobQualificationRecordController::class, 'destroy'])
         ->name('jobs.qualification-records.destroy')
         ->middleware(['feature:job-board', 'feature:qualification-records', 'can:jobs.update']);
+
+    Route::patch('job-stages/reorder', [JobStageController::class, 'reorder'])
+        ->name('job-stages.reorder')
+        ->middleware('feature:job-board');
+    Route::resource('job-stages', JobStageController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->middleware('feature:job-board');
 
     Route::resource('materials', MaterialController::class)
         ->except('show')

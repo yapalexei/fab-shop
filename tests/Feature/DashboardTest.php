@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\JobStatus;
 use App\Enums\QuoteStatus;
 use App\Models\Customer;
 use App\Models\Job;
@@ -11,15 +10,17 @@ use Spatie\Permission\Models\Role;
 
 /**
  * A job whose quote totals exactly $amount (no markup), so dashboard sums
- * are easy to assert against.
+ * are easy to assert against. $stageKey follows jobForShop()'s convention
+ * (JobTest.php) - null/'not_started', 'in_progress', 'shipped', 'invoiced'.
  */
-function pricedJob(Shop $shop, JobStatus $status, float $amount, ?Carbon $invoicedAt = null): Job
+function pricedJob(Shop $shop, ?string $stageKey, float $amount, ?Carbon $invoicedAt = null, bool $cancelled = false): Job
 {
-    $job = jobForShop($shop, $status);
+    $job = jobForShop($shop, $stageKey);
     $job->quote->lineItems()->create([
         'type' => 'material', 'description' => 'Steel', 'quantity' => 1, 'unit_cost' => $amount, 'markup_percent' => 0,
     ]);
     $job->invoiced_at = $invoicedAt;
+    $job->cancelled_at = $cancelled ? now() : null;
     $job->save();
 
     return $job;
@@ -59,15 +60,17 @@ test('a shop with no data gets an empty but valid dashboard', function () {
             ->where('attention', [])
             ->where('recentActivity', [])
             ->has('financials.revenue_trend', 6)
-            ->has('pipeline', 6));
+            // Not Started, Setup, Shipped - Invoiced is left off, see
+            // DashboardController::pipeline().
+            ->has('pipeline', 3));
 });
 
 test('invoiced revenue is bucketed by the month a job was invoiced', function () {
     $shop = Shop::factory()->create();
-    pricedJob($shop, JobStatus::Invoiced, 1000, now()->startOfMonth()->addDay());
-    pricedJob($shop, JobStatus::Invoiced, 500, now());
-    pricedJob($shop, JobStatus::Invoiced, 250, now()->subMonthNoOverflow());
-    pricedJob($shop, JobStatus::Invoiced, 99, now()->subMonthsNoOverflow(8));
+    pricedJob($shop, 'invoiced', 1000, now()->startOfMonth()->addDay());
+    pricedJob($shop, 'invoiced', 500, now());
+    pricedJob($shop, 'invoiced', 250, now()->subMonthNoOverflow());
+    pricedJob($shop, 'invoiced', 99, now()->subMonthsNoOverflow(8));
     $user = actingAsShopRole($shop, 'Owner');
 
     $this->actingAs($user)->get(route('dashboard'))
@@ -82,7 +85,7 @@ test('invoiced revenue is bucketed by the month a job was invoiced', function ()
 
 test('a job cancelled after being invoiced no longer counts as revenue', function () {
     $shop = Shop::factory()->create();
-    pricedJob($shop, JobStatus::Cancelled, 1000, now());
+    pricedJob($shop, 'invoiced', 1000, now(), cancelled: true);
     $user = actingAsShopRole($shop, 'Owner');
 
     $this->actingAs($user)->get(route('dashboard'))
@@ -91,10 +94,10 @@ test('a job cancelled after being invoiced no longer counts as revenue', functio
 
 test('work in progress, ready to invoice and open quotes are summed by stage', function () {
     $shop = Shop::factory()->create();
-    pricedJob($shop, JobStatus::Cutting, 100);
-    pricedJob($shop, JobStatus::Finishing, 200);
-    pricedJob($shop, JobStatus::Shipped, 400);
-    pricedJob($shop, JobStatus::Cancelled, 800);
+    pricedJob($shop, 'not_started', 100);
+    pricedJob($shop, 'in_progress', 200);
+    pricedJob($shop, 'shipped', 400);
+    pricedJob($shop, 'in_progress', 800, cancelled: true);
     pricedQuote($shop, QuoteStatus::Sent, 300, now());
     pricedQuote($shop, QuoteStatus::Draft, 5000);
     $archived = pricedQuote($shop, QuoteStatus::Sent, 7000, now());
@@ -107,8 +110,9 @@ test('work in progress, ready to invoice and open quotes are summed by stage', f
             ->where('financials.work_in_progress', 300)
             ->where('financials.ready_to_invoice', 400)
             ->where('financials.open_quotes', 300)
-            ->where('pipeline.1', ['status' => 'cutting', 'label' => 'Cutting', 'count' => 1])
-            ->where('pipeline.5', ['status' => 'shipped', 'label' => 'Shipped', 'count' => 1]));
+            ->has('pipeline', 3)
+            ->where('pipeline', fn ($stages) => collect($stages)->firstWhere('label', 'Setup')['count'] === 1
+                && collect($stages)->firstWhere('label', 'Shipped')['count'] === 1));
 });
 
 test('win rate only counts quotes decided within the window', function () {
@@ -125,8 +129,8 @@ test('win rate only counts quotes decided within the window', function () {
 
 test('needs attention flags sync failures, unbilled shipped jobs and stale quotes', function () {
     $shop = Shop::factory()->create();
-    $shipped = pricedJob($shop, JobStatus::Shipped, 400);
-    $failed = pricedJob($shop, JobStatus::Invoiced, 900, now());
+    $shipped = pricedJob($shop, 'shipped', 400);
+    $failed = pricedJob($shop, 'invoiced', 900, now());
     $failed->quickbooks_sync_error = 'Token revoked';
     $failed->save();
     pricedQuote($shop, QuoteStatus::Sent, 300, now()->subDays(10));
@@ -145,17 +149,19 @@ test('needs attention flags sync failures, unbilled shipped jobs and stale quote
 
 test('recent activity lists the shop\'s job history, newest first', function () {
     $shop = Shop::factory()->create();
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
+    $shipped = resolveJobStage($shop, 'shipped');
+    $invoiced = resolveJobStage($shop, 'invoiced');
     $user = actingAsShopRole($shop, 'Owner');
 
-    $this->actingAs($user)->patch(route('jobs.status', $job), ['status' => 'fitting']);
+    $this->actingAs($user)->patch(route('jobs.status', $job), ['job_stage_id' => $shipped->id]);
     Carbon::setTestNow(now()->addMinute());
-    $this->actingAs($user)->patch(route('jobs.status', $job), ['status' => 'welding']);
+    $this->actingAs($user)->patch(route('jobs.status', $job), ['job_stage_id' => $invoiced->id]);
 
     $this->actingAs($user)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page
             ->has('recentActivity', 2)
-            ->where('recentActivity.0.description', 'Status changed from Fitting to Welding')
+            ->where('recentActivity.0.description', 'Status changed from Shipped to Invoiced')
             ->where('recentActivity.0.job_number', $job->job_number)
             ->where('recentActivity.0.causer', $user->name));
 });
@@ -163,8 +169,8 @@ test('recent activity lists the shop\'s job history, newest first', function () 
 test('the dashboard never includes another shop\'s jobs, quotes or activity', function () {
     $shopA = Shop::factory()->create();
     $shopB = Shop::factory()->create();
-    $otherJob = pricedJob($shopB, JobStatus::Invoiced, 1000, now());
-    pricedJob($shopB, JobStatus::Shipped, 400);
+    $otherJob = pricedJob($shopB, 'invoiced', 1000, now());
+    pricedJob($shopB, 'shipped', 400);
     pricedQuote($shopB, QuoteStatus::Sent, 300, now()->subDays(30));
     activity()->performedOn($otherJob)->log('Status changed from Shipped to Invoiced');
     $userA = actingAsShopRole($shopA, 'Owner');
@@ -179,18 +185,19 @@ test('the dashboard never includes another shop\'s jobs, quotes or activity', fu
 
 test('moving a job to invoiced records when it was invoiced', function () {
     $shop = Shop::factory()->create();
-    $job = jobForShop($shop, JobStatus::Shipped);
+    $job = jobForShop($shop, 'shipped');
+    $invoiced = resolveJobStage($shop, 'invoiced');
     $user = actingAsShopRole($shop, 'Owner');
 
-    $this->actingAs($user)->patch(route('jobs.status', $job), ['status' => 'invoiced']);
+    $this->actingAs($user)->patch(route('jobs.status', $job), ['job_stage_id' => $invoiced->id]);
 
     expect($job->fresh()->invoiced_at->equalTo(now()))->toBeTrue();
 });
 
 test('staff without the financials permission get counts but no money figures', function () {
     $shop = Shop::factory()->create();
-    pricedJob($shop, JobStatus::Shipped, 400);
-    pricedJob($shop, JobStatus::Invoiced, 1000, now());
+    pricedJob($shop, 'shipped', 400);
+    pricedJob($shop, 'invoiced', 1000, now());
     $staff = actingAsShopRole($shop, 'Staff');
 
     $this->actingAs($staff)->get(route('dashboard'))
@@ -203,7 +210,7 @@ test('staff without the financials permission get counts but no money figures', 
 
 test('an admin granted financials by role sees the money figures', function () {
     $shop = Shop::factory()->create();
-    pricedJob($shop, JobStatus::Invoiced, 1000, now());
+    pricedJob($shop, 'invoiced', 1000, now());
     $admin = actingAsShopRole($shop, 'Admin');
     Role::findOrCreate('Admin')->givePermissionTo('financials.view');
 
@@ -228,7 +235,7 @@ test('the stale-quote threshold and win-rate window follow the shop\'s own setti
 test('months are bucketed on the shop\'s calendar, not UTC', function () {
     // 2026-09-01 03:00 UTC is still Aug 31, 8pm in Los Angeles.
     $shop = Shop::factory()->create(['timezone' => 'America/Los_Angeles']);
-    pricedJob($shop, JobStatus::Invoiced, 700, Carbon::parse('2026-09-01 03:00:00', 'UTC'));
+    pricedJob($shop, 'invoiced', 700, Carbon::parse('2026-09-01 03:00:00', 'UTC'));
     $user = actingAsShopRole($shop, 'Owner');
 
     $this->actingAs($user)->get(route('dashboard'))

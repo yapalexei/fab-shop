@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\Feature;
-use App\Enums\JobStatus;
 use App\Models\Certification;
 use App\Models\Job;
 use App\Models\JobQualificationRecord;
@@ -25,7 +24,7 @@ function qualificationRecordFor(Job $job, array $attributes): JobQualificationRe
 test('logging a record for a certified performer snapshots was_qualified as true', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $procedure = Procedure::factory()->for($shop)->create();
     Certification::factory()->for($shop)->create(['user_id' => $user->id, 'procedure_id' => $procedure->id]);
 
@@ -42,7 +41,7 @@ test('logging a record for a certified performer snapshots was_qualified as true
 test('logging a record for someone with no matching certification snapshots was_qualified as false', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $procedure = Procedure::factory()->for($shop)->create();
 
     $this->actingAs($user)->post(route('jobs.qualification-records.store', $job), [
@@ -56,7 +55,7 @@ test('logging a record for someone with no matching certification snapshots was_
 test('a certification that had already expired by the work date does not count as qualified', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $procedure = Procedure::factory()->for($shop)->create();
     Certification::factory()->for($shop)->create([
         'user_id' => $user->id, 'procedure_id' => $procedure->id,
@@ -74,7 +73,7 @@ test('a certification that had already expired by the work date does not count a
 test('a certification still covers work performed before it later expires', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $procedure = Procedure::factory()->for($shop)->create();
     Certification::factory()->for($shop)->create([
         'user_id' => $user->id, 'procedure_id' => $procedure->id,
@@ -92,7 +91,7 @@ test('a certification still covers work performed before it later expires', func
 test('was_qualified is left null when no procedure is selected', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
 
     $this->actingAs($user)->post(route('jobs.qualification-records.store', $job), [
         'performed_by' => $user->id, 'description' => 'General fit-up', 'performed_at' => now()->toDateString(),
@@ -104,7 +103,7 @@ test('was_qualified is left null when no procedure is selected', function () {
 test('logging and removing a record both write a matching activity entry', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
 
     $this->actingAs($user)->post(route('jobs.qualification-records.store', $job), [
         'performed_by' => $user->id, 'description' => 'Dye penetrant check', 'performed_at' => now()->toDateString(),
@@ -122,8 +121,8 @@ test('logging and removing a record both write a matching activity entry', funct
 test('a record from a different job cannot be deleted through this job', function () {
     $shop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $jobA = jobForShop($shop, JobStatus::Cutting);
-    $jobB = jobForShop($shop, JobStatus::Cutting);
+    $jobA = jobForShop($shop, 'in_progress');
+    $jobB = jobForShop($shop, 'in_progress');
     $record = qualificationRecordFor($jobB, [
         'performed_by' => $user->id, 'description' => 'x', 'performed_at' => now(), 'recorded_by' => $user->id,
     ]);
@@ -138,7 +137,7 @@ test('a user cannot log or see qualification records on another shop\'s job', fu
     $shop = Shop::factory()->create();
     $otherShop = Shop::factory()->create();
     $user = actingAsShopMember($shop);
-    $foreignJob = jobForShop($otherShop, JobStatus::Cutting);
+    $foreignJob = jobForShop($otherShop, 'in_progress');
 
     $this->actingAs($user)->post(route('jobs.qualification-records.store', $foreignJob), [
         'performed_by' => $user->id, 'description' => 'x', 'performed_at' => now()->toDateString(),
@@ -149,7 +148,7 @@ test('someone without jobs.update cannot log or remove qualification records', f
     $shop = Shop::factory()->create();
     $staff = actingAsShopMember($shop, 'Staff');
     $shop->members()->updateExistingPivot($staff->id, ['permission_overrides' => ['jobs.update' => false]]);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $record = qualificationRecordFor($job, [
         'performed_by' => $staff->id, 'description' => 'x', 'performed_at' => now(), 'recorded_by' => $staff->id,
     ]);
@@ -166,7 +165,7 @@ test('qualification records are locked for a shop without the feature', function
     $plan->syncFeatures([Feature::JobBoard]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
 
     $this->actingAs($user)->post(route('jobs.qualification-records.store', $job), [
         'performed_by' => $user->id, 'description' => 'x', 'performed_at' => now()->toDateString(),
@@ -182,7 +181,7 @@ test('qualification records are locked for a shop without the feature', function
 test('the job page includes qualification record data for a shop with the feature', function () {
     $shop = Shop::factory()->create(); // trial shop - has every feature
     $user = actingAsShopMember($shop);
-    $job = jobForShop($shop, JobStatus::Cutting);
+    $job = jobForShop($shop, 'in_progress');
     $procedure = Procedure::factory()->for($shop)->create();
     qualificationRecordFor($job, [
         'procedure_id' => $procedure->id, 'performed_by' => $user->id, 'description' => 'Root pass',

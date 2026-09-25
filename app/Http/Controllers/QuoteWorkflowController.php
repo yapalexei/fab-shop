@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\JobStatus;
+use App\Enums\JobStageRole;
 use App\Enums\QuoteStatus;
 use App\Jobs\GenerateAndSendQuotePdf;
 use App\Models\Job;
+use App\Models\JobStage;
 use App\Models\Quote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -74,10 +75,12 @@ class QuoteWorkflowController extends Controller
         $this->guard($quote->status === QuoteStatus::Won, 'Only a won quote can be converted to a job.');
         $this->guard(! $quote->job()->exists(), 'This quote has already been converted to a job.');
 
+        $notStarted = JobStage::query()->where('role', JobStageRole::NotStarted)->firstOrFail();
+
         $job = DB::transaction(fn (): Job => $quote->job()->create([
             'customer_id' => $quote->customer_id,
             'job_number' => Job::nextNumber(),
-            'status' => JobStatus::NotStarted,
+            'job_stage_id' => $notStarted->id,
         ]));
 
         return redirect()->route('jobs.show', $job)->with('status', 'Job created.');

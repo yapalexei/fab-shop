@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\JobStatus;
+use App\Enums\JobStageRole;
 use App\Enums\QuoteStatus;
 use App\Models\Job;
+use App\Models\JobStage;
 use App\Models\Quote;
 use App\Models\Shop;
 use Carbon\CarbonImmutable;
@@ -27,7 +28,7 @@ class DashboardController extends Controller
         // Totals are derived from quote line items rather than stored, so
         // aggregation happens here in PHP - fine at the 1-8 person shop
         // scale this is built for, where job counts stay in the hundreds.
-        $jobs = Job::query()->with('customer:id,name', 'quote.lineItems')->get();
+        $jobs = Job::query()->with('customer:id,name', 'quote.lineItems', 'jobStage')->get();
 
         $openQuotes = Quote::query()
             ->with('customer:id,name', 'lineItems')
@@ -55,7 +56,7 @@ class DashboardController extends Controller
     {
         return [
             'work_in_progress' => $this->workInProgress($jobs)->count(),
-            'ready_to_invoice' => $jobs->where('status', JobStatus::Shipped)->count(),
+            'ready_to_invoice' => $this->readyToInvoice($jobs)->count(),
             'open_quotes' => $openQuotes->count(),
         ];
     }
@@ -70,7 +71,9 @@ class DashboardController extends Controller
      */
     private function financials(Shop $shop, Collection $jobs, Collection $openQuotes): array
     {
-        $invoiced = $jobs->where('status', JobStatus::Invoiced)->whereNotNull('invoiced_at');
+        $invoiced = $jobs->filter(fn (Job $job) => ! $job->isCancelled()
+            && $job->jobStage->role === JobStageRole::Invoiced
+            && $job->invoiced_at !== null);
         $thisMonth = $shop->localNow()->startOfMonth();
 
         $decided = Quote::query()
@@ -82,7 +85,7 @@ class DashboardController extends Controller
             'invoiced_this_month' => $this->sumTotals($this->invoicedDuring($invoiced, $thisMonth)),
             'invoiced_last_month' => $this->sumTotals($this->invoicedDuring($invoiced, $thisMonth->subMonthNoOverflow())),
             'work_in_progress' => $this->sumTotals($this->workInProgress($jobs)),
-            'ready_to_invoice' => $this->sumTotals($jobs->where('status', JobStatus::Shipped)),
+            'ready_to_invoice' => $this->sumTotals($this->readyToInvoice($jobs)),
             'open_quotes' => $this->sumTotals($openQuotes),
             'win_rate' => $decided->isEmpty()
                 ? null
@@ -126,32 +129,44 @@ class DashboardController extends Controller
     }
 
     /**
-     * Jobs still being worked on - Not started through Finishing.
+     * Jobs still being worked on - not cancelled, and not yet shipped
+     * (Shipped/Invoiced are finished production business even if the
+     * invoice hasn't gone out yet).
      *
      * @param  Collection<int, Job>  $jobs
      * @return Collection<int, Job>
      */
     private function workInProgress(Collection $jobs): Collection
     {
-        return $jobs->filter(fn (Job $job) => $job->status->order() !== null
-            && $job->status->order() <= JobStatus::Finishing->order());
+        return $jobs->filter(fn (Job $job) => ! $job->isCancelled()
+            && ! in_array($job->jobStage->role, [JobStageRole::Shipped, JobStageRole::Invoiced], true));
     }
 
     /**
-     * Job counts per traveler station - Invoiced and Cancelled are left
-     * off since they're finished business, not work to keep an eye on.
+     * @param  Collection<int, Job>  $jobs
+     * @return Collection<int, Job>
+     */
+    private function readyToInvoice(Collection $jobs): Collection
+    {
+        return $jobs->filter(fn (Job $job) => ! $job->isCancelled() && $job->jobStage->role === JobStageRole::Shipped);
+    }
+
+    /**
+     * Job counts per shop-configured stage - Invoiced (finished business)
+     * and cancelled jobs are left off, since neither is work to keep an eye
+     * on.
      *
      * @param  Collection<int, Job>  $jobs
      * @return array<int, array{status: string, label: string, count: int}>
      */
     private function pipeline(Collection $jobs): array
     {
-        return collect(JobStatus::cases())
-            ->reject(fn (JobStatus $status) => in_array($status, [JobStatus::Invoiced, JobStatus::Cancelled], true))
-            ->map(fn (JobStatus $status) => [
-                'status' => $status->value,
-                'label' => $status->label(),
-                'count' => $jobs->where('status', $status)->count(),
+        return JobStage::query()->orderBy('position')->get()
+            ->reject(fn (JobStage $stage) => $stage->role === JobStageRole::Invoiced)
+            ->map(fn (JobStage $stage) => [
+                'status' => (string) $stage->id,
+                'label' => $stage->name,
+                'count' => $jobs->filter(fn (Job $job) => ! $job->isCancelled() && $job->job_stage_id === $stage->id)->count(),
             ])
             ->values()
             ->all();
@@ -169,7 +184,7 @@ class DashboardController extends Controller
      */
     private function attention(Shop $shop, Collection $jobs, Collection $openQuotes, bool $canSeeFinancials): array
     {
-        $readyToInvoice = $jobs->where('status', JobStatus::Shipped)->map(fn (Job $job) => [
+        $readyToInvoice = $this->readyToInvoice($jobs)->map(fn (Job $job) => [
             'kind' => 'ready_to_invoice',
             'title' => "{$job->job_number} shipped - ready to invoice",
             'subtitle' => $job->customer->name,

@@ -26,15 +26,17 @@ interface JobRow {
     id: number;
     job_number: string;
     customer: string;
-    status: string;
-    status_label: string;
+    stage: string;
+    stage_label: string;
+    cancelled: boolean;
     total: number;
     available_transitions: JobTransition[];
 }
 
-interface StatusOption {
+interface StageOption {
     value: string;
     label: string;
+    role: 'not_started' | 'shipped' | 'invoiced' | null;
 }
 
 const currency = new Intl.NumberFormat('en-US', {
@@ -101,47 +103,49 @@ function JobCard({ job, draggable }: { job: JobRow; draggable: boolean }) {
 }
 
 function Column({
-    status,
+    stage,
     jobs,
     draggingJob,
     dragEnabled,
 }: {
-    status: StatusOption;
+    stage: StageOption;
     jobs: JobRow[];
     draggingJob: JobRow | null;
     dragEnabled: boolean;
 }) {
-    const { setNodeRef, isOver } = useDroppable({ id: status.value });
+    const { setNodeRef, isOver } = useDroppable({ id: stage.value });
 
-    const isSource = draggingJob?.status === status.value;
+    const isSource = draggingJob?.stage === stage.value;
     const isValidTarget =
         draggingJob?.available_transitions.some(
-            (t) => t.value === status.value,
+            (t) => t.value === stage.value,
         ) ?? false;
 
     // While dragging, legal destinations light up and everything else dims,
     // so it's obvious where a job can (and can't) go.
     const dropStyle = !draggingJob
-        ? 'bg-gray-100'
+        ? 'bg-gray-50'
         : isValidTarget
           ? isOver
               ? 'bg-indigo-100 ring-2 ring-indigo-500'
               : 'bg-indigo-50 ring-2 ring-indigo-200'
           : isSource
-            ? 'bg-gray-100'
-            : 'bg-gray-100 opacity-50';
+            ? 'bg-gray-50'
+            : 'bg-gray-50 opacity-50';
 
     return (
-        <div className="w-72 shrink-0">
-            <div className="mb-2 flex items-center justify-between px-1">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    {status.label}
+        <div className="w-72 shrink-0 overflow-hidden rounded-lg border border-gray-300 shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-300 bg-gray-100 px-3 py-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                    {stage.label}
                 </h3>
-                <span className="text-xs text-gray-400">{jobs.length}</span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500">
+                    {jobs.length}
+                </span>
             </div>
             <div
                 ref={setNodeRef}
-                className={`min-h-[4rem] space-y-3 rounded-lg p-2 transition ${dropStyle}`}
+                className={`min-h-[28rem] space-y-3 p-2 transition ${dropStyle}`}
             >
                 {jobs.map((job) => (
                     <JobCard
@@ -163,24 +167,22 @@ function Column({
 }
 
 /**
- * Why a drop was refused - mirrors Job::canTransitionTo's rules (one
- * station forward at a time; backward only while the job is still in hand,
- * up to Welding) plus the user simply not being allowed to move jobs back.
+ * Why a drop was refused - mirrors Job::canTransitionTo's rules: any later
+ * stage is a legal forward move (skipping stages a job doesn't need is
+ * allowed on purpose), backward only while the job hasn't shipped yet, plus
+ * the user simply not being allowed to move jobs at all.
  */
 function invalidMoveReason(
     job: JobRow,
     target: string,
-    columns: StatusOption[],
+    columns: StageOption[],
 ): string {
-    const from = columns.findIndex((s) => s.value === job.status);
+    const from = columns.findIndex((s) => s.value === job.stage);
     const to = columns.findIndex((s) => s.value === target);
-    const welding = columns.findIndex((s) => s.value === 'welding');
+    const shipped = columns.findIndex((s) => s.role === 'shipped');
 
-    if (to > from + 1) {
-        return 'jobs move forward one station at a time.';
-    }
-    if (to < from && from > welding) {
-        return 'once a job reaches Finishing it can only move forward or be cancelled.';
+    if (to < from && shipped !== -1 && from >= shipped) {
+        return 'once a job ships it can only move forward or be cancelled.';
     }
 
     return "you don't have permission to make that move.";
@@ -188,15 +190,14 @@ function invalidMoveReason(
 
 export default function Index({
     jobs,
-    statuses,
+    stages,
     dragEnabled,
 }: PageProps<{
     jobs: JobRow[];
-    statuses: StatusOption[];
+    stages: StageOption[];
     dragEnabled: boolean;
 }>) {
-    const boardStatuses = statuses.filter((s) => s.value !== 'cancelled');
-    const cancelledJobs = jobs.filter((j) => j.status === 'cancelled');
+    const cancelledJobs = jobs.filter((j) => j.cancelled);
     const shopId = usePage().props.auth.user.current_shop_id;
 
     const [draggingJob, setDraggingJob] = useState<JobRow | null>(null);
@@ -243,7 +244,7 @@ export default function Index({
     const jobNumber = (id: UniqueIdentifier) =>
         jobs.find((j) => j.id === id)?.job_number ?? 'Job';
     const stationLabel = (id?: UniqueIdentifier) =>
-        boardStatuses.find((s) => s.value === id)?.label ?? 'no station';
+        stages.find((s) => s.value === id)?.label ?? 'no station';
     const announcements: Announcements = {
         onDragStart: ({ active }) => `Picked up ${jobNumber(active.id)}.`,
         onDragOver: ({ active, over }) =>
@@ -265,18 +266,18 @@ export default function Index({
         const job = jobs.find((j) => j.id === event.active.id);
         setDraggingJob(null);
 
-        if (!job || !event.over || event.over.id === job.status) return;
+        if (!job || !event.over || event.over.id === job.stage) return;
 
         const transition = job.available_transitions.find(
             (t) => t.value === event.over?.id,
         );
-        const target = boardStatuses.find((s) => s.value === event.over?.id);
+        const target = stages.find((s) => s.value === event.over?.id);
 
         if (transition) {
             setPendingMove({ job, transition });
         } else {
             setDropHint(
-                `${job.job_number} can't move from ${job.status_label} to ${target?.label ?? 'there'}: ${invalidMoveReason(job, event.over.id as string, boardStatuses)}`,
+                `${job.job_number} can't move from ${job.stage_label} to ${target?.label ?? 'there'}: ${invalidMoveReason(job, event.over.id as string, stages)}`,
             );
         }
     };
@@ -345,13 +346,14 @@ export default function Index({
                             accessibility={{ announcements }}
                         >
                             <div className="flex gap-4 overflow-x-auto pb-4">
-                                {boardStatuses.map((status) => (
+                                {stages.map((stage) => (
                                     <Column
-                                        key={status.value}
-                                        status={status}
+                                        key={stage.value}
+                                        stage={stage}
                                         jobs={jobs.filter(
                                             (job) =>
-                                                job.status === status.value,
+                                                job.stage === stage.value &&
+                                                !job.cancelled,
                                         )}
                                         draggingJob={draggingJob}
                                         dragEnabled={dragEnabled}

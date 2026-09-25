@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Feature;
-use App\Enums\JobStatus;
 use App\Models\Job;
 use App\Models\JobMaterialUsage;
 use App\Models\JobQualificationRecord;
+use App\Models\JobStage;
 use App\Models\Material;
 use App\Models\Procedure;
 use Illuminate\Support\Facades\Auth;
@@ -20,23 +20,24 @@ class JobController extends Controller
     {
         return Inertia::render('Jobs/Index', [
             'jobs' => Job::query()
-                ->with('customer:id,name')
+                ->with('customer:id,name', 'jobStage')
                 ->latest()
                 ->get()
                 ->map(fn (Job $job) => $this->jobSummary($job)),
             // Drag-and-drop is a shop setting (off by default); moving still
             // needs jobs.update, and every drop is confirmed before it's sent.
             'dragEnabled' => Auth::user()->currentShop->jobBoardDragEnabled() && Gate::allows('jobs.update'),
-            'statuses' => collect(JobStatus::cases())->map(fn (JobStatus $status) => [
-                'value' => $status->value,
-                'label' => $status->label(),
+            'stages' => JobStage::query()->orderBy('position')->get()->map(fn (JobStage $stage) => [
+                'value' => (string) $stage->id,
+                'label' => $stage->name,
+                'role' => $stage->role?->value,
             ]),
         ]);
     }
 
     public function show(Job $job): Response
     {
-        $job->load('quote.lineItems', 'customer', 'activitiesAsSubject.causer');
+        $job->load('quote.lineItems', 'customer', 'jobStage', 'activitiesAsSubject.causer');
 
         $shop = Auth::user()->currentShop;
         $hasMaterialTracking = $shop->hasFeature(Feature::MaterialTracking);
@@ -54,8 +55,9 @@ class JobController extends Controller
             'job' => [
                 'id' => $job->id,
                 'job_number' => $job->job_number,
-                'status' => $job->status->value,
-                'status_label' => $job->status->label(),
+                'stage' => (string) $job->job_stage_id,
+                'stage_label' => $job->jobStage->name,
+                'cancelled' => $job->isCancelled(),
                 'available_transitions' => $this->mapTransitions($job),
                 'total' => $job->total,
                 'customer' => [
@@ -161,8 +163,9 @@ class JobController extends Controller
             'id' => $job->id,
             'job_number' => $job->job_number,
             'customer' => $job->customer->name,
-            'status' => $job->status->value,
-            'status_label' => $job->status->label(),
+            'stage' => (string) $job->job_stage_id,
+            'stage_label' => $job->jobStage->name,
+            'cancelled' => $job->isCancelled(),
             'total' => $job->total,
             'available_transitions' => $this->mapTransitions($job),
         ];
@@ -173,22 +176,26 @@ class JobController extends Controller
      */
     private function mapTransitions(Job $job): array
     {
-        $forwardOrder = $job->status->order() + 1;
-
         // Only offer what this user may actually do - the server enforces
         // the same split in JobStatusController.
         $canMove = Gate::allows('jobs.update');
         $canCancel = Gate::allows('jobs.cancel');
 
-        return collect($job->availableTransitions())
-            ->filter(fn (JobStatus $status) => $status === JobStatus::Cancelled ? $canCancel : $canMove)
-            ->map(fn (JobStatus $status) => [
-                'value' => $status->value,
-                'label' => $status->label(),
-                'is_forward' => $status->order() === $forwardOrder,
+        $moves = $canMove
+            ? $job->availableTransitions()->map(fn (JobStage $stage) => [
+                'value' => (string) $stage->id,
+                'label' => $stage->name,
+                'is_forward' => $stage->position > $job->jobStage->position,
+                'role' => $stage->role?->value,
             ])
-            ->sortByDesc('is_forward')
-            ->values()
-            ->all();
+            : collect();
+
+        // A synthetic entry, not a JobStage row - cancellation is a side
+        // flag now (see Job::cancelled_at), not a rung on the ladder.
+        $cancel = $canCancel && $job->canBeCancelled()
+            ? collect([['value' => 'cancelled', 'label' => 'Cancel', 'is_forward' => false, 'role' => null]])
+            : collect();
+
+        return $moves->concat($cancel)->sortByDesc('is_forward')->values()->all();
     }
 }

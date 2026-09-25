@@ -178,6 +178,13 @@ export default function Authenticated({
             enabled: quoteBuilderEnabled,
             visible: can('markup.view'),
         },
+        {
+            label: 'Job board stages',
+            href: route('job-stages.index'),
+            active: route().current('job-stages.*'),
+            enabled: jobBoardEnabled,
+            visible: can('job-stages.view'),
+        },
     ].filter((item) => item.visible);
     const setupActive = setupNavItems.some((item) => item.active);
 
