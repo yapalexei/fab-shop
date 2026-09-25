@@ -1,3 +1,4 @@
+import CsvImportDialog from '@/Components/CsvImportDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
 import { MaterialOption } from '@/Components/ToolFields';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -22,7 +23,8 @@ const currency = new Intl.NumberFormat('en-US', {
 export default function Index({
     tools,
     materialOptions,
-}: PageProps<{ tools: ToolRow[]; materialOptions: MaterialOption[] }>) {
+    auth,
+}: PageProps<{ tools: ToolRow[]; materialOptions: MaterialOption[] } & { auth: { isOwner: boolean } }>) {
     const can = useCan();
     const [material, setMaterial] = useState<number | null>(null);
 
@@ -72,11 +74,20 @@ export default function Index({
                                 </button>
                             ))}
                         </div>
-                        {can('tooling.create') && (
-                            <Link href={route('tools.create')}>
-                                <PrimaryButton>Add tooling</PrimaryButton>
-                            </Link>
-                        )}
+                        <div className="flex gap-3">
+                            {auth.isOwner && (
+                                <CsvImportDialog
+                                    resource="tools"
+                                    label="Tooling"
+                                    reloadProps={['tools']}
+                                />
+                            )}
+                            {can('tooling.create') && (
+                                <Link href={route('tools.create')}>
+                                    <PrimaryButton>Add tooling</PrimaryButton>
+                                </Link>
+                            )}
+                        </div>
                     </div>
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BusinessPartnerController;
+use App\Http\Controllers\CsvImportController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipmentController;
@@ -125,6 +126,14 @@ Route::middleware(['auth', 'verified', 'onboarded'])->group(function () {
     Route::resource('material-types', MaterialTypeController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->middleware('feature:quote-builder');
+
+    // CSV import - one controller shared by every importable resource (see
+    // App\Support\CsvImport\ImporterRegistry). Owner-only for now.
+    Route::middleware('can:manage-shop')->prefix('imports')->name('imports.')->group(function () {
+        Route::get('/{resource}/template', [CsvImportController::class, 'template'])->name('template');
+        Route::post('/{resource}', [CsvImportController::class, 'store'])->name('store');
+        Route::get('/status/{import}', [CsvImportController::class, 'show'])->name('show');
+    });
 
     // Everything about the shop itself (as opposed to its catalog) lives
     // under /shop - settings, who's on the team, and what each role can do.

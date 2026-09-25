@@ -18,7 +18,7 @@ Core features, in plain terms (full dependency table is below):
 - **Material/scrap tracking (F5)** - built; see [Material/scrap tracking](#materialscrap-tracking-f5---built) below
 - **Mobile/PWA + API (F6), weld/qualification records (F7)** - the rest of the Scenario C follow-on, not yet started
 - **Marketing site, tier comparison & guided onboarding (F8)** - built; see [Marketing site, tier comparison & guided onboarding](#marketing-site-tier-comparison--guided-onboarding-f8---built) below
-- **CSV import for catalog data (F9)** - planned, not started; see [Planned: CSV import for catalog data](#planned-csv-import-for-catalog-data-f9) below
+- **CSV import for catalog data (F9)** - built; see [CSV import for catalog data](#csv-import-for-catalog-data-f9---built) below
 
 **Dependency shape, in plain terms:** Foundation (accounts, shops, roles) has to exist before anything else - nothing else can start until it's done. Customers have to exist before Quotes can be created. Quotes have to exist before a Quote can become a Job. Jobs have to exist before the status board, material tracking, weld records, or mobile status views have anything to show. Subscription billing and QuickBooks sync are the two features that don't block, or get blocked by, that chain - each can be built independently once its own light prerequisite (the Shop model; stable Customer/Quote data shapes) is in place.
 
@@ -123,27 +123,18 @@ Runs once, right after first verified login, before the real Dashboard is reacha
 
 Covered in `tests/Feature/JobMaterialUsageTest.php`: cost aggregation (estimated/actual/scrap/variance) math, cross-tenant isolation, feature gating (the job page loads fine without the feature, just without this panel's data), permission gating, and the activity-log entries.
 
-## Planned: CSV import for catalog data (F9)
+## CSV import for catalog data (F9) - built
 
-**Not started - defined here for review.**
+Covers all seven catalog resources, not just the original five: Customers, Materials, Services, Business Partners, Equipment, Tooling, and Material types. Owner-only (`can:manage-shop`), same as the spec proposed - no separate `{resource}.import` permission was added.
 
-Owner-only for v1 (could later become its own `{resource}.import` shop permission, consistent with the per-resource permission model already built, but start Owner-gated like `manage-shop`). Covers Customers, Materials, Services, Business Partners, and Equipment as named; Tooling and Material types fit the same shape and are natural to include too - flag if v1 should stay limited to the original five. ("Clients" in the request is read as the same entity as Customers - there's one contact-record model in the app.)
+One mechanism shared by all seven rather than one per resource - see `App\Support\CsvImport\` and CLAUDE.md's own "CSV import (F9)" section for the implementation details (the registry, the queued job, the polling endpoint, the fillable-columns trap it hit). What's below is what it does and why, as originally scoped:
 
-- **A downloadable CSV template per resource** (`GET /{resource}/import/template`) with the exact header row that resource's importer expects - e.g. Customers: `name,email,phone,address,notes`; Materials: `name,unit,material_type,notes`; Tooling: `name,cuts,cost,unit,notes` with `cuts` as a `;`-separated list of material type names. The template and the validator are generated from one column-definition list per resource so they can't drift apart.
-- **Upload dialog** on each resource's Index page, next to "Add X": a file picker plus an **"Overwrite existing records with the same name"** checkbox, unchecked by default - skip-on-conflict is the safer default, not silent overwrite. Name is the only match key, per the request, since it's the only thing an import row reliably carries.
-- **Processing, queued from the start** (a few hundred rows parses fast, but do it as a job so a much larger file doesn't time out the request): store the upload via the existing filesystem abstraction, dispatch an import job per shop/resource/file/overwrite-flag.
-  1. Parse and validate every row against that resource's existing `Store{X}Request` rules (reused, not duplicated) before writing anything - a file that fails validation wholesale writes nothing and returns a row-by-row error report.
-  2. Per valid row, look up an existing record in the current shop by case-insensitive name match (same pattern `MaterialType` already uses):
-     - No match -> create.
-     - Match, checkbox unchecked -> skip, tally as "already exists."
-     - Match, checkbox checked -> update the existing record's fields from the row; its id/`shop_id` untouched.
-  3. Return created/updated/skipped counts plus a downloadable per-row error report, so a shop can fix just the bad rows and re-upload instead of redoing the whole file.
-- **Tenant scoping inside the job**: filter by the importing shop's id explicitly - a queued job has no session, same caveat already documented for the demo commands and `NotifyExpiredTrials`, never rely on the global scope there.
-- **Name-based relational fields** (Materials' `material_type` column, Tooling's `cuts` column) resolve by case-insensitive name lookup within the shop at import time. An unrecognized name is a per-row validation failure naming the row/column - never a silent drop, and never an auto-created type (auto-creating would bypass the 20-custom-type cap and defeat the point of it).
+- **A downloadable CSV template per resource**, generated from the same `ResourceImporter::templateColumns()` list its validator uses, so the two can't drift apart. Materials' template includes `material_type`; Tooling's includes a `;`-separated `cuts` list of material type names - both resolved by case-insensitive name lookup against the shop's own `material_types` at import time, and **never auto-created** on an unrecognized name (that would let an import bypass the 20-custom-type cap) - it's a per-row error instead, naming the row and the unrecognized value.
+- **Upload dialog** (`CsvImportDialog.tsx`) next to "Add X" on each resource's Index page: file picker, a **"Overwrite existing records with the same name"** checkbox (unchecked by default - skip-on-conflict, not silent overwrite), and the result once processed: created/updated/skipped counts plus a per-row error list. Name is the only match key, case-insensitive - the same pattern `MaterialType` already used for its own uniqueness check.
+- **Queued, not synchronous** (`ProcessCsvImport`) - the upload endpoint hands back the new `Import` row's id immediately as JSON, and the dialog polls its status until processing finishes, so a large file can't time out the upload request.
+- Per row: validated against that resource's own field rules (mirroring, not literally reusing, each `Store{X}Request` - a queued job has no request/authenticated user for those rules' `$this->user()->current_shop_id` closures to bind to) before anything is written. A header missing a required column rejects the whole file up front; one bad row among valid ones is reported by row number while the rest still imports. The "already exists" check also looks at what the *same run* has already created or updated, not just the database, so two rows in one file with the same name (however they differ in case) resolve as one record.
 
-**Acceptance cases:** a row whose name matches an existing record, once with the checkbox off (skipped, unchanged) and once on (fields replaced); a file with the wrong headers is rejected before any row is touched; a valid file with one bad row imports everything else and reports just that row; two rows in the same file with the same name differing only in case are treated as duplicates of each other, not as two new records.
-
-**Dependencies:** Customers needs F0.5; Materials/Services/Business Partners/Equipment need F1.1; Tooling/Material types need the tooling work already shipped. No dependency on F8 - buildable independently, in either order.
+Covered in `tests/Feature/CsvImportTest.php`: the acceptance cases above, plus feature gating, owner-only permission gating, cross-tenant isolation, and the material-type custom-type cap holding under import the same as it does through the UI.
 
 ## Feature build order (dependency hierarchy)
 
@@ -164,7 +155,7 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F6 | Mobile/PWA shell + Sanctum-based API endpoints for job status | F3 (for the data it displays), Sanctum scaffolding from F0 | First real use of the API-readiness groundwork from F0 |
 | F7 | Weld/qualification record tracking (WPS/PQR, certs tied to jobs) | F3 | Compliance/liability differentiator vs. generic tools |
 | F8 | Marketing site, tier comparison & guided onboarding (public page; verified signup; onboarding wizard incl. staff invite-by-email) | F0.9 (built); F0.8 not built, so the plan-pick step can't charge yet | Prospects can evaluate tiers before signing up; new shops get walked through setup instead of landing on an empty dashboard. **Built.** |
-| F9 | CSV import for catalog data (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) | F0.5; F1.1; tooling work (built) | Bulk-loads an existing shop's records instead of one-at-a-time entry. **Not started - see spec above.** |
+| F9 | CSV import for catalog data (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) | F0.5; F1.1; tooling work (built) | Bulk-loads an existing shop's records instead of one-at-a-time entry. **Built.** |
 
 F1 through F7 should each check their own entitlement via F0.9's feature gate before exposing their UI/API - this is a cross-cutting concern like tenant scoping, not a per-feature afterthought.
 
@@ -316,21 +307,24 @@ flowchart TD
 
 Acceptance cases: an unverified user cannot reach onboarding or the Dashboard; a verified user with no shop is routed to onboarding from any URL; refreshing mid-wizard resumes at the same step; skipping the invite/catalog steps still reaches a working Dashboard; picking a paid tier during onboarding never triggers a charge before F0.8 ships.
 
-### CSV import (F9, planned)
+### CSV import (F9) - built
 
 ```mermaid
 flowchart TD
     A[Download CSV template for a resource] --> B[Fill in rows, upload file]
     B --> C[Choose: overwrite existing name matches?]
-    C --> D[Queued job validates every row]
-    D -->|Any row invalid| E[Nothing written - row-by-row error report]
-    D -->|All rows valid| F{Name already exists in shop?}
-    F -->|No| G[Create record]
-    F -->|Yes, overwrite off| H[Skip - tallied]
-    F -->|Yes, overwrite on| I[Update existing record]
-    G --> J[Summary: created / updated / skipped]
-    H --> J
-    I --> J
+    C --> D[Queued job checks headers]
+    D -->|Headers wrong| E[Nothing written - names the missing column]
+    D -->|Headers OK| F[Validate each row]
+    F -->|Row invalid| G[Skip row - error report by row number]
+    F -->|Row valid| H{Name already exists in shop?}
+    H -->|No| I[Create record]
+    H -->|Yes, overwrite off| J[Skip - tallied]
+    H -->|Yes, overwrite on| K[Update existing record]
+    I --> L[Summary: created / updated / skipped + per-row errors]
+    J --> L
+    K --> L
+    G --> L
 ```
 
-Acceptance cases: wrong headers reject the whole file before any row is touched; a matching name is skipped with the checkbox off and updated with it on; two same-named rows (case-different) within one file resolve as duplicates of each other; an unrecognized name in a relational column (e.g. a material type) fails just that row rather than auto-creating the type or silently dropping the reference.
+Acceptance cases: wrong headers reject the whole file before any row is touched; a bad row among otherwise-valid ones is skipped with its row number reported while the rest still imports; a matching name is skipped with the checkbox off and updated with it on; two same-named rows (case-different) within one file resolve as duplicates of each other; an unrecognized name in a relational column (e.g. a material type) fails just that row rather than auto-creating the type or silently dropping the reference.

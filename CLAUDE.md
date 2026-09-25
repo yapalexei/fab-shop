@@ -76,6 +76,14 @@ Gated by the `material-tracking` feature (`Feature::MaterialTracking`, now `isSh
 
 The material picker's "suggested cost" is the material's cheapest known `businessPartners` price, purely a starting point - always overridable, since the entire point of tracking *actual* cost is that it can differ from any predicted default.
 
+## CSV import (F9)
+
+One mechanism shared by seven resources (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) rather than one per resource - see `App\Support\CsvImport\`. `ResourceImporter` is the abstract shape each resource implements: its template columns, how a raw row resolves into model attributes (including name-based relational lookups - `material_type` on Materials, a `;`-separated `cuts` list on Tooling - resolved against the shop's own records, never auto-created), and the validation those attributes must pass. `ImporterRegistry` maps a route's `{resource}` key to one. Owner-only (`can:manage-shop`), gated per-resource by the same `Feature` each resource's own pages already require.
+
+Processing is queued (`ProcessCsvImport`) - the upload endpoint returns the new `Import` row's id as plain JSON (not an Inertia redirect, since `CsvImportDialog.tsx` stays open on the current page rather than navigating), and the dialog polls `GET /imports/status/{import}` (also plain JSON) until status leaves `pending`. A row is matched to an existing record by case-insensitive `name` - matched, checkbox off, it's skipped; checkbox on, its fields are replaced. That dedupe check also looks at what the *same import run* has already created/updated (not just the database), so two rows in one file with the same name, however they differ in case, resolve as one record. A header missing a required column fails the whole file before any row is touched; one bad row among valid ones is reported by row number while the rest still import.
+
+Console/queue context has no authenticated user, so - like the demo commands and `NotifyExpiredTrials` - every query inside `ProcessCsvImport` filters by shop_id explicitly; the tenant global scope is a no-op there. Watch for the same silent-mass-assignment trap `Invitation::accepted_at` hit: `Import`'s count/error columns must be in its `$fillable` list, or `$import->update([...])` on them does nothing and the row's `status` field is the only thing that visibly changes.
+
 ## Frontend formatting
 
 `.prettierrc` matches the repo's style (single quotes, 4 spaces). Much of the existing code was hand-formatted rather than Prettier output, so format only files you create or substantially rewrite - running Prettier over the whole tree reflows lines in files you never touched.

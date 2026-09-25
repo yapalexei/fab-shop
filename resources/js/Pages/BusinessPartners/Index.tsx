@@ -1,3 +1,4 @@
+import CsvImportDialog from '@/Components/CsvImportDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -13,7 +14,8 @@ interface BusinessPartnerRow {
 
 export default function Index({
     businessPartners,
-}: PageProps<{ businessPartners: BusinessPartnerRow[] }>) {
+    auth,
+}: PageProps<{ businessPartners: BusinessPartnerRow[] } & { auth: { isOwner: boolean } }>) {
     const can = useCan();
     const destroy = (partner: BusinessPartnerRow) => {
         if (confirm(`Delete ${partner.name}?`)) {
@@ -33,15 +35,22 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    {can('business-partners.create') && (
-                        <div className="flex justify-end">
+                    <div className="flex justify-end gap-3">
+                        {auth.isOwner && (
+                            <CsvImportDialog
+                                resource="business-partners"
+                                label="Business partners"
+                                reloadProps={['businessPartners']}
+                            />
+                        )}
+                        {can('business-partners.create') && (
                             <Link href={route('business-partners.create')}>
                                 <PrimaryButton>
                                     Add business partner
                                 </PrimaryButton>
                             </Link>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {businessPartners.length === 0 ? (

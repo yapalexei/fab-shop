@@ -1,3 +1,4 @@
+import CsvImportDialog from '@/Components/CsvImportDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -12,8 +13,9 @@ interface MaterialRow {
 }
 
 export default function Index({
+    auth,
     materials,
-}: PageProps<{ materials: MaterialRow[] }>) {
+}: PageProps<{ materials: MaterialRow[] } & { auth: { isOwner: boolean } }>) {
     const can = useCan();
     const destroy = (material: MaterialRow) => {
         if (confirm(`Delete ${material.name}?`)) {
@@ -33,13 +35,20 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    {can('materials.create') && (
-                        <div className="flex justify-end">
+                    <div className="flex justify-end gap-3">
+                        {auth.isOwner && (
+                            <CsvImportDialog
+                                resource="materials"
+                                label="Materials"
+                                reloadProps={['materials']}
+                            />
+                        )}
+                        {can('materials.create') && (
                             <Link href={route('materials.create')}>
                                 <PrimaryButton>Add material</PrimaryButton>
                             </Link>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {materials.length === 0 ? (

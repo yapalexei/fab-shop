@@ -1,3 +1,4 @@
+import CsvImportDialog from '@/Components/CsvImportDialog';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
@@ -118,11 +119,12 @@ export default function Index({
     types,
     customCount,
     customLimit,
+    auth,
 }: PageProps<{
     types: MaterialTypeRow[];
     customCount: number;
     customLimit: number;
-}>) {
+} & { auth: { isOwner: boolean } }>) {
     const can = useCan();
     const builtIn = types.filter((t) => t.is_default);
     const custom = types.filter((t) => !t.is_default);
@@ -164,11 +166,20 @@ export default function Index({
                             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                                 Your custom types
                             </h3>
-                            <span
-                                className={`text-sm ${atLimit ? 'font-medium text-amber-700' : 'text-gray-500'}`}
-                            >
-                                {customCount} of {customLimit} used
-                            </span>
+                            <div className="flex items-center gap-4">
+                                <span
+                                    className={`text-sm ${atLimit ? 'font-medium text-amber-700' : 'text-gray-500'}`}
+                                >
+                                    {customCount} of {customLimit} used
+                                </span>
+                                {auth.isOwner && (
+                                    <CsvImportDialog
+                                        resource="material-types"
+                                        label="Material types"
+                                        reloadProps={['types', 'customCount']}
+                                    />
+                                )}
+                            </div>
                         </div>
 
                         {custom.length === 0 ? (

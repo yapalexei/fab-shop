@@ -1,3 +1,4 @@
+import CsvImportDialog from '@/Components/CsvImportDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -12,8 +13,9 @@ interface Customer {
 }
 
 export default function Index({
+    auth,
     customers,
-}: PageProps<{ customers: Customer[] }>) {
+}: PageProps<{ customers: Customer[] } & { auth: { isOwner: boolean } }>) {
     const can = useCan();
     const destroy = (customer: Customer) => {
         if (confirm(`Delete ${customer.name}? This cannot be undone.`)) {
@@ -33,13 +35,20 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    {can('customers.create') && (
-                        <div className="flex justify-end">
+                    <div className="flex justify-end gap-3">
+                        {auth.isOwner && (
+                            <CsvImportDialog
+                                resource="customers"
+                                label="Customers"
+                                reloadProps={['customers']}
+                            />
+                        )}
+                        {can('customers.create') && (
                             <Link href={route('customers.create')}>
                                 <PrimaryButton>Add customer</PrimaryButton>
                             </Link>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         {customers.length === 0 ? (
