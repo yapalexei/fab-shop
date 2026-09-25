@@ -6,6 +6,7 @@ use App\Http\Controllers\CsvImportController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipmentController;
+use App\Http\Controllers\FeatureSettingController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobMaterialUsageController;
@@ -68,6 +69,8 @@ Route::middleware(['auth', 'verified', 'can:platform-admin'])->prefix('platform-
     Route::post('/shops/{shop}/suspend', [PlatformAdminController::class, 'suspend'])->name('shops.suspend');
     Route::post('/shops/{shop}/unsuspend', [PlatformAdminController::class, 'unsuspend'])->name('shops.unsuspend');
     Route::patch('/shops/{shop}/plan', [PlatformAdminController::class, 'updatePlan'])->name('shops.plan');
+    Route::get('/features', [FeatureSettingController::class, 'index'])->name('features.index');
+    Route::patch('/features', [FeatureSettingController::class, 'update'])->name('features.update');
 });
 
 Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function () {

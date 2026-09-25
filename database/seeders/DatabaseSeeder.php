@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Customer;
+use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\User;
@@ -21,6 +22,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(PlanSeeder::class);
+        FeatureSetting::ensureDefaults();
 
         $user = User::factory()->create([
             'name' => 'Test User',

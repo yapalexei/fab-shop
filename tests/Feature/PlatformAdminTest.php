@@ -2,12 +2,6 @@
 
 use App\Models\Plan;
 use App\Models\Shop;
-use App\Models\User;
-
-function actingAsPlatformAdmin(): User
-{
-    return User::factory()->create(['is_platform_admin' => true]);
-}
 
 test('a non-platform-admin cannot reach the platform admin dashboard', function () {
     $shop = Shop::factory()->create();
