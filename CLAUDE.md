@@ -76,6 +76,18 @@ Gated by the `material-tracking` feature (`Feature::MaterialTracking`, now `isSh
 
 The material picker's "suggested cost" is the material's cheapest known `businessPartners` price, purely a starting point - always overridable, since the entire point of tracking *actual* cost is that it can differ from any predicted default.
 
+## Qualification records (F7)
+
+Built generalized, not welding-specific, despite the original spec's WPS/PQR/welder-cert framing - a fab shop's compliance surface also covers things like NDT inspection or equipment operator cards, and nothing here assumes welding. `Feature::QualificationRecords` (`qualification-records`) is the renamed `WeldRecords`/`weld-records` case - safe to rename outright since it had never shipped.
+
+Three models: `Procedure` (a shop-defined process people get qualified against - a catalog resource like `Material`/`Tool`, case-insensitive unique name per shop, can't be deleted while a `Certification` or `JobQualificationRecord` references it, same restrict-by-default FK convention as `MaterialType`), `Certification` (a person's qualification - `user_id` required, `procedure_id` optional since plenty of real certs aren't tied to a shop-defined procedure, `expires_at` nullable meaning "never expires"), and `JobQualificationRecord` (the job-level ledger, only ever grows, same reasoning as `JobMaterialUsage` vs. `QuoteLineItem`).
+
+`JobQualificationRecord::was_qualified` is a **snapshot**, not a live check: `JobQualificationRecordController::wasQualified()` computes it once, at logging time, from whether `performed_by` held a `Certification` covering `procedure_id` as of `performed_at` (`Certification::coversOn()`) - never recomputed, so a certification expiring later doesn't retroactively flag work that was compliant when it happened. Null when no procedure was selected. Watch for the array-access trap this hit once already: `procedure_id` is nullable and can be *entirely absent* from `$request->validated()` (not just null) when the request omits it - index it with `?? null`, not a bare `$data['procedure_id']`, or a missing key throws instead of evaluating falsy.
+
+Gated by the `qualification-records` feature on top of `jobs.update` for logging (no separate permission, same as material tracking); `procedures.*`/`certifications.*` are their own catalog permissions (Admin full CRUD, Staff view-only by default) for the `Procedure`/`Certification` catalog pages themselves. `JobController::show()` omits the `qualificationRecords` prop entirely without the feature, same pattern as `materialTracking`.
+
+Document attachments (the actual WPS/PQR/cert file) are **not built** - deferred on purpose, see `docs/product-desc.md`'s F7 section for why and what to add when it's picked back up.
+
 ## CSV import (F9)
 
 One mechanism shared by seven resources (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) rather than one per resource - see `App\Support\CsvImport\`. `ResourceImporter` is the abstract shape each resource implements: its template columns, how a raw row resolves into model attributes (including name-based relational lookups - `material_type` on Materials, a `;`-separated `cuts` list on Tooling - resolved against the shop's own records, never auto-created), and the validation those attributes must pass. `ImporterRegistry` maps a route's `{resource}` key to one. Owner-only (`can:manage-shop`), gated per-resource by the same `Feature` each resource's own pages already require.
@@ -98,7 +110,7 @@ Everything is stored in UTC. Anything that depends on the shop's calendar (month
 
 ## Marketing page (F8a)
 
-`/` (`MarketingController`, page component `Welcome.tsx`) is the public marketing/pricing page — not the authenticated `/dashboard`. Tier contents are read live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`), never hardcoded copy, so what a tier claims to include can't drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks F5–F7 (`material-tracking`, `weld-records`, `mobile-api`) as "Coming soon" on the page regardless of which plan grants them, since nothing in the app implements them yet — flip it to `true` per feature the day each one ships, or the page will start silently overclaiming. The Free plan is rendered specially ("every feature, free for 14 days") rather than as a checklist of all-false rows, since its real access comes from `Shop::onTrial()`, not from any features attached to the `free` Plan row itself.
+`/` (`MarketingController`, page component `Welcome.tsx`) is the public marketing/pricing page — not the authenticated `/dashboard`. Tier contents are read live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`), never hardcoded copy, so what a tier claims to include can't drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks unshipped features "Coming soon" on the page regardless of which plan grants them — flip it to `true` per feature the day each one ships, or the page will start silently overclaiming. Only `mobile-api` (F6) is still unshipped; `material-tracking` (F5) and `qualification-records` (F7) both ship. The Free plan is rendered specially ("every feature, free for 14 days") rather than as a checklist of all-false rows, since its real access comes from `Shop::onTrial()`, not from any features attached to the `free` Plan row itself.
 
 F8b and F8c (below) are now built too - F8 as a whole is complete.
 
@@ -122,6 +134,6 @@ Potential revenue (active MRR vs. trial-potential MRR, both computed from `plans
 
 ## Current stage
 
-Greenfield build. Feature build order: Foundation → Customers → (Subscription billing / Feature gating, in parallel) → Quote builder → Quote-to-job conversion → Job/traveler board → QuickBooks sync → (Material tracking / Mobile+API / Weld records, in parallel).
+Greenfield build. Feature build order: Foundation → Customers → (Subscription billing / Feature gating, in parallel) → Quote builder → Quote-to-job conversion → Job/traveler board → QuickBooks sync → (Material tracking / Mobile+API / Qualification records, in parallel). Mobile+API (F6) is the only one of that last group not yet built.
 
 See [docs/product-desc.md](docs/product-desc.md) for the full feature dependency table, package list, subscription tier/feature-gating design, and user-flow diagrams — read it before starting work on a new feature area.

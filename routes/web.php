@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BusinessPartnerController;
+use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\CsvImportController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobMaterialUsageController;
 use App\Http\Controllers\JobPhotoController;
+use App\Http\Controllers\JobQualificationRecordController;
 use App\Http\Controllers\JobStatusController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MarkupDefaultController;
@@ -16,6 +18,7 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialTypeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PlatformAdminController;
+use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteController;
@@ -121,6 +124,13 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->name('jobs.material-usage.destroy')
         ->middleware(['feature:job-board', 'feature:material-tracking', 'can:jobs.update']);
 
+    Route::post('jobs/{job}/qualification-records', [JobQualificationRecordController::class, 'store'])
+        ->name('jobs.qualification-records.store')
+        ->middleware(['feature:job-board', 'feature:qualification-records', 'can:jobs.update']);
+    Route::delete('jobs/{job}/qualification-records/{qualificationRecord}', [JobQualificationRecordController::class, 'destroy'])
+        ->name('jobs.qualification-records.destroy')
+        ->middleware(['feature:job-board', 'feature:qualification-records', 'can:jobs.update']);
+
     Route::resource('materials', MaterialController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
@@ -144,6 +154,14 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::resource('material-types', MaterialTypeController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->middleware('feature:quote-builder');
+
+    Route::resource('procedures', ProcedureController::class)
+        ->except('show')
+        ->middleware('feature:qualification-records');
+
+    Route::resource('certifications', CertificationController::class)
+        ->except('show')
+        ->middleware('feature:qualification-records');
 
     // CSV import - one controller shared by every importable resource (see
     // App\Support\CsvImport\ImporterRegistry). Owner-only for now.

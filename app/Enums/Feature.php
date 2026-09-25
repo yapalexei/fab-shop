@@ -9,7 +9,7 @@ enum Feature: string
     case JobBoard = 'job-board';
     case QuickbooksSync = 'quickbooks-sync';
     case MaterialTracking = 'material-tracking';
-    case WeldRecords = 'weld-records';
+    case QualificationRecords = 'qualification-records';
     case MobileApi = 'mobile-api';
 
     public function label(): string
@@ -20,24 +20,24 @@ enum Feature: string
             self::JobBoard => 'Job board',
             self::QuickbooksSync => 'QuickBooks sync',
             self::MaterialTracking => 'Material & scrap tracking',
-            self::WeldRecords => 'Weld & qualification records',
+            self::QualificationRecords => 'Qualification records',
             self::MobileApi => 'Mobile app & API access',
         };
     }
 
     /**
-     * Whether this feature actually exists in the app yet. WeldRecords and
-     * MobileApi (F6-F7) are already wired into the Pro plan's feature list
-     * for when they ship, but nothing enforces or exposes them today - the
-     * marketing page shows those as "Coming soon" rather than a checkmark,
-     * so a tier's page never claims more than the app can currently do.
-     * Flip to true here the day each one ships.
+     * Whether this feature actually exists in the app yet. MobileApi (F6) is
+     * already wired into the Pro plan's feature list for when it ships, but
+     * nothing enforces or exposes it today - the marketing page shows it as
+     * "Coming soon" rather than a checkmark, so a tier's page never claims
+     * more than the app can currently do. Flip to true here the day it ships.
      */
     public function isShipped(): bool
     {
         return match ($this) {
-            self::Customers, self::QuoteBuilder, self::JobBoard, self::QuickbooksSync, self::MaterialTracking => true,
-            self::WeldRecords, self::MobileApi => false,
+            self::Customers, self::QuoteBuilder, self::JobBoard, self::QuickbooksSync,
+            self::MaterialTracking, self::QualificationRecords => true,
+            self::MobileApi => false,
         };
     }
 
@@ -53,7 +53,7 @@ enum Feature: string
             self::JobBoard => 'A live traveler board from cutting to shipped, with full status history.',
             self::QuickbooksSync => 'Invoices push to QuickBooks automatically - no re-typing a won quote.',
             self::MaterialTracking => 'Track material and scrap against the job so estimates get sharper over time.',
-            self::WeldRecords => 'Keep WPS/PQR procedures and welder certifications tied to the job.',
+            self::QualificationRecords => 'Track shop procedures, who is certified for them, and whether the job was actually covered.',
             self::MobileApi => 'Check and update job status from the shop floor or a connected app.',
         };
     }

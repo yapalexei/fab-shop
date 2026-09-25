@@ -6,7 +6,9 @@ use App\Enums\Feature;
 use App\Enums\JobStatus;
 use App\Models\Job;
 use App\Models\JobMaterialUsage;
+use App\Models\JobQualificationRecord;
 use App\Models\Material;
+use App\Models\Procedure;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -38,9 +40,14 @@ class JobController extends Controller
 
         $shop = Auth::user()->currentShop;
         $hasMaterialTracking = $shop->hasFeature(Feature::MaterialTracking);
+        $hasQualificationRecords = $shop->hasFeature(Feature::QualificationRecords);
 
         if ($hasMaterialTracking) {
             $job->load('materialUsages.material', 'materialUsages.recordedBy');
+        }
+
+        if ($hasQualificationRecords) {
+            $job->load('qualificationRecords.procedure', 'qualificationRecords.performedBy', 'qualificationRecords.recordedBy');
         }
 
         return Inertia::render('Jobs/Show', [
@@ -78,6 +85,7 @@ class JobController extends Controller
             // feature - same "don't send what they're not entitled to" rule
             // the dashboard's financials prop follows.
             'materialTracking' => $hasMaterialTracking ? $this->materialTrackingProps($job) : null,
+            'qualificationRecords' => $hasQualificationRecords ? $this->qualificationRecordProps($job) : null,
         ]);
     }
 
@@ -116,6 +124,31 @@ class JobController extends Controller
                     // point of tracking actual cost is that it can differ.
                     'suggested_cost' => $material->businessPartners->min('pivot.price'),
                 ]),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function qualificationRecordProps(Job $job): array
+    {
+        $shop = Auth::user()->currentShop;
+
+        return [
+            'records' => $job->qualificationRecords->sortByDesc('created_at')->values()->map(fn (JobQualificationRecord $record) => [
+                'id' => $record->id,
+                'procedure_id' => $record->procedure_id,
+                'procedure' => $record->procedure?->name,
+                'performed_by' => $record->performedBy?->name,
+                'description' => $record->description,
+                'performed_at' => $record->performed_at->toDateString(),
+                'was_qualified' => $record->was_qualified,
+                'notes' => $record->notes,
+                'recorded_by' => $record->recordedBy?->name,
+                'created_at' => $record->created_at->toIso8601String(),
+            ]),
+            'procedures' => Procedure::query()->orderBy('name')->get(['id', 'name']),
+            'members' => $shop->members()->orderBy('name')->get(['users.id', 'users.name']),
         ];
     }
 

@@ -151,6 +151,15 @@ class Job extends Model implements HasMedia
     }
 
     /**
+     * The job's qualification ledger - who performed which procedure and
+     * whether they were certified for it at the time.
+     */
+    public function qualificationRecords(): HasMany
+    {
+        return $this->hasMany(JobQualificationRecord::class);
+    }
+
+    /**
      * What the quote estimated material would cost the shop - quantity x
      * unit_cost on the quote's material lines, before markup, since that's
      * the shop's own cost and the correct basis to compare actual cost

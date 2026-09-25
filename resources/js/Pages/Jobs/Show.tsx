@@ -4,6 +4,10 @@ import JobMaterialTracking, {
     MaterialUsage,
 } from '@/Components/JobMaterialTracking';
 import JobPhotos, { JobPhoto } from '@/Components/JobPhotos';
+import JobQualificationRecords, {
+    QualificationOption,
+    QualificationRecord,
+} from '@/Components/JobQualificationRecords';
 import JobStatusActions, {
     JobTransition,
 } from '@/Components/JobStatusActions';
@@ -46,6 +50,12 @@ interface MaterialTracking {
     materials: MaterialOption[];
 }
 
+interface QualificationRecords {
+    records: QualificationRecord[];
+    procedures: QualificationOption[];
+    members: QualificationOption[];
+}
+
 const currency = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -54,7 +64,12 @@ const currency = new Intl.NumberFormat('en-US', {
 export default function Show({
     job,
     materialTracking,
-}: PageProps<{ job: JobDetail; materialTracking: MaterialTracking | null }>) {
+    qualificationRecords,
+}: PageProps<{
+    job: JobDetail;
+    materialTracking: MaterialTracking | null;
+    qualificationRecords: QualificationRecords | null;
+}>) {
     const formatDateTime = useShopDateTime();
 
     return (
@@ -152,6 +167,15 @@ export default function Show({
                             usages={materialTracking.usages}
                             costSummary={materialTracking.cost_summary}
                             materials={materialTracking.materials}
+                        />
+                    )}
+
+                    {qualificationRecords && (
+                        <JobQualificationRecords
+                            jobId={job.id}
+                            records={qualificationRecords.records}
+                            procedures={qualificationRecords.procedures}
+                            members={qualificationRecords.members}
                         />
                     )}
 

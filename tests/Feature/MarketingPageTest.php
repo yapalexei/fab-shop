@@ -35,7 +35,7 @@ test('unshipped features are flagged as coming soon regardless of plan', functio
     $this->seed(PlanSeeder::class);
 
     $this->get('/')->assertInertia(fn ($page) => $page
-        ->where('features', fn ($features) => collect($features)->firstWhere('key', 'weld-records')['shipped'] === false)
+        ->where('features', fn ($features) => collect($features)->firstWhere('key', 'mobile-api')['shipped'] === false)
         ->where('tiers.2.key', 'pro'));
 });
 

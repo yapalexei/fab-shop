@@ -19,6 +19,8 @@ enum ShopResource: string
     case Equipment = 'equipment';
     case Tooling = 'tooling';
     case MaterialTypes = 'material-types';
+    case Procedures = 'procedures';
+    case Certifications = 'certifications';
     case Markup = 'markup';
     case QuickBooks = 'quickbooks';
     case Team = 'team';
@@ -37,6 +39,8 @@ enum ShopResource: string
             self::Equipment => 'Equipment',
             self::Tooling => 'Tooling',
             self::MaterialTypes => 'Material types',
+            self::Procedures => 'Procedures',
+            self::Certifications => 'Certifications',
             self::Markup => 'Default markup',
             self::QuickBooks => 'QuickBooks',
             self::Team => 'Team',
@@ -91,6 +95,18 @@ enum ShopResource: string
                 'create' => 'Add custom material types (up to the shop limit)',
                 'update' => 'Rename custom material types',
                 'delete' => 'Delete custom material types - only ones no tool or material uses',
+            ],
+            self::Procedures => [
+                'view' => 'See procedures',
+                'create' => 'Add procedures',
+                'update' => 'Edit procedures',
+                'delete' => 'Delete procedures - only ones with no certifications or job records against them',
+            ],
+            self::Certifications => [
+                'view' => 'See certifications',
+                'create' => 'Add certifications',
+                'update' => 'Edit certifications',
+                'delete' => 'Delete certifications',
             ],
             self::Markup => [
                 'view' => 'See default markups',

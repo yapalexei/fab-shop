@@ -94,6 +94,9 @@ export default function Authenticated({
     const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
     const jobBoardEnabled = enabledFeatures.includes('job-board');
     const quickbooksEnabled = enabledFeatures.includes('quickbooks-sync');
+    const qualificationRecordsEnabled = enabledFeatures.includes(
+        'qualification-records',
+    );
     const currentShop = availableShops.find(
         (shop) => shop.id === user.current_shop_id,
     );
@@ -152,6 +155,20 @@ export default function Authenticated({
             active: route().current('material-types.*'),
             enabled: quoteBuilderEnabled,
             visible: can('material-types.view'),
+        },
+        {
+            label: 'Procedures',
+            href: route('procedures.index'),
+            active: route().current('procedures.*'),
+            enabled: qualificationRecordsEnabled,
+            visible: can('procedures.view'),
+        },
+        {
+            label: 'Certifications',
+            href: route('certifications.index'),
+            active: route().current('certifications.*'),
+            enabled: qualificationRecordsEnabled,
+            visible: can('certifications.view'),
         },
         {
             label: 'Markup',

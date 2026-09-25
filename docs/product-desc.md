@@ -16,7 +16,8 @@ Core features, in plain terms (full dependency table is below):
 - **QuickBooks Online sync (F4)** - customers and invoices sync automatically
 - **Subscription billing (F0.8)** - the shop pays for the product itself
 - **Material/scrap tracking (F5)** - built; see [Material/scrap tracking](#materialscrap-tracking-f5---built) below
-- **Mobile/PWA + API (F6), weld/qualification records (F7)** - the rest of the Scenario C follow-on, not yet started
+- **Mobile/PWA + API (F6)** - the rest of the Scenario C follow-on, not yet started
+- **Qualification records (F7)** - built, generalized beyond welding; see [Qualification records](#qualification-records-f7---built) below
 - **Marketing site, tier comparison & guided onboarding (F8)** - built; see [Marketing site, tier comparison & guided onboarding](#marketing-site-tier-comparison--guided-onboarding-f8---built) below
 - **CSV import for catalog data (F9)** - built; see [CSV import for catalog data](#csv-import-for-catalog-data-f9---built) below
 - **Platform admin console (F10)** - internal, cross-tenant tool to view/administer all shops (plan, suspend, upgrade); dashboard built, see [Platform admin console](#platform-admin-console-f10---dashboard-built-real-revenue-deferred) below
@@ -50,7 +51,7 @@ Starting proposal, mapped to the pricing in the Product & Launch Plan tab - adju
 | Customers, Quote builder, Quote-to-job, Job/traveler board | Full access for 14 days, then locked | Included | Included |
 | QuickBooks Online sync | Locked | Not included | Included |
 | Material/scrap tracking | Locked | Not included | Included |
-| Weld/qualification records | Locked | Not included | Included |
+| Qualification records | Locked | Not included | Included |
 | Mobile/PWA + API access | Locked | Not included | Included |
 | User seats | 1 (trial) | Up to 5 | Up to 20 |
 
@@ -59,7 +60,7 @@ Starting proposal, mapped to the pricing in the Product & Launch Plan tab - adju
 ### Backend design
 
 - **`Plan` model** - `key` (free/start-up/pro), `name`, `stripe_price_id`, `user_limit`. Seeded, not hardcoded in controllers.
-- **`Feature` enum** (PHP 8 backed enum) - one case per gatable feature: `Customers`, `QuoteBuilder`, `JobBoard`, `QuickbooksSync`, `MaterialTracking`, `WeldRecords`, `MobileApi`.
+- **`Feature` enum** (PHP 8 backed enum) - one case per gatable feature: `Customers`, `QuoteBuilder`, `JobBoard`, `QuickbooksSync`, `MaterialTracking`, `QualificationRecords`, `MobileApi`.
 - **`plan_feature` pivot table** - maps which `Feature` cases each `Plan` includes. A pivot table rather than a hardcoded JSON blob on the model, specifically so which features belong to which tier is data you can change (via a seeder or a simple admin screen later) without a code deploy - this is the "backend should allow defining which features are supported for which tier" part of the ask.
 - **`Shop`** gets `plan_id` and a nullable `trial_ends_at`.
 - **`Shop::hasFeature(Feature $feature): bool`** - the single source of truth every other check calls: true if the feature is in the shop's current plan, OR the shop is still inside `trial_ends_at` (trial shops get every Start-up + Pro feature during the trial window). This makes trial expiry a computed check, not a data mutation - nothing needs to change on the Shop record when a trial lapses, which keeps the logic simple and easy to reverse if they pay late.
@@ -91,7 +92,7 @@ Three pieces. `/` (`MarketingController`, `Welcome.tsx`) replaced Breeze's stock
 ### F8a. Public marketing page
 
 - Real content at `/`: what the product does (quoting, job board, QuickBooks sync, tooling/material tracking) and a tier comparison (Free / Start-up / Pro).
-- The tier comparison reads live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`) instead of hardcoded marketing copy - so what a tier lists as included can never drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks F5-F7 as "Coming soon" regardless of which plan grants them, since nothing implements them yet.
+- The tier comparison reads live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`) instead of hardcoded marketing copy - so what a tier lists as included can never drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks unshipped features "Coming soon" regardless of which plan grants them - only `mobile-api` (F6) still is, now that F5 and F7 are built.
 - `/login`/`/register` stayed separate routes rather than folding into the marketing page.
 
 ### F8b. Verified signup, deferred shop creation
@@ -123,6 +124,19 @@ Runs once, right after first verified login, before the real Dashboard is reacha
 - The material picker suggests the cheapest known `businessPartners` price for a selected catalog material as a starting point for unit cost - always overridable, since the point of tracking *actual* cost is that it can differ from any predicted default.
 
 Covered in `tests/Feature/JobMaterialUsageTest.php`: cost aggregation (estimated/actual/scrap/variance) math, cross-tenant isolation, feature gating (the job page loads fine without the feature, just without this panel's data), permission gating, and the activity-log entries.
+
+## Qualification records (F7) - built
+
+Built generalized rather than welding-specific, even though the original one-line spec ("WPS/PQR procedures, welder certs") was welding-only - a fab shop's compliance surface isn't just welding (NDT inspection, coating lines, forklift/equipment operator cards all fit the same shape), and nothing in the design below assumes welding. The `Feature` enum case was renamed from `WeldRecords`/`weld-records` to `QualificationRecords`/`qualification-records` to match (`isShipped()` flipped to `true`) - it was never shipped, so nothing depended on the old name.
+
+- **`Procedure`** (`procedures` table) - a shop-defined process people get qualified against: a welding WPS is one example, but so is "NDT Dye Penetrant" or "Forklift Operation." Case-insensitive unique name per shop, same pattern as `MaterialType`. Can't be deleted while a `Certification` or `JobQualificationRecord` still references it - the controller explains why, backed by the FK's default restrict (no cascade, no null-on-delete), same convention as `MaterialType`.
+- **`Certification`** (`certifications` table) - a person's qualification: `user_id`, an *optional* `procedure_id` (plenty of real certs - OSHA 10, a forklift card - aren't tied to a shop-defined procedure at all), cert number, issuing body, issued/expires dates (`expires_at` null means it never expires), notes. `Certification::coversOn($date)` checks whether it was in force on a given date - issued by then (or no issue date recorded) and not yet expired.
+- **`JobQualificationRecord`** (`job_qualification_records` table) - the job-level ledger, deliberately separate from `Certification` itself, same "only ever grows" reasoning as `JobMaterialUsage` vs. `QuoteLineItem`: `was_qualified` is a boolean **snapshot**, computed once when the record is logged (`JobQualificationRecordController::wasQualified()` checks whether `performed_by` held a `Certification` for `procedure_id` that covered `performed_at`) and never recomputed - a certification expiring later doesn't retroactively flag work that was compliant when it happened. Null when no procedure was selected (nothing to check against).
+- Procedures and Certifications are their own catalog resources (`ShopResource::Procedures`, `ShopResource::Certifications`) with the usual view/create/update/delete permissions - Admin gets full CRUD by default, Staff gets view-only, matching every other catalog resource.
+- Logged from a new panel on the Job detail page (`JobQualificationRecords.tsx`), alongside Photos, Material tracking, and History - same shape as material tracking: gated by the `qualification-records` feature on top of `jobs.update`, no separate permission, since logging is part of working the job. Logging or removing an entry writes a normal job activity-log entry.
+- **Deliberately not built yet: document attachments.** The original spec (and the package list's `laravel-medialibrary` note) called for attaching the actual WPS/PQR/cert document, not just its metadata - real compliance value, but genuinely separate scope (multipart file uploads mixed into a PATCH update trips a real Laravel/Inertia quirk that isn't worth solving inline here). The structured data (who's certified for what, whether a job was actually covered) stands on its own without it. Add a single-file `documents`/`document` media collection to `Procedure`/`Certification` (mirroring `Job`'s `photos` collection) when this is picked back up.
+
+Covered in `tests/Feature/ProcedureTest.php`, `tests/Feature/CertificationTest.php`, and `tests/Feature/JobQualificationRecordTest.php`: catalog CRUD, case-insensitive uniqueness, delete-while-referenced protection, cross-tenant isolation, feature/permission gating, and the `was_qualified` snapshot logic (certified, not certified, no procedure selected, and a certification that only covered the work *before* it later expired).
 
 ## CSV import for catalog data (F9) - built
 
@@ -169,14 +183,14 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F4 | QuickBooks Online sync (customers, invoices) | F0.5, F1 (data model needs to be stable; doesn't strictly need F2/F3) | Removes the QuickBooks re-entry pain flagged repeatedly in research |
 | F5 | Material/scrap tracking tied to job cost | F3 | Real per-job margin - the natural upsell after F1's estimate vs. actual. **Built.** |
 | F6 | Mobile/PWA shell + Sanctum-based API endpoints for job status | F3 (for the data it displays), Sanctum scaffolding from F0 | First real use of the API-readiness groundwork from F0 |
-| F7 | Weld/qualification record tracking (WPS/PQR, certs tied to jobs) | F3 | Compliance/liability differentiator vs. generic tools |
+| F7 | Qualification record tracking (procedures, certifications, certs tied to jobs - generalized beyond welding) | F3 | Compliance/liability differentiator vs. generic tools. **Built** - document attachments (the actual cert/procedure file) deferred, see its section above |
 | F8 | Marketing site, tier comparison & guided onboarding (public page; verified signup; onboarding wizard incl. staff invite-by-email) | F0.9 (built); F0.8 not built, so the plan-pick step can't charge yet | Prospects can evaluate tiers before signing up; new shops get walked through setup instead of landing on an empty dashboard. **Built.** |
 | F9 | CSV import for catalog data (Customers, Materials, Services, Business Partners, Equipment, Tooling, Material types) | F0.5; F1.1; tooling work (built) | Bulk-loads an existing shop's records instead of one-at-a-time entry. **Built.** |
 | F10 | Platform admin console (internal shop directory, moderation/suspend, plan upgrade override, potential-revenue reporting) | F0, F0.8, F0.9 | Lets internal staff administer shops across tenants and see plan distribution. **Dashboard built** - actual (Stripe/Square/Plaid-tied) revenue reporting and admin-access audit logging/policy are explicitly deferred within this feature, see its section above |
 
 F1 through F7 should each check their own entitlement via F0.9's feature gate before exposing their UI/API - this is a cross-cutting concern like tenant scoping, not a per-feature afterthought.
 
-This matches the MVP cut line from the Product & Launch Plan tab: **F0 through F3 (plus F0.5 and F0.8) is Scenario B.** F4 rounds it out. F5-F7 are the Scenario C follow-on.
+This matches the MVP cut line from the Product & Launch Plan tab: **F0 through F3 (plus F0.5 and F0.8) is Scenario B.** F4 rounds it out. F5-F7 are the Scenario C follow-on - F5 and F7 are now built, F6 is the one still outstanding.
 
 ## Work that can run in parallel (multiple agents)
 
@@ -204,7 +218,7 @@ After F2/F3 land:
 
 | Parallel group | Features | Why they're independent |
 | --- | --- | --- |
-| Group 4 | F5 Material/scrap tracking, F7 Weld/qualification tracking, F6 Mobile/PWA shell | All three attach to the Job model from F3 but don't modify each other's tables or touch overlapping UI surfaces |
+| Group 4 | F5 Material/scrap tracking, F7 Qualification records, F6 Mobile/PWA shell | All three attach to the Job model from F3 but don't modify each other's tables or touch overlapping UI surfaces |
 
 Practical note: even where features are technically independent, they'll often touch the same handful of shared files (the main nav, the Job model's relationships). Keep those shared touchpoints small and agree on them upfront, or the parallelism creates as much merge overhead as it saves.
 
@@ -220,7 +234,7 @@ Practical note: even where features are technically independent, they'll often t
 | `spatie/laravel-permission` | F0 | Roles (Owner/Admin/Staff) and permission checks per shop |
 | `laravel/cashier` + `stripe/stripe-php` | F0.8 | Subscription billing - charges shops for the product itself (separate from any in-app payment collection your customers' customers might pay) |
 | `barryvdh/laravel-dompdf` | F2 | Generates the quote PDF sent to the customer |
-| `spatie/laravel-medialibrary` | F2, F3, F5, F7 | File/photo attachments - quote PDFs, job-progress photos, and later weld/qualification documents |
+| `spatie/laravel-medialibrary` | F2, F3, F5 | File/photo attachments - quote PDFs, job-progress photos. F7 deferred attaching qualification documents to it - see F7's section |
 | `intervention/image` | F3 | Resizes/optimizes job photos before storage, used alongside medialibrary |
 | `laravel/reverb` | F3 | WebSocket broadcasting so the job/traveler board updates live across users instead of polling |
 | `guzzlehttp/guzzle` | F4 | HTTP client underlying the QuickBooks OAuth flow and API calls |
