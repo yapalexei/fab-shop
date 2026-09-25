@@ -188,4 +188,36 @@ class Shop extends Model
 
         return $bundled->merge($addons)->unique();
     }
+
+    /**
+     * Cancels any active add-on subscription for a feature the shop's
+     * *current* plan_id already bundles - called after a plan change so a
+     * shop is never billed twice for the same feature (once via the plan,
+     * once via a standalone add-on it subscribed to before upgrading).
+     * Reads plan_id fresh via a query rather than the plan() relation,
+     * which may already be loaded (and stale) on $this by the time a
+     * caller changes plan_id and calls this.
+     *
+     * @return int number of add-ons cancelled
+     */
+    public function cancelSubscriptionsBundledInPlan(): int
+    {
+        $plan = Plan::query()->find($this->plan_id);
+
+        if ($plan === null) {
+            return 0;
+        }
+
+        $bundledFeatureValues = $plan->features()->map(fn (Feature $feature) => $feature->value);
+
+        if ($bundledFeatureValues->isEmpty()) {
+            return 0;
+        }
+
+        return $this->featureSubscriptions()
+            ->withoutGlobalScopes()
+            ->whereIn('feature', $bundledFeatureValues)
+            ->whereNull('cancelled_at')
+            ->update(['cancelled_at' => now()]);
+    }
 }

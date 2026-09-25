@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\Feature;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 /**
  * Admin-editable price and trial length for a Feature (App\Enums\Feature).
@@ -23,6 +24,33 @@ class FeatureSetting extends Model
             'price_cents' => 'integer',
             'trial_days' => 'integer',
         ];
+    }
+
+    /**
+     * What $feature costs as a standalone add-on. Falls back to the same
+     * placeholder every ensureDefaults() row starts at, so pricing display
+     * never breaks just because the admin-editable row is missing.
+     */
+    public static function priceFor(Feature $feature): int
+    {
+        return static::query()->where('feature', $feature->value)->value('price_cents') ?? 2000;
+    }
+
+    /**
+     * Every feature's price in one query, keyed by Feature::value - for
+     * summing a plan's bundled-feature value (the marketing page's "save
+     * $X/mo bundled" figure), which otherwise runs priceFor()'s query once
+     * per feature per tier.
+     *
+     * @return Collection<string, int>
+     */
+    public static function priceMap(): Collection
+    {
+        $rows = static::query()->pluck('price_cents', 'feature');
+
+        return collect(Feature::cases())->mapWithKeys(
+            fn (Feature $feature) => [$feature->value => $rows[$feature->value] ?? 2000],
+        );
     }
 
     /**

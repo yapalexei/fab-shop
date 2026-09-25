@@ -67,7 +67,17 @@ class PlatformAdminController extends Controller
     {
         $shop->update(['plan_id' => $request->validated('plan_id')]);
 
-        return back()->with('status', "Updated {$shop->name}'s plan.");
+        // A feature the shop was individually paying for as an add-on may
+        // now be included in the new plan - cancel it so it's never billed
+        // twice for the same thing.
+        $cancelled = $shop->cancelSubscriptionsBundledInPlan();
+
+        $status = "Updated {$shop->name}'s plan.";
+        if ($cancelled > 0) {
+            $status .= " Cancelled {$cancelled} add-on subscription(s) now included in the new plan.";
+        }
+
+        return back()->with('status', $status);
     }
 
     /**

@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\Feature;
+use App\Models\FeatureSetting;
+use App\Models\Plan;
 use App\Models\Shop;
 use Database\Seeders\PlanSeeder;
 
@@ -47,4 +50,35 @@ test('the marketing page never leaks another shop\'s data - it renders no shop-s
     $this->get('/')->assertInertia(fn ($page) => $page
         ->missing('tiers.0.id')
         ->where('shop', null));
+});
+
+test('a paid tier shows how much it saves vs. buying its bundled features as add-ons', function () {
+    $this->seed(PlanSeeder::class);
+
+    // Every feature falls back to the same $20 placeholder price with no
+    // feature_settings rows seeded - Start-up bundles 3 features ($60
+    // standalone) for $49, Pro bundles all 7 ($140 standalone) for $99.
+    $this->get('/')->assertInertia(fn ($page) => $page
+        ->where('tiers.1.monthlyPriceCents', 4900)
+        ->where('tiers.1.savingsCents', 1100)
+        ->where('tiers.2.monthlyPriceCents', 9900)
+        ->where('tiers.2.savingsCents', 4100));
+});
+
+test('bundle savings reflect admin-edited feature prices, not the placeholder default', function () {
+    $this->seed(PlanSeeder::class);
+    FeatureSetting::ensureDefaults();
+    FeatureSetting::query()->where('feature', Feature::JobBoard->value)->update(['price_cents' => 5000]);
+
+    // Start-up bundles Customers + QuoteBuilder + JobBoard: 2000 + 2000 +
+    // 5000 = 9000 standalone, vs. its 4900 price.
+    $this->get('/')->assertInertia(fn ($page) => $page
+        ->where('tiers.1.savingsCents', 4100));
+});
+
+test('a plan priced above its bundled features\' standalone value shows no savings', function () {
+    $plan = Plan::factory()->create(['key' => 'start-up', 'monthly_price_cents' => 999999]);
+    $plan->syncFeatures([Feature::Customers]);
+
+    $this->get('/')->assertInertia(fn ($page) => $page->where('tiers.0.savingsCents', 0));
 });

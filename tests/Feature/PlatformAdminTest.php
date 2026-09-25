@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\Feature;
 use App\Models\Plan;
 use App\Models\Shop;
+use App\Models\ShopFeatureSubscription;
 
 test('a non-platform-admin cannot reach the platform admin dashboard', function () {
     $shop = Shop::factory()->create();
@@ -83,6 +85,56 @@ test('a platform admin can change a shop\'s plan', function () {
     ])->assertRedirect();
 
     expect($shop->fresh()->plan_id)->toBe($plan->id);
+});
+
+test('changing a shop\'s plan cancels an add-on subscription the new plan already bundles', function () {
+    $admin = actingAsPlatformAdmin();
+    $shop = Shop::factory()->create(['plan_id' => null]);
+    $newPlan = Plan::factory()->create(['key' => 'pro']);
+    $newPlan->syncFeatures([Feature::MaterialTracking]);
+
+    (new ShopFeatureSubscription)->forceFill([
+        'shop_id' => $shop->id,
+        'feature' => Feature::MaterialTracking->value,
+        'started_at' => now(),
+    ])->save();
+
+    $this->actingAs($admin)->patch(route('platform-admin.shops.plan', $shop), [
+        'plan_id' => $newPlan->id,
+    ])->assertRedirect()->assertSessionHas('status', function (string $status) {
+        return str_contains($status, 'Cancelled 1 add-on subscription');
+    });
+
+    $subscription = ShopFeatureSubscription::withoutGlobalScopes()
+        ->where('shop_id', $shop->id)
+        ->where('feature', Feature::MaterialTracking->value)
+        ->first();
+
+    expect($subscription->cancelled_at)->not->toBeNull();
+});
+
+test('changing a shop\'s plan leaves an add-on subscription alone if the new plan does not bundle it', function () {
+    $admin = actingAsPlatformAdmin();
+    $shop = Shop::factory()->create(['plan_id' => null]);
+    $newPlan = Plan::factory()->create(['key' => 'start-up']);
+    $newPlan->syncFeatures([Feature::Customers]);
+
+    (new ShopFeatureSubscription)->forceFill([
+        'shop_id' => $shop->id,
+        'feature' => Feature::MaterialTracking->value,
+        'started_at' => now(),
+    ])->save();
+
+    $this->actingAs($admin)->patch(route('platform-admin.shops.plan', $shop), [
+        'plan_id' => $newPlan->id,
+    ])->assertRedirect();
+
+    $subscription = ShopFeatureSubscription::withoutGlobalScopes()
+        ->where('shop_id', $shop->id)
+        ->where('feature', Feature::MaterialTracking->value)
+        ->first();
+
+    expect($subscription->cancelled_at)->toBeNull();
 });
 
 test('a non-platform-admin cannot suspend or change the plan of a shop', function () {
