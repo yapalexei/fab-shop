@@ -25,6 +25,19 @@ interface Tier {
     features: TierFeature[];
 }
 
+const numberWords = [
+    'zero',
+    'one',
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+];
+
 function Check({ ok }: { ok: boolean }) {
     return ok ? (
         <svg
@@ -107,10 +120,12 @@ function TierCard({
     tier,
     features,
     canRegister,
+    trialDays,
 }: {
     tier: Tier;
     features: FeatureRow[];
     canRegister: boolean;
+    trialDays: number;
 }) {
     // Split down the middle rather than a 2-col CSS grid with row-major
     // flow, so the first half fills the left column top-to-bottom and the
@@ -121,9 +136,7 @@ function TierCard({
 
     return (
         <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900">
-                {tier.name}
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">{tier.name}</h3>
             <p className="mt-1 text-sm text-gray-500">
                 Up to {tier.userLimit} user{tier.userLimit === 1 ? '' : 's'}
             </p>
@@ -145,7 +158,7 @@ function TierCard({
 
             {tier.isTrialOnly ? (
                 <p className="mt-4 flex-1 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
-                    Every shipped feature, free for 14 days.
+                    Every shipped feature, free for {trialDays} days.
                 </p>
             ) : (
                 // 2 columns once the card has room for them (full-width on
@@ -192,11 +205,13 @@ export default function Welcome({
     canRegister,
     features,
     tiers,
+    trialDays,
 }: PageProps<{
     canLogin: boolean;
     canRegister: boolean;
     features: FeatureRow[];
     tiers: Tier[];
+    trialDays: number;
 }>) {
     return (
         <>
@@ -254,7 +269,8 @@ export default function Welcome({
                             shops
                         </h1>
                         <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
-                            Replace the QuickBooks-plus-spreadsheets-plus-paper-traveler
+                            Replace the
+                            QuickBooks-plus-spreadsheets-plus-paper-traveler
                             routine with one place to quote a job, track it
                             across the shop floor, and sync the invoice
                             automatically once it ships.
@@ -265,7 +281,7 @@ export default function Welcome({
                                     href={route('register')}
                                     className="rounded-md bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
                                 >
-                                    Start your free 14-day trial
+                                    Start your free {trialDays}-day trial
                                 </Link>
                             )}
                             <a
@@ -311,13 +327,18 @@ export default function Welcome({
                     <section id="pricing" className="py-16">
                         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                             <h2 className="text-center text-2xl font-bold text-gray-900">
-                                One plan to try, three to grow into
+                                One plan to try,{' '}
+                                {tiers.length < numberWords.length
+                                    ? numberWords[tiers.length]
+                                    : 'many'}{' '}
+                                to grow into
                             </h2>
                             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-gray-600">
-                                Every plan starts with a full-access, 14-day
-                                free trial - no card required. Pick Solo,
-                                Start-up or Pro when the trial ends, or keep
-                                exploring on the free trial until you're ready.
+                                Every plan starts with a full-access,{' '}
+                                {trialDays}-day free trial - no card required.
+                                Pick Solo, Start-up or Pro when the trial ends,
+                                or keep exploring on the free trial until you're
+                                ready.
                             </p>
 
                             <div className="mt-10 grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -327,6 +348,7 @@ export default function Welcome({
                                         tier={tier}
                                         features={features}
                                         canRegister={canRegister}
+                                        trialDays={trialDays}
                                     />
                                 ))}
                             </div>

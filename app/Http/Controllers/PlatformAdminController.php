@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ExtendShopSubscriptionRequest;
+use App\Http\Requests\ExtendShopTrialRequest;
 use App\Http\Requests\UpdateShopPlanRequest;
+use App\Http\Requests\UpdateShopSeatLimitRequest;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use App\Models\Shop;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,12 +28,17 @@ use Inertia\Response;
  */
 class PlatformAdminController extends Controller
 {
-    public function index(): Response
-    {
-        $shops = Shop::with(['plan', 'owner'])->withCount('members')->orderByDesc('created_at')->get();
+    private const PER_PAGE = 30;
 
-        return Inertia::render('PlatformAdmin/Index', [
-            'shops' => $shops->map(fn (Shop $shop) => [
+    public function index(Request $request): Response
+    {
+        $shops = $this->filtered($request)
+            ->with(['plan', 'owner'])
+            ->withCount('members')
+            ->orderByDesc('created_at')
+            ->paginate(self::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (Shop $shop) => [
                 'id' => $shop->id,
                 'name' => $shop->name,
                 'owner_email' => $shop->owner->email,
@@ -38,15 +49,77 @@ class PlatformAdminController extends Controller
                 'is_onboarded' => $shop->isOnboarded(),
                 'is_suspended' => $shop->isSuspended(),
                 'member_count' => $shop->members_count,
-                'seat_limit' => $shop->plan?->user_limit,
+                'seat_limit' => $shop->seatLimit(),
+                'seat_limit_override' => $shop->seat_limit_override,
+                'subscription_renews_at' => $shop->subscription_renews_at,
+                'subscription_overdue' => $shop->isSubscriptionOverdue(),
                 'created_at' => $shop->created_at,
-            ]),
+            ]);
+
+        return Inertia::render('PlatformAdmin/Index', [
+            'shops' => $shops,
+            'filters' => $request->only(['search', 'status', 'plan_id', 'trial_within_days', 'subscription']),
             'plans' => Plan::orderedByTier()->map(fn (Plan $plan) => [
                 'id' => $plan->id,
                 'name' => $plan->name,
             ]),
-            'revenue' => $this->revenueSummary($shops),
+            // Platform-wide, deliberately independent of the search/filter/
+            // pagination above - a filtered view narrowing the table to 3
+            // shops shouldn't make the revenue cards look like the platform
+            // only has 3 shops.
+            'revenue' => $this->revenueSummary(Shop::with('plan')->get()),
         ]);
+    }
+
+    /**
+     * Search matches shop name or owner email. Status mirrors the exact
+     * precedence the table's own badge uses (suspended > onboarding > trial
+     * > active), so filtering by "Trial" never disagrees with what the
+     * Status column actually shows for a row. trial_within_days catches
+     * both "ending soon" and already-lapsed trials (<=, not a range) - the
+     * useful question for a platform admin is "which of these need my
+     * attention soon," not a precise window.
+     */
+    private function filtered(Request $request): Builder
+    {
+        $query = Shop::query();
+
+        if ($search = trim((string) $request->string('search'))) {
+            $query->where(function (Builder $q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhereHas('owner', fn (Builder $q) => $q->where('email', 'ilike', "%{$search}%"));
+            });
+        }
+
+        match ($request->string('status')->value()) {
+            'suspended' => $query->whereNotNull('suspended_at'),
+            'onboarding' => $query->whereNull('suspended_at')->whereNull('onboarded_at'),
+            'trial' => $query->whereNull('suspended_at')->whereNotNull('onboarded_at')
+                ->whereNotNull('trial_ends_at')->where('trial_ends_at', '>', now()),
+            'active' => $query->whereNull('suspended_at')->whereNotNull('onboarded_at')
+                ->where(fn (Builder $q) => $q->whereNull('trial_ends_at')->orWhere('trial_ends_at', '<=', now())),
+            default => null,
+        };
+
+        if ($request->filled('plan_id')) {
+            $request->input('plan_id') === 'none'
+                ? $query->whereNull('plan_id')
+                : $query->where('plan_id', $request->input('plan_id'));
+        }
+
+        if ($request->filled('trial_within_days')) {
+            $query->whereNotNull('trial_ends_at')
+                ->where('trial_ends_at', '<=', now()->addDays((int) $request->input('trial_within_days')));
+        }
+
+        match ($request->string('subscription')->value()) {
+            'overdue' => $query->whereNotNull('subscription_renews_at')->where('subscription_renews_at', '<=', now()),
+            'paid' => $query->whereNotNull('subscription_renews_at')->where('subscription_renews_at', '>', now()),
+            'not_tracked' => $query->whereNull('subscription_renews_at'),
+            default => null,
+        };
+
+        return $query;
     }
 
     public function suspend(Shop $shop): RedirectResponse
@@ -61,6 +134,57 @@ class PlatformAdminController extends Controller
         $shop->forceFill(['suspended_at' => null])->save();
 
         return back()->with('status', "Unsuspended {$shop->name}.");
+    }
+
+    /**
+     * Adds days on top of whatever's left, not from trial_started_at - so
+     * extending twice stacks rather than the second call clobbering the
+     * first. If the trial already lapsed (or the shop never had one),
+     * extends from now instead of from a stale past date, so "extend by 7"
+     * always means "7 more days from today," not "7 days past whenever it
+     * used to end."
+     */
+    public function extendTrial(ExtendShopTrialRequest $request, Shop $shop): RedirectResponse
+    {
+        $days = $request->validated('days');
+        $base = $shop->trial_ends_at?->isFuture() ? $shop->trial_ends_at : now();
+
+        $shop->update([
+            'trial_started_at' => $shop->trial_started_at ?? now(),
+            'trial_baseline_days' => $shop->trial_baseline_days ?? PlatformSetting::defaultTrialDays(),
+            'trial_ends_at' => $base->copy()->addDays($days),
+        ]);
+
+        return back()->with('status', "Extended {$shop->name}'s trial by {$days} day(s), to {$shop->trial_ends_at->toDateString()}.");
+    }
+
+    /**
+     * Ends the trial as of right now rather than nulling trial_ends_at out -
+     * a feature configured with its own longer trial_days
+     * (Shop::onTrialFor()) should still get to run out its own window, the
+     * same way a platform admin extending trial_ends_at already shifts
+     * every feature's window with it.
+     */
+    public function expireTrial(Shop $shop): RedirectResponse
+    {
+        $shop->update(['trial_ends_at' => now()->subSecond()]);
+
+        return back()->with('status', "Ended {$shop->name}'s trial.");
+    }
+
+    /**
+     * The manual "mark this shop paid" action - stacks on top of whatever's
+     * left the same way extendTrial() does, so recording a renewal early
+     * doesn't lose the days already paid for.
+     */
+    public function extendSubscription(ExtendShopSubscriptionRequest $request, Shop $shop): RedirectResponse
+    {
+        $days = $request->validated('days');
+        $base = $shop->subscription_renews_at?->isFuture() ? $shop->subscription_renews_at : now();
+
+        $shop->update(['subscription_renews_at' => $base->copy()->addDays($days)]);
+
+        return back()->with('status', "Marked {$shop->name} paid through {$shop->subscription_renews_at->toDateString()}.");
     }
 
     public function updatePlan(UpdateShopPlanRequest $request, Shop $shop): RedirectResponse
@@ -78,6 +202,18 @@ class PlatformAdminController extends Controller
         }
 
         return back()->with('status', $status);
+    }
+
+    /**
+     * Null clears the override back to whatever the shop's own plan grants -
+     * not a way to set "unlimited" specifically (Plan::user_limit already
+     * means that when null), just "stop overriding."
+     */
+    public function updateSeatLimit(UpdateShopSeatLimitRequest $request, Shop $shop): RedirectResponse
+    {
+        $shop->update(['seat_limit_override' => $request->validated('seat_limit')]);
+
+        return back()->with('status', "Updated {$shop->name}'s seat limit.");
     }
 
     /**

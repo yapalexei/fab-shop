@@ -66,7 +66,7 @@ final class ShopPermissions
             'Staff' => [
                 'customers.view', 'customers.create', 'customers.update',
                 'quotes.view', 'quotes.create', 'quotes.update',
-                'jobs.view', 'jobs.update',
+                'jobs.view', 'jobs.create', 'jobs.update',
                 'job-stages.view',
                 'materials.view', 'services.view', 'business-partners.view', 'equipment.view', 'tooling.view', 'material-types.view',
                 'procedures.view', 'certifications.view',

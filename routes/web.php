@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\FeatureSettingController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\JobAssignmentController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobMaterialUsageController;
 use App\Http\Controllers\JobPhotoController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\MaterialTypeController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PlanSettingController;
 use App\Http\Controllers\PlatformAdminController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProfileController;
@@ -71,8 +73,14 @@ Route::middleware(['auth', 'verified', 'can:platform-admin'])->prefix('platform-
     Route::post('/shops/{shop}/suspend', [PlatformAdminController::class, 'suspend'])->name('shops.suspend');
     Route::post('/shops/{shop}/unsuspend', [PlatformAdminController::class, 'unsuspend'])->name('shops.unsuspend');
     Route::patch('/shops/{shop}/plan', [PlatformAdminController::class, 'updatePlan'])->name('shops.plan');
+    Route::patch('/shops/{shop}/seat-limit', [PlatformAdminController::class, 'updateSeatLimit'])->name('shops.seat-limit');
+    Route::patch('/shops/{shop}/trial/extend', [PlatformAdminController::class, 'extendTrial'])->name('shops.trial.extend');
+    Route::post('/shops/{shop}/trial/expire', [PlatformAdminController::class, 'expireTrial'])->name('shops.trial.expire');
+    Route::patch('/shops/{shop}/subscription/extend', [PlatformAdminController::class, 'extendSubscription'])->name('shops.subscription.extend');
     Route::get('/features', [FeatureSettingController::class, 'index'])->name('features.index');
     Route::patch('/features', [FeatureSettingController::class, 'update'])->name('features.update');
+    Route::get('/plans', [PlanSettingController::class, 'index'])->name('plans.index');
+    Route::patch('/plans', [PlanSettingController::class, 'update'])->name('plans.update');
 });
 
 Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function () {
@@ -114,6 +122,10 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::patch('jobs/{job}/status', [JobStatusController::class, 'update'])
         ->name('jobs.status')
         ->middleware('feature:job-board');
+
+    Route::patch('jobs/{job}/assignee', [JobAssignmentController::class, 'update'])
+        ->name('jobs.assignee.update')
+        ->middleware(['feature:job-board', 'can:jobs.update']);
 
     Route::post('jobs/{job}/photos', [JobPhotoController::class, 'store'])
         ->name('jobs.photos.store')

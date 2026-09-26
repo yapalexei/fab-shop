@@ -1,3 +1,4 @@
+import JobAssigneeSelect, { Member } from '@/Components/JobAssigneeSelect';
 import JobMoveDialog from '@/Components/JobMoveDialog';
 import JobStatusActions, { JobTransition } from '@/Components/JobStatusActions';
 import PageHelp from '@/Components/PageHelp';
@@ -21,7 +22,14 @@ import {
     useSensors,
 } from '@dnd-kit/core';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+
+const ANIMATIONS_STORAGE_KEY = 'jobBoardAnimationsEnabled';
+
+// A smooth, non-bouncy curve fits a work tool better than the springy
+// default - this isn't a playful interaction, just "a card moved."
+const LAYOUT_TRANSITION = { duration: 0.3, ease: [0.4, 0, 0.2, 1] as const };
 
 interface JobRow {
     id: number;
@@ -32,6 +40,8 @@ interface JobRow {
     cancelled: boolean;
     total: number;
     available_transitions: JobTransition[];
+    assigned_to: number | null;
+    assignee: string | null;
 }
 
 interface StageOption {
@@ -44,6 +54,114 @@ const currency = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
 });
+
+// How long a column's outline glow stays at full strength (see the
+// dashboard's "Shipped, not yet invoiced" tile - see Column's `focused`)
+// before it starts easing off - matches the fade duration in the
+// transition-shadow class applied alongside it.
+const FOCUS_HIGHLIGHT_HOLD_MS = 3000;
+
+// How long the kiosk border glow stays at full strength before it starts
+// easing off (~5s, then ~3s to fade - see KioskUpdateBorder).
+const KIOSK_BORDER_HOLD_MS = 5000;
+
+/**
+ * Shown for kiosk viewers only (no header/bell to look at) when someone
+ * elsewhere updates the board - full brightness for ~5s, then eases out
+ * over ~3s rather than disappearing abruptly. Remounted per pulse (key at
+ * the call site) so each update gets its own fresh show-then-fade cycle.
+ */
+function KioskUpdateBorder() {
+    const [visible, setVisible] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setVisible(false), KIOSK_BORDER_HOLD_MS);
+        return () => clearTimeout(timer);
+    }, []);
+
+    return (
+        <div
+            aria-hidden
+            className={`pointer-events-none fixed inset-0 z-50 transition-shadow ease-out ${
+                visible
+                    ? 'shadow-[inset_0_0_0_10px_rgba(99,102,241,0.6)] duration-300'
+                    : 'shadow-[inset_0_0_0_10px_rgba(99,102,241,0)] duration-[3000ms]'
+            }`}
+        />
+    );
+}
+
+// How long the bell stays highlighted once the browser can actually be
+// seen - a viewer who was looking at another tab/app when the update
+// arrived shouldn't come back to find it already faded, so the countdown
+// only runs while the page is visible and restarts fresh every time focus
+// returns (kiosk mode never renders this at all - see the border instead).
+const BELL_MIN_VISIBLE_MS = 10000;
+
+/**
+ * A quiet fixture in the header that lights up and jiggles when someone
+ * else changes the board (see the JobBoardUpdated listener in Index) - a
+ * running count of how many times that's happened isn't included on
+ * purpose: by the time it could jiggle, this board has already reloaded
+ * with the current data, so a tally wouldn't tell a viewer anything they
+ * could act on beyond "something changed, and here it already is."
+ */
+function UpdateBell({ pulse }: { pulse: number }) {
+    const [highlighted, setHighlighted] = useState(() => pulse > 0);
+
+    useEffect(() => {
+        if (pulse === 0) return;
+
+        // Only the inner <span> below remounts per pulse (its own key) -
+        // this effect re-runs on every pulse too (its dependency), but the
+        // component instance itself persists, so `highlighted` needs to be
+        // set explicitly rather than relying on fresh initial state.
+        setHighlighted(true);
+
+        let timer: ReturnType<typeof setTimeout> | undefined;
+
+        const startCountdown = () => {
+            if (document.visibilityState !== 'visible') return;
+            clearTimeout(timer);
+            timer = setTimeout(
+                () => setHighlighted(false),
+                BELL_MIN_VISIBLE_MS,
+            );
+        };
+
+        startCountdown();
+        window.addEventListener('focus', startCountdown);
+        document.addEventListener('visibilitychange', startCountdown);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('focus', startCountdown);
+            document.removeEventListener('visibilitychange', startCountdown);
+        };
+    }, [pulse]);
+
+    return (
+        <span
+            // Remounted on every pulse so the one-shot jiggle animation
+            // restarts instead of only ever playing once.
+            key={pulse}
+            title={
+                highlighted
+                    ? 'The board was just updated elsewhere'
+                    : 'Updates from elsewhere appear here'
+            }
+            className={`inline-flex items-center justify-center rounded-full p-1.5 ${
+                highlighted
+                    ? 'animate-bell-ring bg-indigo-100 text-indigo-600'
+                    : 'text-gray-300'
+            }`}
+        >
+            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 004 14h12a1 1 0 00.707-1.707L15 10.586V8a6 6 0 00-6-6zM8.05 15a1.95 1.95 0 003.9 0h-3.9z" />
+            </svg>
+        </span>
+    );
+}
 
 function JobCardBody({ job }: { job: JobRow }) {
     return (
@@ -64,15 +182,52 @@ function JobCardBody({ job }: { job: JobRow }) {
     );
 }
 
-function JobCard({ job, draggable }: { job: JobRow; draggable: boolean }) {
+function JobCard({
+    job,
+    draggable,
+    members,
+    canAssign,
+    animated,
+    onAnimatingChange,
+}: {
+    job: JobRow;
+    draggable: boolean;
+    members: Member[];
+    canAssign: boolean;
+    animated: boolean;
+    onAnimatingChange: (jobId: number, isAnimating: boolean) => void;
+}) {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: job.id,
         disabled: !draggable,
     });
 
     return (
-        <div
+        <motion.div
             ref={setNodeRef}
+            // A stable layoutId - not the React key - is what lets a card
+            // glide from one column to another rather than snapping: React
+            // fully unmounts/remounts it (different Column, different
+            // parent), and layoutId is Framer's mechanism for animating
+            // that same "identity" across two unrelated places in the tree.
+            // Works whether the move came from this browser's own
+            // drag/confirm or from a JobBoardUpdated broadcast reloading
+            // someone else's change - either way it's one React commit with
+            // the card moving parents, which is exactly what layoutId
+            // tracks.
+            layout={animated}
+            layoutId={animated ? `job-${job.id}` : undefined}
+            transition={{
+                layout: animated ? LAYOUT_TRANSITION : { duration: 0 },
+            }}
+            // The destination column clips overflow for its rounded corners
+            // and vertical scrollbar - while this card is mid-flight it's
+            // still visually near its *old* column, so it (and the column
+            // it's landing in) both need clipping/stacking relaxed for a
+            // moment or it renders underneath/behind neighboring columns.
+            // See Column's hasAnimatingJob.
+            onLayoutAnimationStart={() => onAnimatingChange(job.id, true)}
+            onLayoutAnimationComplete={() => onAnimatingChange(job.id, false)}
             className={`relative space-y-2 rounded-md border border-gray-200 bg-white p-3 shadow-sm ${isDragging ? 'opacity-40' : ''} ${draggable ? 'ps-7' : ''}`}
         >
             {draggable && (
@@ -95,11 +250,18 @@ function JobCard({ job, draggable }: { job: JobRow; draggable: boolean }) {
                 </button>
             )}
             <JobCardBody job={job} />
-            <JobStatusActions
-                job={job}
-                transitions={job.available_transitions}
-            />
-        </div>
+            <div className="flex items-center justify-between gap-2">
+                <JobAssigneeSelect
+                    job={job}
+                    members={members}
+                    editable={canAssign}
+                />
+                <JobStatusActions
+                    job={job}
+                    transitions={job.available_transitions}
+                />
+            </div>
+        </motion.div>
     );
 }
 
@@ -108,13 +270,55 @@ function Column({
     jobs,
     draggingJob,
     dragEnabled,
+    members,
+    canAssign,
+    animated,
+    animatingJobIds,
+    onAnimatingChange,
+    focused,
 }: {
     stage: StageOption;
     jobs: JobRow[];
     draggingJob: JobRow | null;
     dragEnabled: boolean;
+    members: Member[];
+    canAssign: boolean;
+    animated: boolean;
+    animatingJobIds: Set<number>;
+    onAnimatingChange: (jobId: number, isAnimating: boolean) => void;
+    focused: boolean;
 }) {
     const { setNodeRef, isOver } = useDroppable({ id: stage.value });
+    const columnRef = useRef<HTMLDivElement>(null);
+
+    // Arriving from the dashboard's "Shipped, not yet invoiced" tile (or
+    // similar) - scroll this column into view and glow its outline for a
+    // few seconds, then ease it back off rather than leaving a permanent
+    // highlight or vanishing it abruptly.
+    const [highlightVisible, setHighlightVisible] = useState(focused);
+
+    useEffect(() => {
+        if (!focused) return;
+
+        columnRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            inline: 'center',
+            block: 'nearest',
+        });
+
+        const timer = setTimeout(
+            () => setHighlightVisible(false),
+            FOCUS_HIGHLIGHT_HOLD_MS,
+        );
+        return () => clearTimeout(timer);
+    }, [focused]);
+
+    // A card lands in its new column's DOM immediately but is still
+    // visually easing in from its old spot - while that's happening, this
+    // column can't clip it to its own rounded/scrolling box or let a
+    // neighboring column's opaque background paint over it, or the card
+    // appears to slide underneath the board instead of over it.
+    const hasAnimatingJob = jobs.some((job) => animatingJobIds.has(job.id));
 
     const isSource = draggingJob?.stage === stage.value;
     const isValidTarget =
@@ -134,8 +338,26 @@ function Column({
             ? 'bg-gray-50'
             : 'bg-gray-50 opacity-50';
 
+    // A plain `shadow-sm` alongside a conditional `shadow-[...]` would fight
+    // over the same box-shadow property - whichever rule Tailwind happens
+    // to emit later in the stylesheet wins, regardless of class order in
+    // the markup - so the resting shadow is folded into the same arbitrary
+    // value instead of coexisting as a separate utility.
+    const columnShadow = !focused
+        ? 'shadow-sm'
+        : highlightVisible
+          ? 'shadow-[0_0_0_4px_rgba(99,102,241,0.6),0_1px_2px_0_rgba(0,0,0,0.05)] duration-300'
+          : 'shadow-[0_0_0_4px_rgba(99,102,241,0),0_1px_2px_0_rgba(0,0,0,0.05)] duration-[1500ms]';
+
     return (
-        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-300 shadow-sm">
+        <div
+            ref={columnRef}
+            // Elevated above sibling columns while animating, so an
+            // unclipped card can visually pass over them instead of being
+            // painted behind them (grid items z-index against each other
+            // regardless of position:static).
+            className={`relative flex h-full flex-col rounded-lg border border-gray-300 transition-shadow ease-out ${columnShadow} ${hasAnimatingJob ? 'z-10 overflow-visible' : 'overflow-hidden'}`}
+        >
             <div className="flex shrink-0 items-center justify-between border-b border-gray-300 bg-gray-100 px-3 py-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-700">
                     {stage.label}
@@ -152,7 +374,10 @@ function Column({
                 // same as before. overflow-y-auto only ever activates once
                 // something constrains this box shorter than its content,
                 // so it's inert in the normal (auto-height) case too.
-                className={`min-h-[28rem] flex-1 space-y-3 overflow-y-auto p-2 transition ${dropStyle}`}
+                // Briefly dropped to visible (losing vertical scroll for
+                // that moment) while a card here is mid-animation, for the
+                // same reason as the wrapper above.
+                className={`min-h-[28rem] flex-1 space-y-3 p-2 transition ${dropStyle} ${hasAnimatingJob ? 'overflow-visible' : 'overflow-y-auto'}`}
             >
                 {jobs.map((job) => (
                     <JobCard
@@ -166,6 +391,10 @@ function Column({
                                 (t) => t.value !== 'cancelled',
                             )
                         }
+                        members={members}
+                        canAssign={canAssign}
+                        animated={animated}
+                        onAnimatingChange={onAnimatingChange}
                     />
                 ))}
             </div>
@@ -199,10 +428,14 @@ export default function Index({
     jobs,
     stages,
     dragEnabled,
+    members,
+    canAssign,
 }: PageProps<{
     jobs: JobRow[];
     stages: StageOption[];
     dragEnabled: boolean;
+    members: Member[];
+    canAssign: boolean;
 }>) {
     const cancelledJobs = jobs.filter((j) => j.cancelled);
     const shopId = usePage().props.auth.user.current_shop_id;
@@ -239,6 +472,18 @@ export default function Index({
             );
     }, []);
 
+    // A dashboard tile (e.g. "Shipped, not yet invoiced") links here with
+    // ?focus=<role> so the matching column can be scrolled to and
+    // highlighted on arrival - role rather than a shop-specific
+    // job_stage_id, since role is the stable, shop-independent key the rest
+    // of the app already keys this same "shipped" concept off of.
+    const [focusRole] = useState(() =>
+        new URLSearchParams(window.location.search).get('focus'),
+    );
+    const focusedStageValue = focusRole
+        ? (stages.find((s) => s.role === focusRole)?.value ?? null)
+        : null;
+
     const enterKiosk = () => {
         setKiosk(true);
         // Best-effort - some contexts (embedded iframes, denied permission)
@@ -253,6 +498,48 @@ export default function Index({
             document.exitFullscreen?.().catch(() => {});
         }
     };
+
+    // Which jobs are currently mid layout-animation - lets the column a
+    // card is landing in temporarily drop its overflow clipping/z-index so
+    // the card isn't cut off or painted behind a neighboring column while
+    // it's still visually easing in from its old spot.
+    const [animatingJobIds, setAnimatingJobIds] = useState<Set<number>>(
+        new Set(),
+    );
+    const onAnimatingChange = (jobId: number, isAnimating: boolean) => {
+        setAnimatingJobIds((prev) => {
+            const next = new Set(prev);
+            if (isAnimating) {
+                next.add(jobId);
+            } else {
+                next.delete(jobId);
+            }
+            return next;
+        });
+    };
+
+    // Per-device preference, not shop data - a wall-mounted kiosk and
+    // someone's laptop might want this set differently, and it should
+    // survive a kiosk display's page reloads without being reconfigured.
+    const [animated, setAnimated] = useState(() => {
+        try {
+            return localStorage.getItem(ANIMATIONS_STORAGE_KEY) !== 'off';
+        } catch {
+            return true;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(
+                ANIMATIONS_STORAGE_KEY,
+                animated ? 'on' : 'off',
+            );
+        } catch {
+            // Private browsing / blocked storage - the toggle still works
+            // for the rest of this session, it just won't be remembered.
+        }
+    }, [animated]);
 
     const [draggingJob, setDraggingJob] = useState<JobRow | null>(null);
     const [pendingMove, setPendingMove] = useState<{
@@ -271,6 +558,12 @@ export default function Index({
         useSensor(KeyboardSensor),
     );
 
+    // Bumped on every JobBoardUpdated broadcast (never by this browser's
+    // own actions - the backend broadcasts with toOthers()) and used as a
+    // React key so the bell/border-flash below remount and replay their
+    // once-through CSS animation each time, rather than only the first.
+    const [updatePulse, setUpdatePulse] = useState(0);
+
     // Another user moving a job refetches the board instead of polling -
     // the broadcast itself carries no data, it's just a "go fetch" signal.
     useEffect(() => {
@@ -278,7 +571,10 @@ export default function Index({
 
         const channel = window.Echo.private(`shop.${shopId}.jobs`).listen(
             '.JobBoardUpdated',
-            () => router.reload({ only: ['jobs'] }),
+            () => {
+                router.reload({ only: ['jobs'] });
+                setUpdatePulse((prev) => prev + 1);
+            },
         );
 
         return () => {
@@ -414,6 +710,12 @@ export default function Index({
                                     )}
                                     draggingJob={draggingJob}
                                     dragEnabled={dragEnabled}
+                                    members={members}
+                                    canAssign={canAssign}
+                                    animated={animated}
+                                    animatingJobIds={animatingJobIds}
+                                    onAnimatingChange={onAnimatingChange}
+                                    focused={stage.value === focusedStageValue}
                                 />
                             ))}
                         </div>
@@ -467,6 +769,12 @@ export default function Index({
         />
     );
 
+    const animationsToggle = (
+        <SecondaryButton onClick={() => setAnimated((prev) => !prev)}>
+            Animations: {animated ? 'On' : 'Off'}
+        </SecondaryButton>
+    );
+
     // Kiosk: no top nav, no page chrome beyond a minimal exit affordance -
     // just the board, full screen (and real browser fullscreen too, when
     // the Fullscreen API is available - see enterKiosk).
@@ -485,14 +793,23 @@ export default function Index({
                         <h1 className="text-lg font-semibold text-gray-700">
                             Jobs
                         </h1>
-                        <SecondaryButton onClick={exitKiosk}>
-                            Exit kiosk mode
-                        </SecondaryButton>
+                        <div className="flex items-center gap-2">
+                            {animationsToggle}
+                            <SecondaryButton onClick={exitKiosk}>
+                                Exit kiosk mode
+                            </SecondaryButton>
+                        </div>
                     </div>
                     <div className="min-h-0 flex-1 px-4 sm:px-6 lg:px-8">
                         {boardContent}
                     </div>
                 </div>
+                {/* A small header bell wouldn't register from across a
+                    room - the whole screen's border glows instead, for
+                    anyone watching a wall-mounted kiosk when someone
+                    elsewhere updates the board. Remounted per pulse (key)
+                    so each update gets its own fresh show-then-fade cycle. */}
+                {updatePulse > 0 && <KioskUpdateBorder key={updatePulse} />}
                 {jobMoveDialog}
             </>
         );
@@ -520,6 +837,8 @@ export default function Index({
                                     records against it.
                                 </p>
                             </PageHelp>
+                            <UpdateBell pulse={updatePulse} />
+                            {animationsToggle}
                             <SecondaryButton onClick={enterKiosk}>
                                 Kiosk mode
                             </SecondaryButton>

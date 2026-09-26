@@ -20,6 +20,10 @@ class Shop extends Model
     /** @use HasFactory<ShopFactory> */
     use HasFactory;
 
+    // The historical default, kept as the fallback for shops.trial_baseline_days
+    // (every shop created before that column existed was, in fact, created
+    // under this exact value) and as PlatformSetting's own seed default.
+    // No longer read directly for gating math - see trialBaselineDays().
     public const TRIAL_DAYS = 14;
 
     protected static function booted(): void
@@ -33,9 +37,9 @@ class Shop extends Model
     }
 
     protected $fillable = [
-        'name', 'owner_id', 'plan_id', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
-        'timezone', 'stale_quote_days', 'win_rate_window_days', 'job_board_drag_enabled',
-        'onboarded_at', 'onboarding_step',
+        'name', 'owner_id', 'plan_id', 'seat_limit_override', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
+        'trial_baseline_days', 'subscription_renews_at', 'timezone', 'stale_quote_days', 'win_rate_window_days',
+        'job_board_drag_enabled', 'onboarded_at', 'onboarding_step',
     ];
 
     protected function casts(): array
@@ -44,6 +48,7 @@ class Shop extends Model
             'trial_started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'trial_ended_notified_at' => 'datetime',
+            'subscription_renews_at' => 'datetime',
             'onboarded_at' => 'datetime',
             'suspended_at' => 'datetime',
             'stale_quote_days' => 'integer',
@@ -110,6 +115,20 @@ class Shop extends Model
     }
 
     /**
+     * How many seats this shop actually has - a platform-admin override if
+     * one's set, otherwise whatever the shop's own plan grants. Null means
+     * unlimited (Plan::user_limit's own convention, carried through here).
+     * Nothing currently enforces this against the shop's member count (no
+     * invite path checks it) - it's informational in the platform admin
+     * console for now, same "lever with no functional effect yet" caveat
+     * per-feature trial days had before it was simplified away.
+     */
+    public function seatLimit(): ?int
+    {
+        return $this->seat_limit_override ?? $this->plan?->user_limit;
+    }
+
+    /**
      * Whether jobs can be dragged between columns on the board. Off by
      * default - one stray drag on a shared shop-floor tablet shouldn't move
      * a job, so it's something a shop opts into.
@@ -153,16 +172,44 @@ class Shop extends Model
     }
 
     /**
+     * subscription_renews_at is a platform admin's own manually-set "paid
+     * through" date, not something a real payment processor derives - no
+     * Stripe/Cashier integration exists yet (see the migration's own note).
+     * Null means "never tracked," which is distinct from overdue: a shop
+     * nobody has ever marked paid isn't necessarily delinquent, it just has
+     * no record either way (e.g. still on trial, or on the Free plan).
+     */
+    public function isSubscriptionOverdue(): bool
+    {
+        return $this->subscription_renews_at !== null && $this->subscription_renews_at->isPast();
+    }
+
+    /**
+     * What the platform-wide default trial length actually was when this
+     * shop signed up (nullable - shops that predate this column were, in
+     * fact, all created under the old hardcoded Shop::TRIAL_DAYS, so that's
+     * an exact fallback, not a guess). This is the baseline onTrialFor()/
+     * enabledFeatures() offset against - never PlatformSetting's *current*
+     * value, which a platform admin can change at any time and which would
+     * otherwise silently throw off every existing shop's per-feature trial
+     * math the moment it did.
+     */
+    public function trialBaselineDays(): int
+    {
+        return $this->trial_baseline_days ?? self::TRIAL_DAYS;
+    }
+
+    /**
      * Whether $feature is still free under the shop's trial - which can run
      * longer or shorter than the shop's overall trial_ends_at if a platform
      * admin gave that specific feature a different trial_days
      * (FeatureSetting::trialDaysFor()). Expressed as an offset from
      * trial_ends_at rather than trial_started_at + trial_days directly, so
      * a feature at the default length (the common case - every feature
-     * starts at Shop::TRIAL_DAYS) reduces to exactly onTrial(), and a
-     * platform admin manually extending trial_ends_at for one shop shifts
-     * every feature's window with it rather than only the default-length
-     * ones.
+     * starts at this shop's own trialBaselineDays()) reduces to exactly
+     * onTrial(), and a platform admin manually extending trial_ends_at for
+     * one shop shifts every feature's window with it rather than only the
+     * default-length ones.
      */
     public function onTrialFor(Feature $feature): bool
     {
@@ -170,7 +217,7 @@ class Shop extends Model
             return false;
         }
 
-        $offsetDays = FeatureSetting::trialDaysFor($feature) - self::TRIAL_DAYS;
+        $offsetDays = FeatureSetting::trialDaysFor($feature) - $this->trialBaselineDays();
 
         return $this->trial_ends_at->copy()->addDays($offsetDays)->isFuture();
     }
@@ -213,7 +260,7 @@ class Shop extends Model
         $trialFeatures = $this->trial_ends_at === null
             ? collect()
             : collect(Feature::cases())->filter(function (Feature $feature) use ($trialDays) {
-                $offsetDays = $trialDays[$feature->value] - self::TRIAL_DAYS;
+                $offsetDays = $trialDays[$feature->value] - $this->trialBaselineDays();
 
                 return $this->trial_ends_at->copy()->addDays($offsetDays)->isFuture();
             });

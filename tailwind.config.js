@@ -22,6 +22,21 @@ export default {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            keyframes: {
+                // A bell notifying of a job board change from elsewhere -
+                // plays once (no repeat) on mount, restarted by remounting
+                // the icon under a fresh key each time an update arrives.
+                'bell-ring': {
+                    '0%, 100%': { transform: 'rotate(0deg)' },
+                    '20%': { transform: 'rotate(12deg)' },
+                    '40%': { transform: 'rotate(-10deg)' },
+                    '60%': { transform: 'rotate(6deg)' },
+                    '80%': { transform: 'rotate(-4deg)' },
+                },
+            },
+            animation: {
+                'bell-ring': 'bell-ring 0.6s ease-in-out',
+            },
         },
     },
 

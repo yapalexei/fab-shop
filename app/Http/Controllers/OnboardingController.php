@@ -7,6 +7,7 @@ use App\Models\BusinessPartner;
 use App\Models\Invitation;
 use App\Models\Material;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use App\Models\Service;
 use App\Models\Shop;
 use App\Support\ShopPermissions;
@@ -89,6 +90,8 @@ class OnboardingController extends Controller
                 'plan_id' => $planId,
             ]);
         } else {
+            $trialDays = PlatformSetting::defaultTrialDays();
+
             $shop = Shop::create([
                 'name' => $validated['name'],
                 'owner_id' => $user->id,
@@ -97,7 +100,12 @@ class OnboardingController extends Controller
                 // Fixed from this moment, in UTC - see Shop::TRIAL_DAYS'
                 // own note on why this never derives from the timezone.
                 'trial_started_at' => now(),
-                'trial_ends_at' => now()->addDays(Shop::TRIAL_DAYS),
+                'trial_ends_at' => now()->addDays($trialDays),
+                // Captured once, permanently - see Shop::trialBaselineDays()
+                // for why this shop's own per-feature trial math must keep
+                // using today's default rather than whatever it becomes
+                // later if a platform admin changes it.
+                'trial_baseline_days' => $trialDays,
                 'onboarding_step' => 'team',
             ]);
 

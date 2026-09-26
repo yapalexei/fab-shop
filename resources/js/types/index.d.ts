@@ -20,6 +20,8 @@ export type PageProps<
         name: string;
         timezone: string;
         job_board_drag_enabled: boolean;
+        on_trial: boolean;
+        trial_ends_at: string | null;
     } | null;
     enabledFeatures: string[];
     availableShops: { id: number; name: string }[];

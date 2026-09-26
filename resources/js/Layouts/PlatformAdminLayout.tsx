@@ -1,5 +1,6 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
+import FlashToast from '@/Components/FlashToast';
 import NavLink from '@/Components/NavLink';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { PageProps } from '@/types';
@@ -16,7 +17,7 @@ export default function PlatformAdminLayout({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth, flash } = usePage<PageProps>().props;
+    const { auth } = usePage<PageProps>().props;
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -44,6 +45,14 @@ export default function PlatformAdminLayout({
                                 )}
                             >
                                 Feature pricing
+                            </NavLink>
+                            <NavLink
+                                href={route('platform-admin.plans.index')}
+                                active={route().current(
+                                    'platform-admin.plans.*',
+                                )}
+                            >
+                                Plan settings
                             </NavLink>
                         </div>
                     </div>
@@ -99,21 +108,7 @@ export default function PlatformAdminLayout({
                 </header>
             )}
 
-            {flash?.error && (
-                <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-                        {flash.error}
-                    </div>
-                </div>
-            )}
-
-            {flash?.status && (
-                <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="rounded-md bg-green-50 p-4 text-sm text-green-700">
-                        {flash.status}
-                    </div>
-                </div>
-            )}
+            <FlashToast />
 
             <main>{children}</main>
         </div>
