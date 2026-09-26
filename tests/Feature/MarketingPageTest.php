@@ -3,6 +3,7 @@
 use App\Enums\Feature;
 use App\Models\FeatureSetting;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use App\Models\Shop;
 use Database\Seeders\PlanSeeder;
 
@@ -82,6 +83,16 @@ test('bundle savings reflect admin-edited feature prices, not the placeholder de
     // 5000 = 9000 standalone, vs. its 4900 price.
     $this->get('/')->assertInertia(fn ($page) => $page
         ->where('tiers.2.savingsCents', 4100));
+});
+
+test('the advertised trial length defaults to 14 days with no platform setting seeded', function () {
+    $this->get('/')->assertInertia(fn ($page) => $page->where('trialDays', 14));
+});
+
+test('the advertised trial length reflects the admin-edited platform default, not a hardcoded number', function () {
+    PlatformSetting::current()->update(['default_trial_days' => 21]);
+
+    $this->get('/')->assertInertia(fn ($page) => $page->where('trialDays', 21));
 });
 
 test('a plan priced above its bundled features\' standalone value shows no savings', function () {

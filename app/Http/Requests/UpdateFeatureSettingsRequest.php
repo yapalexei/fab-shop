@@ -21,10 +21,10 @@ class UpdateFeatureSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'default_trial_days' => ['required', 'integer', 'min:0'],
             'settings' => ['required', 'array'],
             'settings.*.feature' => ['required', Rule::enum(Feature::class)],
             'settings.*.price_cents' => ['required', 'integer', 'min:0'],
-            'settings.*.trial_days' => ['required', 'integer', 'min:0'],
         ];
     }
 }

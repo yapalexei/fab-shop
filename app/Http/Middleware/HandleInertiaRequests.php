@@ -47,6 +47,8 @@ class HandleInertiaRequests extends Middleware
                 'name' => $shop->name,
                 'timezone' => $shop->localTimezone(),
                 'job_board_drag_enabled' => $shop->jobBoardDragEnabled(),
+                'on_trial' => $shop->onTrial(),
+                'trial_ends_at' => $shop->trial_ends_at?->toIso8601String(),
             ] : null,
             'enabledFeatures' => $shop
                 ? $shop->enabledFeatures()->map(fn ($feature) => $feature->value)->values()

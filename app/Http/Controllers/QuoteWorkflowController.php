@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\JobStageRole;
 use App\Enums\QuoteStatus;
+use App\Events\JobBoardUpdated;
 use App\Jobs\GenerateAndSendQuotePdf;
 use App\Models\Job;
 use App\Models\JobStage;
@@ -82,6 +83,12 @@ class QuoteWorkflowController extends Controller
             'job_number' => Job::nextNumber(),
             'job_stage_id' => $notStarted->id,
         ]));
+
+        // A converting user is redirected to the job itself, not the board -
+        // this is what tells anyone else already watching the board (a
+        // kiosk display, another tab) that a new job just landed, the same
+        // bell/border-flash signal a stage move or reassignment triggers.
+        broadcast(new JobBoardUpdated($job->shop_id))->toOthers();
 
         return redirect()->route('jobs.show', $job)->with('status', 'Job created.');
     }

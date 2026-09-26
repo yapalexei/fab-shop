@@ -281,7 +281,7 @@ test('staff are only offered the job moves they are allowed to make', function (
         ->assertInertia(fn ($page) => $page->where('job.available_transitions', fn ($transitions) => ! collect($transitions)->contains('value', 'cancelled')));
 });
 
-test('converting a won quote into a job needs jobs.create', function () {
+test('staff can convert a won quote into a job by default', function () {
     $shop = Shop::factory()->create();
     $staff = actingAsShopMember($shop, 'Staff');
     $quote = Quote::factory()->for($shop)->create([
@@ -289,7 +289,19 @@ test('converting a won quote into a job needs jobs.create', function () {
         'status' => 'won',
     ]);
 
-    $this->actingAs($staff)->post(route('quotes.convert', $quote))->assertForbidden();
+    $this->actingAs($staff)->post(route('quotes.convert', $quote))->assertRedirect();
+});
+
+test('converting a won quote into a job needs jobs.create', function () {
+    $shop = Shop::factory()->create();
+    $staff = actingAsShopMember($shop, 'Staff');
+    $shop->members()->updateExistingPivot($staff->id, ['permission_overrides' => ['jobs.create' => false]]);
+    $quote = Quote::factory()->for($shop)->create([
+        'customer_id' => Customer::factory()->for($shop)->create()->id,
+        'status' => 'won',
+    ]);
+
+    $this->actingAs($staff->fresh())->post(route('quotes.convert', $quote))->assertForbidden();
 });
 
 test('a denied view override locks a member out of that section entirely', function () {

@@ -55,13 +55,14 @@ class FeatureSetting extends Model
 
     /**
      * How many days $feature stays free during a shop's trial. Falls back
-     * to Shop::TRIAL_DAYS when the feature has no row yet (e.g. a fresh
-     * install that hasn't run ensureDefaults()), so gating never breaks
-     * just because the admin-editable row is missing.
+     * to the platform's current default trial length when the feature has
+     * no row yet (e.g. a fresh install that hasn't run ensureDefaults()),
+     * so gating never breaks just because the admin-editable row is
+     * missing.
      */
     public static function trialDaysFor(Feature $feature): int
     {
-        return static::query()->where('feature', $feature->value)->value('trial_days') ?? Shop::TRIAL_DAYS;
+        return static::query()->where('feature', $feature->value)->value('trial_days') ?? PlatformSetting::defaultTrialDays();
     }
 
     /**
@@ -74,9 +75,10 @@ class FeatureSetting extends Model
     public static function trialDaysMap(): Collection
     {
         $rows = static::query()->pluck('trial_days', 'feature');
+        $default = PlatformSetting::defaultTrialDays();
 
         return collect(Feature::cases())->mapWithKeys(
-            fn (Feature $feature) => [$feature->value => $rows[$feature->value] ?? Shop::TRIAL_DAYS],
+            fn (Feature $feature) => [$feature->value => $rows[$feature->value] ?? $default],
         );
     }
 
@@ -97,10 +99,12 @@ class FeatureSetting extends Model
             return;
         }
 
+        $trialDays = PlatformSetting::defaultTrialDays();
+
         static::query()->insert($missing->map(fn (Feature $feature) => [
             'feature' => $feature->value,
             'price_cents' => 2000,
-            'trial_days' => Shop::TRIAL_DAYS,
+            'trial_days' => $trialDays,
             'created_at' => now(),
             'updated_at' => now(),
         ])->values()->all());

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Feature;
 use App\Models\FeatureSetting;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -33,6 +34,7 @@ class MarketingController extends Controller
                 'tagline' => $feature->tagline(),
                 'shipped' => $feature->isShipped(),
             ]),
+            'trialDays' => PlatformSetting::defaultTrialDays(),
             'tiers' => Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices, $features)),
         ]);
     }

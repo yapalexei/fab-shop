@@ -20,8 +20,15 @@ class JobController extends Controller
     {
         return Inertia::render('Jobs/Index', [
             'jobs' => Job::query()
-                ->with('customer:id,name', 'jobStage')
+                ->with('customer:id,name', 'jobStage', 'assignedTo:id,name')
+                // id as a tiebreaker, not just created_at: several jobs can
+                // share the same timestamp (bulk-seeded, or converted in the
+                // same request), and an unstable order between requests
+                // reshuffles cards on every board refresh - visibly janky
+                // now that moves animate, since unrelated cards would
+                // "jiggle" alongside the one that actually moved.
                 ->latest()
+                ->orderByDesc('id')
                 ->get()
                 ->map(fn (Job $job) => $this->jobSummary($job)),
             // Drag-and-drop is a shop setting (off by default); moving still
@@ -32,6 +39,10 @@ class JobController extends Controller
                 'label' => $stage->name,
                 'role' => $stage->role?->value,
             ]),
+            // For the assignee picker - same {id, name} shape qualification
+            // records already sends for its own member dropdown.
+            'members' => Auth::user()->currentShop->members()->orderBy('name')->get(['users.id', 'users.name']),
+            'canAssign' => Gate::allows('jobs.update'),
         ]);
     }
 
@@ -168,6 +179,8 @@ class JobController extends Controller
             'cancelled' => $job->isCancelled(),
             'total' => $job->total,
             'available_transitions' => $this->mapTransitions($job),
+            'assigned_to' => $job->assigned_to,
+            'assignee' => $job->assignedTo?->name,
         ];
     }
 

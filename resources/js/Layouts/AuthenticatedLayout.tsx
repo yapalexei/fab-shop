@@ -1,8 +1,10 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
+import FlashToast from '@/Components/FlashToast';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeToggle from '@/Components/ThemeToggle';
+import TrialBanner from '@/Components/TrialBanner';
 import { useCan } from '@/lib/permissions';
 import { Link, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
@@ -89,7 +91,7 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth, enabledFeatures, availableShops, flash } = usePage().props;
+    const { auth, enabledFeatures, availableShops } = usePage().props;
     const user = auth.user;
     const customersEnabled = enabledFeatures.includes('customers');
     const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
@@ -607,6 +609,8 @@ export default function Authenticated({
                 </div>
             </nav>
 
+            <TrialBanner />
+
             {header && (
                 <header className="bg-white shadow">
                     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -615,21 +619,7 @@ export default function Authenticated({
                 </header>
             )}
 
-            {flash?.error && (
-                <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-                        {flash.error}
-                    </div>
-                </div>
-            )}
-
-            {flash?.status && (
-                <div className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="rounded-md bg-green-50 p-4 text-sm text-green-700">
-                        {flash.status}
-                    </div>
-                </div>
-            )}
+            <FlashToast />
 
             <main>{children}</main>
         </div>

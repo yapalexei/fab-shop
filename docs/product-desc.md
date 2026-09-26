@@ -12,7 +12,7 @@ Core features, in plain terms (full dependency table is below):
 - **Quote builder (F1)** - custom quoting with material, labor, and markup
 - **Quote builder catalog (F1.1)** - materials and services priced per business partner, equipment costs, per-line-item-type markup defaults
 - **Quote-to-job conversion (F2)** - turns a won quote into a trackable job, generates and sends the PDF
-- **Job/traveler status board (F3)** - live tracking from cut through ship
+- **Job/traveler status board (F3)** - live tracking through a shop-configurable pipeline (not a fixed cut-to-ship sequence); built and substantially extended - see [Job/traveler status board](#jobtraveler-status-board-f3---built-extended-well-beyond-the-original-fixed-pipeline) below
 - **QuickBooks Online sync (F4)** - customers and invoices sync automatically
 - **Subscription billing (F0.8)** - the shop pays for the product itself
 - **Material/scrap tracking (F5)** - built; see [Material/scrap tracking](#materialscrap-tracking-f5---built) below
@@ -97,6 +97,22 @@ F1.1, built after F1 shipped with only freeform line items. Gives quote line ite
 - **`MarkupDefault`** - per shop, per line-item type (`material`/`labor`/`equipment`), a default markup percentage. No default recorded for a type means 0. User-editable (needs a small settings UI), applied automatically the moment a line item's type is set, always overridable per line - same "computed, not stored, but overridable" pattern as everything else in this app.
 - **`QuoteLineItem` gains nullable**: `material_id` + `business_partner_id` (material line - partner picks whose price), `service_id` + `business_partner_id` (outsourced labor line), `user_id` (internal labor line - mutually exclusive with service/partner), `equipment_id` (equipment line). Selecting any of these pre-fills `unit_cost`; everything stays editable/overridable per line - still "live/manual pricing," just with a smarter default than typing from scratch every time.
 - Setting a user's `hourly_rate` needs some UI even though the full staff-invite flow (F0's deferred "Invite staff" step) doesn't exist yet - add a minimal team-members list scoped to just this, not the full invite flow.
+
+## Job/traveler status board (F3) - built, extended well beyond the original fixed pipeline
+
+The original one-line spec (and the state diagram under "User flow diagrams" below, kept for history) assumed one fixed pipeline - Cutting -> Fitting -> Welding -> Finishing -> Shipped -> Invoiced - the same for every shop. Real fab shops don't all work that way (one cuts on a bandsaw, another on a CNC; some don't weld at all), so the board's columns became a **per-shop, ordered, editable list** instead of a hardcoded enum - see the updated diagram further down for how this actually behaves.
+
+- **`job_stages`** - one row per shop per column, ordered by `position`. `App\Enums\JobStageRole` marks exactly three fixed roles that always exist and can't be renamed, reordered, or deleted: `NotStarted` (always first), `Shipped`, and `Invoiced` (always last). Everything between them is the shop's own custom stages (`role` null) - added/renamed/reordered/deleted from a dedicated `/job-stages` settings page, gated by its own `job-stages.*` permissions rather than folded into the generic Jobs permission.
+- Every new shop starts with one deliberately generic custom stage, "Setup" - not named after any real fabrication step, since which one actually applies (cutting, layout, prep) varies too much by shop to presume.
+- **`Job::canTransitionTo`** - any stage with a higher `position` is a legal forward move (skipping a stage a job doesn't need is allowed on purpose, not just a linear single-step wizard), and a backward correction is legal only while the job hasn't reached the `Shipped` role yet. Reaching `Shipped` flags a job ready-to-invoice on the dashboard; reaching `Invoiced` triggers the QuickBooks push (F4) and stamps `invoiced_at` - both keyed off the stage's *role*, never its name or position, so a shop renaming "Ship" to "Load & Ship" can't break either.
+- **Cancellation is a side flag, not a terminal stage** (`Job::cancelled_at`, set only via a dedicated action) - a cancelled job keeps whatever position it was last at instead of losing that history to a terminal enum case.
+- Every move - a button, a drag, or the reorder gear popover - opens a confirmation dialog first (`JobMoveDialog`) explaining what the move means (a backward correction keeps cost history; reaching Invoiced pushes to QuickBooks; cancelling is permanent).
+- **Drag-and-drop** (`@dnd-kit/core`, handle-only so card links and touch-scrolling keep working) is a per-shop setting, off by default, and only enabled for users who already hold `jobs.update` - moving a card still needs that permission and still confirms before anything actually changes.
+- **Kiosk mode** - a full-screen, chrome-free board view (bookmarkable via `?kiosk=1`, real browser fullscreen where available) meant to run on a shop-floor wall display, filling the full viewport regardless of stage count.
+- **Live update notifications** - job moves broadcast over Reverb (WebSocket) to every viewer of the shop's board. A viewer whose own action didn't cause the change sees a small jiggling bell (normal view) or the whole screen's border glow (kiosk view, since a small icon wouldn't register from across a room) - a deliberately lightweight "something changed, and it's already reflected below" signal rather than a running tally of how many changes happened, since the count itself isn't actionable by the time it could show one.
+- **Job assignment** - a job can be assigned to one of the shop's team members (a person-icon badge on each card; click it to reassign from a small popover of shop members), purely informational ("who's working this") rather than a workflow gate - reuses the existing `jobs.update` permission rather than adding a new one, and every assign/reassign/unassign is logged to the job's activity history the same way a stage move is.
+
+Covered in `tests/Feature/JobStageTest.php`, `tests/Feature/JobStatusControllerTest.php`, `tests/Feature/JobStatusTransitionTest.php`, and `tests/Feature/JobAssignmentTest.php`: the three fixed roles can't be renamed/reordered/deleted while a custom stage can be; forward moves can skip stages; backward moves are blocked once shipped; cancelling an already-cancelled job is rejected; cross-tenant isolation; and assignment enforcement/logging/cross-tenant rejection.
 
 ## Marketing site, tier comparison & guided onboarding (F8) - built
 
@@ -192,7 +208,7 @@ Each feature lists what it needs already built. Build strictly top-to-bottom wit
 | F1 | Quote builder: material + labor + markup, live/manual pricing, margin calc | F0, F0.5, F0.9 | The #1 pain point from the research - the core wedge feature |
 | F1.1 | Quote builder catalog: Material/Service/BusinessPartner + pricing pivots, Equipment, employee hourly rates, per-type markup defaults | F1 | Real cost sources instead of only freeform line items - land before F2 since it changes QuoteLineItem's schema, even though F2 doesn't strictly need it |
 | F2 | Quote -> job conversion, PDF generation, email send | F1, F1.1 | Turns a won quote into a trackable job |
-| F3 | Job/traveler status board (cut -> fit -> weld -> finish -> ship), live updates via broadcasting | F2 | Replaces the whiteboard; the daily-use screen for the shop floor |
+| F3 | Job/traveler status board - shop-configurable stages (not a fixed cut->ship pipeline), live update broadcasting, drag-and-drop, kiosk mode, job assignment | F2 | Replaces the whiteboard; the daily-use screen for the shop floor. **Built - substantially extended beyond the original fixed pipeline**, see its section above |
 | F4 | QuickBooks Online sync (customers, invoices) | F0.5, F1 (data model needs to be stable; doesn't strictly need F2/F3) | Removes the QuickBooks re-entry pain flagged repeatedly in research |
 | F5 | Material/scrap tracking tied to job cost | F3 | Real per-job margin - the natural upsell after F1's estimate vs. actual. **Built.** |
 | F6 | Mobile/PWA shell + Sanctum-based API endpoints for job status | F3 (for the data it displays), Sanctum scaffolding from F0 | First real use of the API-readiness groundwork from F0 |
@@ -301,7 +317,7 @@ flowchart LR
 
 Acceptance cases: a quote with zero line items cannot send; converting an already-converted quote is blocked; an archived quote can be reopened.
 
-### Job/traveler status board (F3)
+### Job/traveler status board (F3), as originally specced
 
 ```mermaid
 stateDiagram-v2
@@ -315,7 +331,27 @@ stateDiagram-v2
     Invoiced --> [*]
 ```
 
-Acceptance cases: a job cannot skip from Cutting straight to Shipped without passing through the intermediate states (unless you decide to explicitly allow a manual override - flag that decision to the build session rather than assuming it). Each arrow is a state-transition unit test on the Job model.
+This assumed one fixed pipeline, the same for every shop. It was never built this way - see "Job/traveler status board (F3) - built" above for why, and the diagram below for how it actually works. Kept here for history, same as the F0 auth diagram above it.
+
+### Job/traveler status board (F3), as built - shop-configurable stages
+
+`NotStarted`, `Shipped`, and `Invoiced` are the only three stages every shop always has, always in that relative order. Everything between them is a per-shop custom list the shop configures for its own process - the diagram below shows one shop's actual choice (a single "Setup" stage, matching the demo data), but a shop can add as many custom stages as it needs, in any order, and rename or reorder them later. Cancellation is a side flag orthogonal to position, not a state in the chain - a cancelled job keeps whatever position it was last at, and cancelling is legal from any non-cancelled position.
+
+```mermaid
+stateDiagram-v2
+    [*] --> NotStarted
+    NotStarted --> Setup
+    Setup --> Shipped
+    Shipped --> Invoiced
+    Invoiced --> [*]
+    NotStarted --> Cancelled
+    Setup --> Cancelled
+    Shipped --> Cancelled
+    Invoiced --> Cancelled
+    Cancelled --> [*]
+```
+
+Acceptance cases: any later-position stage is a legal forward move, including skipping a custom stage a job doesn't need; a backward move is only legal before the job reaches the `Shipped` role; cancelling an already-cancelled job is rejected; the three fixed-role stages can't be renamed, reordered, or deleted, while a shop's own custom stages can be freely added/renamed/reordered/deleted. Each arrow (plus each of those guard rails) is a state-transition test on the `Job`/`JobStage` models.
 
 ### QuickBooks sync (F4)
 

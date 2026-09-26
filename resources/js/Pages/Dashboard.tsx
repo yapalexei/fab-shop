@@ -229,7 +229,7 @@ function FinancialKpis({
                 label="Ready to invoice"
                 value={currency.format(financials.ready_to_invoice)}
                 detail={plural(counts.ready_to_invoice, 'shipped job')}
-                href={route('jobs.index')}
+                href={route('jobs.index', { focus: 'shipped' })}
             />
             <KpiCard
                 label="Work in progress"
@@ -266,7 +266,7 @@ function CountKpis({ counts }: { counts: Counts }) {
                 label="Shipped, not yet invoiced"
                 value={counts.ready_to_invoice.toString()}
                 detail={plural(counts.ready_to_invoice, 'job')}
-                href={route('jobs.index')}
+                href={route('jobs.index', { focus: 'shipped' })}
             />
             <KpiCard
                 label="Open quotes"

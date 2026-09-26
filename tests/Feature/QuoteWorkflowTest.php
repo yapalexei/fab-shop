@@ -2,6 +2,7 @@
 
 use App\Actions\GenerateQuotePdf;
 use App\Enums\QuoteStatus;
+use App\Events\JobBoardUpdated;
 use App\Jobs\GenerateAndSendQuotePdf;
 use App\Mail\QuoteReadyMail;
 use App\Models\Customer;
@@ -9,6 +10,7 @@ use App\Models\Job;
 use App\Models\Quote;
 use App\Models\Shop;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 
 function draftQuoteWithLineItem(Shop $shop, ?string $customerEmail = 'customer@example.com'): Quote
@@ -140,6 +142,19 @@ test('a won quote can be converted to a job, and converting again is blocked', f
     $this->actingAs($user)->post(route('quotes.convert', $quote))->assertSessionHasErrors('status');
 
     expect(Job::count())->toBe(1);
+});
+
+test('converting a quote to a job broadcasts a job board update for the shop', function () {
+    Event::fake([JobBoardUpdated::class]);
+
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $quote->update(['status' => QuoteStatus::Won]);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.convert', $quote))->assertRedirect();
+
+    Event::assertDispatched(JobBoardUpdated::class, fn (JobBoardUpdated $event) => $event->shopId === $shop->id);
 });
 
 test('a draft or sent quote cannot be converted to a job', function () {

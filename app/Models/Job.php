@@ -26,7 +26,7 @@ class Job extends Model implements HasMedia
 
     protected $table = 'fabrication_jobs';
 
-    protected $fillable = ['quote_id', 'customer_id', 'job_number', 'job_stage_id'];
+    protected $fillable = ['quote_id', 'customer_id', 'job_number', 'job_stage_id', 'assigned_to'];
 
     protected function casts(): array
     {
@@ -50,6 +50,16 @@ class Job extends Model implements HasMedia
     public function jobStage(): BelongsTo
     {
         return $this->belongsTo(JobStage::class);
+    }
+
+    /**
+     * Who's currently working the job - purely informational, shown on the
+     * board so the shop can see who has what without asking. Nullable: not
+     * every job needs one, and unassigning is just as valid as assigning.
+     */
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     /**
