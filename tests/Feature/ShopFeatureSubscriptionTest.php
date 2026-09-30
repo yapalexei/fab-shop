@@ -5,6 +5,8 @@ use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\ShopFeatureSubscription;
+use App\Support\PlanAdvisor;
+use Database\Seeders\PlanSeeder;
 
 test('the owner can subscribe to a feature not in their plan', function () {
     $plan = Plan::factory()->create();
@@ -107,4 +109,67 @@ test('the add-ons index shows price, bundled and subscribed state per feature', 
                     && $materialTracking['priceCents'] === 1500;
             })
         );
+});
+
+function seededTiers(): void
+{
+    test()->seed(PlanSeeder::class);
+    FeatureSetting::ensureDefaults();
+    FeatureSetting::query()->whereIn('feature', [Feature::Customers->value, Feature::QuoteBuilder->value])->update(['price_cents' => 2000]);
+    // Test shops have an owner plus the acting user; Solo's single seat wouldn't fit them.
+    Plan::where('key', 'solo')->update(['user_limit' => 5]);
+}
+
+test('subscribing to an add-on a cheaper plan covers is stopped until confirmed', function () {
+    seededTiers();
+    $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => Plan::where('key', 'free')->value('id')]);
+    $owner = actingAsShopMember($shop, 'Owner');
+    ShopFeatureSubscription::query()->forceCreate(['shop_id' => $shop->id, 'feature' => Feature::Customers->value, 'started_at' => now()]);
+
+    // Customers + Quote builder = $40 as add-ons; Solo has both for $29.
+    $this->actingAs($owner)->post(route('shop.addons.store', Feature::QuoteBuilder->value))
+        ->assertSessionHas('error');
+    expect($shop->fresh()->hasActiveFeatureSubscription(Feature::QuoteBuilder))->toBeFalse();
+
+    $this->actingAs($owner)->post(route('shop.addons.store', Feature::QuoteBuilder->value), ['confirm_separate' => true])
+        ->assertSessionMissing('error');
+    expect($shop->fresh()->hasActiveFeatureSubscription(Feature::QuoteBuilder))->toBeTrue();
+});
+
+test('the add-ons page carries per-add-on advice and a banner for existing add-ons', function () {
+    seededTiers();
+    $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => Plan::where('key', 'free')->value('id')]);
+    $owner = actingAsShopMember($shop, 'Owner');
+    foreach ([Feature::Customers, Feature::QuoteBuilder] as $feature) {
+        ShopFeatureSubscription::query()->forceCreate(['shop_id' => $shop->id, 'feature' => $feature->value, 'started_at' => now()]);
+    }
+
+    $this->actingAs($owner)->get(route('shop.addons.index'))->assertInertia(fn ($page) => $page
+        ->where('bannerAdvice.plan_key', 'solo')
+        ->where('bannerAdvice.savings_cents', 1100));
+});
+
+test('a plan that costs the same but includes more still triggers the warning', function () {
+    seededTiers();
+    FeatureSetting::query()->where('feature', Feature::QuoteBuilder->value)->update(['price_cents' => 2900]);
+    Plan::where('key', 'solo')->update(['monthly_price_cents' => 9900]); // take Solo out of the running
+    $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => Plan::where('key', 'free')->value('id')]);
+    $owner = actingAsShopMember($shop, 'Owner');
+    ShopFeatureSubscription::query()->forceCreate(['shop_id' => $shop->id, 'feature' => Feature::Customers->value, 'started_at' => now()]);
+
+    // 20 + 29 = $49 as add-ons; Start-up is $49 and adds the Job board.
+    $this->actingAs($owner)->post(route('shop.addons.store', Feature::QuoteBuilder->value))
+        ->assertSessionHas('error');
+    $advice = PlanAdvisor::forNewAddon($shop->fresh(), Feature::QuoteBuilder);
+    expect($advice['plan_key'])->toBe('start-up')
+        ->and($advice['savings_cents'])->toBe(0)
+        ->and($advice['extras'])->toContain('Job board');
+});
+
+test('no advice when subscribing separately is the best deal', function () {
+    seededTiers();
+    $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => Plan::where('key', 'pro')->value('id')]);
+    $owner = actingAsShopMember($shop, 'Owner');
+
+    $this->actingAs($owner)->get(route('shop.addons.index'))->assertInertia(fn ($page) => $page->where('bannerAdvice', null));
 });

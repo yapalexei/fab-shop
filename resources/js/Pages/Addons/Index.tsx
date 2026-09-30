@@ -1,10 +1,24 @@
 import DangerButton from '@/Components/DangerButton';
+import Modal from '@/Components/Modal';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatCents } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+
+interface PlanAdvice {
+    plan_key: string;
+    plan_name: string;
+    plan_total_cents: number;
+    separate_total_cents: number;
+    savings_cents: number;
+    covers: string[];
+    still_addons: string[];
+    extras: string[];
+}
 
 interface AddonRow {
     feature: string;
@@ -13,9 +27,44 @@ interface AddonRow {
     priceCents: number;
     bundledInPlan: boolean;
     subscribed: boolean;
+    advice: PlanAdvice | null;
 }
 
-function AddonAction({ addon }: { addon: AddonRow }) {
+function upgrade(advice: PlanAdvice) {
+    router.post(route('shop.plan.update'), { plan: advice.plan_key });
+}
+
+function AdviceSummary({ advice }: { advice: PlanAdvice }) {
+    const cheaper = advice.savings_cents > 0;
+
+    return (
+        <div className="space-y-2 text-sm text-gray-700">
+            <p>
+                As separate add-ons this comes to{' '}
+                <strong>{formatCents(advice.separate_total_cents)}/mo</strong>.
+                The <strong>{advice.plan_name}</strong> plan includes{' '}
+                {advice.covers.join(' + ')}
+                {advice.still_addons.length > 0 &&
+                    ` (${advice.still_addons.join(', ')} would stay a separate add-on)`}{' '}
+                for <strong>{formatCents(advice.plan_total_cents)}/mo</strong>
+                {cheaper
+                    ? ` - saving ${formatCents(advice.savings_cents)}/mo.`
+                    : ' - the same price, with more included.'}
+            </p>
+            {advice.extras.length > 0 && (
+                <p>Also included: {advice.extras.join(', ')}.</p>
+            )}
+        </div>
+    );
+}
+
+function AddonAction({
+    addon,
+    onAdvise,
+}: {
+    addon: AddonRow;
+    onAdvise: (addon: AddonRow) => void;
+}) {
     if (addon.bundledInPlan) {
         return (
             <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
@@ -48,11 +97,13 @@ function AddonAction({ addon }: { addon: AddonRow }) {
     return (
         <PrimaryButton
             onClick={() =>
-                router.post(
-                    route('shop.addons.store', addon.feature),
-                    {},
-                    { preserveScroll: true },
-                )
+                addon.advice
+                    ? onAdvise(addon)
+                    : router.post(
+                          route('shop.addons.store', addon.feature),
+                          {},
+                          { preserveScroll: true },
+                      )
             }
         >
             Subscribe
@@ -60,7 +111,12 @@ function AddonAction({ addon }: { addon: AddonRow }) {
     );
 }
 
-export default function Index({ addons }: PageProps<{ addons: AddonRow[] }>) {
+export default function Index({
+    addons,
+    bannerAdvice,
+}: PageProps<{ addons: AddonRow[]; bannerAdvice: PlanAdvice | null }>) {
+    const [advising, setAdvising] = useState<AddonRow | null>(null);
+
     return (
         <AuthenticatedLayout
             header={
@@ -88,6 +144,25 @@ export default function Index({ addons }: PageProps<{ addons: AddonRow[] }>) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
+                    {bannerAdvice && (
+                        <div
+                            role="status"
+                            className="mb-4 flex flex-wrap items-center justify-between gap-3 border-l-4 border-amber-400 bg-amber-50 p-4 shadow sm:rounded-lg"
+                        >
+                            <div className="text-sm text-amber-900">
+                                <div className="mb-1 font-semibold">
+                                    You could pay less on the{' '}
+                                    {bannerAdvice.plan_name} plan
+                                </div>
+                                <AdviceSummary advice={bannerAdvice} />
+                            </div>
+                            <PrimaryButton
+                                onClick={() => upgrade(bannerAdvice)}
+                            >
+                                Upgrade to {bannerAdvice.plan_name}
+                            </PrimaryButton>
+                        </div>
+                    )}
                     <div className="divide-y divide-gray-200 bg-white shadow sm:rounded-lg">
                         {addons.map((addon) => (
                             <div
@@ -113,12 +188,52 @@ export default function Index({ addons }: PageProps<{ addons: AddonRow[] }>) {
                                         </div>
                                     )}
                                 </div>
-                                <AddonAction addon={addon} />
+                                <AddonAction
+                                    addon={addon}
+                                    onAdvise={setAdvising}
+                                />
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
+
+            <Modal
+                show={advising !== null}
+                maxWidth="lg"
+                onClose={() => setAdvising(null)}
+            >
+                {advising?.advice && (
+                    <div className="space-y-4 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            A plan would cover {advising.label} for less
+                        </h3>
+                        <AdviceSummary advice={advising.advice} />
+                        <div className="flex flex-wrap justify-end gap-3">
+                            <SecondaryButton
+                                onClick={() => {
+                                    router.post(
+                                        route(
+                                            'shop.addons.store',
+                                            advising.feature,
+                                        ),
+                                        { confirm_separate: true },
+                                        { preserveScroll: true },
+                                    );
+                                    setAdvising(null);
+                                }}
+                            >
+                                Subscribe anyway
+                            </SecondaryButton>
+                            <PrimaryButton
+                                onClick={() => upgrade(advising.advice!)}
+                            >
+                                Upgrade to {advising.advice.plan_name}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </AuthenticatedLayout>
     );
 }

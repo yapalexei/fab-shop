@@ -1,5 +1,7 @@
+import { Link } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 
 export interface CertificationFormData {
@@ -40,20 +42,24 @@ export default function CertificationFields({
         <>
             <div>
                 <InputLabel htmlFor="user_id" value="Team member" />
-                <select
+                <SearchableSelect
                     id="user_id"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    value={data.user_id}
-                    onChange={(e) => setData('user_id', e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    wrapperClassName="mt-1"
+                    value={String(data.user_id ?? '')}
+                    onChange={(value) => setData('user_id', value)}
+                    emptyLabel="Select a team member"
                     required
-                >
-                    <option value="">Select a team member</option>
-                    {members.map((member) => (
-                        <option key={member.id} value={member.id}>
-                            {member.name}
-                        </option>
-                    ))}
-                </select>
+                    options={members.map((member) => ({
+                        value: String(member.id),
+                        label: member.name,
+                    }))}
+                    emptyState={
+                        <>
+                            No team members yet. <Link href={route('team.index')} className="font-medium underline">Invite someone</Link> first.
+                        </>
+                    }
+                />
                 <InputError message={errors.user_id} className="mt-2" />
             </div>
 
@@ -62,19 +68,24 @@ export default function CertificationFields({
                     htmlFor="procedure_id"
                     value="Procedure (optional)"
                 />
-                <select
+                <SearchableSelect
                     id="procedure_id"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    value={data.procedure_id}
-                    onChange={(e) => setData('procedure_id', e.target.value)}
-                >
-                    <option value="">Not tied to a specific procedure</option>
-                    {procedures.map((procedure) => (
-                        <option key={procedure.id} value={procedure.id}>
-                            {procedure.name}
-                        </option>
-                    ))}
-                </select>
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    wrapperClassName="mt-1"
+                    value={String(data.procedure_id ?? '')}
+                    onChange={(value) => setData('procedure_id', value)}
+                    emptyLabel="Not tied to a specific procedure"
+                    options={procedures.map((procedure) => ({
+                        value: String(procedure.id),
+                        label: procedure.name,
+                    }))}
+                    emptyState={
+                        <>
+                            No procedures yet. <Link href={route('procedures.create')} className="font-medium underline">Create a procedure</Link> to
+                            tie a certification to one.
+                        </>
+                    }
+                />
                 <p className="mt-1 text-xs text-gray-500">
                     Lets job records check whether this person was actually
                     covered for that procedure.

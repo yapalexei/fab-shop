@@ -1,6 +1,7 @@
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
@@ -53,17 +54,13 @@ function InviteForm({ roles }: { roles: string[] }) {
                         onChange={(e) => setData('email', e.target.value)}
                         required
                     />
-                    <select
+                    <SearchableSelect
+                        wrapperClassName="w-32"
                         className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                         value={data.role}
-                        onChange={(e) => setData('role', e.target.value)}
-                    >
-                        {roles.map((role) => (
-                            <option key={role} value={role}>
-                                {role}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={(value) => setData('role', value)}
+                        options={roles.map((role) => ({ value: role, label: role }))}
+                    />
                     <PrimaryButton disabled={processing}>
                         Send invite
                     </PrimaryButton>

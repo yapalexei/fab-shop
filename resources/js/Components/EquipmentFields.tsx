@@ -1,5 +1,6 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 
 export interface EquipmentFormData {
@@ -36,15 +37,17 @@ export default function EquipmentFields({
 
             <div className="mt-4">
                 <InputLabel htmlFor="billing_method" value="Billing method" />
-                <select
+                <SearchableSelect
                     id="billing_method"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    wrapperClassName="mt-1"
                     value={data.billing_method}
-                    onChange={(e) => setData('billing_method', e.target.value)}
-                >
-                    <option value="hourly">Hourly rate</option>
-                    <option value="flat">Flat fee per use</option>
-                </select>
+                    onChange={(value) => setData('billing_method', value)}
+                    options={[
+                        { value: 'hourly', label: 'Hourly rate' },
+                        { value: 'flat', label: 'Flat fee per use' },
+                    ]}
+                />
                 <InputError message={errors.billing_method} className="mt-2" />
             </div>
 

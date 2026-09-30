@@ -9,6 +9,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { RoleGrants } from '@/Pages/Permissions/Edit';
 import { PageProps } from '@/types';
+import SearchableSelect from '@/Components/SearchableSelect';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
@@ -107,21 +108,15 @@ export default function Access({
                                         htmlFor="role"
                                         value="Role in this shop"
                                     />
-                                    <select
+                                    <SearchableSelect
                                         id="role"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                                        wrapperClassName="mt-1"
                                         value={data.role}
                                         disabled={!canChangeRole}
-                                        onChange={(e) =>
-                                            setData('role', e.target.value)
-                                        }
-                                    >
-                                        {roles.map((role) => (
-                                            <option key={role} value={role}>
-                                                {role}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(value) => setData('role', value)}
+                                        options={roles.map((role) => ({ value: role, label: role }))}
+                                    />
                                     {!canChangeRole && (
                                         <p className="mt-1 text-xs text-gray-500">
                                             Only the shop owner can change
@@ -177,41 +172,28 @@ export default function Access({
                                     >
                                         <label className="block text-xs font-medium text-gray-700">
                                             {actionLabel(action.action)}
-                                            <select
-                                                aria-label={`${member.name}: ${action.permission}`}
-                                                className="mt-1 block w-full rounded border-gray-300 py-1 pe-8 text-xs focus:border-indigo-500 focus:ring-indigo-500"
+                                            <SearchableSelect
+                                                ariaLabel={`${member.name}: ${action.permission}`}
+                                                wrapperClassName="mt-1"
+                                                className="rounded border-gray-300 py-1 text-xs focus:border-indigo-500 focus:ring-indigo-500"
                                                 value={
-                                                    override === null
-                                                        ? 'inherit'
-                                                        : override
-                                                          ? 'allow'
-                                                          : 'deny'
+                                                    override === null ? 'inherit' : override ? 'allow' : 'deny'
                                                 }
-                                                onChange={(e) =>
+                                                onChange={(value) =>
                                                     setOverride(
                                                         action.permission,
-                                                        e.target.value ===
-                                                            'inherit'
-                                                            ? null
-                                                            : e.target.value ===
-                                                                  'allow',
+                                                        value === 'inherit' ? null : value === 'allow',
                                                     )
                                                 }
-                                            >
-                                                <option value="inherit">
-                                                    Role default (
-                                                    {inherited ? 'yes' : 'no'})
-                                                </option>
-                                                <option
-                                                    value="allow"
-                                                    disabled={!canAllow}
-                                                >
-                                                    Allow
-                                                </option>
-                                                <option value="deny">
-                                                    Deny
-                                                </option>
-                                            </select>
+                                                options={[
+                                                    {
+                                                        value: 'inherit',
+                                                        label: `Role default (${inherited ? 'yes' : 'no'})`,
+                                                    },
+                                                    { value: 'allow', label: 'Allow', disabled: !canAllow },
+                                                    { value: 'deny', label: 'Deny' },
+                                                ]}
+                                            />
                                         </label>
                                         {error && (
                                             <p className="mt-1 max-w-40 text-xs text-red-600">

@@ -1,5 +1,6 @@
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SearchableSelect from '@/Components/SearchableSelect';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import OnboardingLayout from '@/Layouts/OnboardingLayout';
@@ -102,19 +103,13 @@ export default function TeamStep({
                                     }
                                 />
                             </div>
-                            <select
+                            <SearchableSelect
+                                wrapperClassName="w-32"
                                 className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 value={row.role}
-                                onChange={(e) =>
-                                    update(index, { role: e.target.value })
-                                }
-                            >
-                                {roles.map((role) => (
-                                    <option key={role} value={role}>
-                                        {role}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={(value) => update(index, { role: value })}
+                                options={roles.map((role) => ({ value: role, label: role }))}
+                            />
                             <button
                                 type="button"
                                 onClick={() => removeRow(index)}

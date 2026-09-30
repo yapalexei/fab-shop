@@ -1,4 +1,6 @@
+import { ReactNode } from 'react';
 import InputError from '@/Components/InputError';
+import SearchableSelect from '@/Components/SearchableSelect';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 
@@ -15,6 +17,7 @@ export default function CapabilityPriceTable({
     rows,
     onChange,
     getError,
+    emptyState,
 }: {
     title: string;
     itemLabel: string;
@@ -23,6 +26,8 @@ export default function CapabilityPriceTable({
     rows: CapabilityRow[];
     onChange: (rows: CapabilityRow[]) => void;
     getError: (index: number, field: 'itemId' | 'price') => string | undefined;
+    /** Shown under the picker when `options` is empty - say what to create and link to it. */
+    emptyState?: ReactNode;
 }) {
     const update = (index: number, field: keyof CapabilityRow, value: string) => {
         const next = [...rows];
@@ -60,21 +65,19 @@ export default function CapabilityPriceTable({
                             {rows.map((row, index) => (
                                 <tr key={index}>
                                     <td className="px-3 py-2">
-                                        <select
-                                            className="block w-56 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                            value={row.itemId}
-                                            onChange={(e) =>
-                                                update(index, 'itemId', e.target.value)
-                                            }
+                                        <SearchableSelect
+                                            wrapperClassName="w-56"
+                                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            value={String(row.itemId ?? '')}
+                                            onChange={(value) => update(index, 'itemId', value)}
+                                            emptyLabel="Select..."
                                             required
-                                        >
-                                            <option value="">Select...</option>
-                                            {options.map((option) => (
-                                                <option key={option.id} value={option.id}>
-                                                    {option.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            options={options.map((option) => ({
+                                                value: String(option.id),
+                                                label: option.name,
+                                            }))}
+                                            emptyState={emptyState}
+                                        />
                                         <InputError
                                             message={getError(index, 'itemId')}
                                             className="mt-1"

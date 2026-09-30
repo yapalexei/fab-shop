@@ -1,9 +1,10 @@
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 import { useShopDateTime } from '@/lib/datetime';
 import { useCan } from '@/lib/permissions';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 export interface QualificationRecord {
@@ -113,45 +114,42 @@ export default function JobQualificationRecords({
                     className="space-y-3 border-b border-gray-100 pb-4"
                 >
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <select
+                        <SearchableSelect
                             className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            value={data.procedure_id}
-                            onChange={(e) =>
-                                setData(
-                                    'procedure_id',
-                                    e.target.value === ''
-                                        ? ''
-                                        : Number(e.target.value),
-                                )
+                            value={String(data.procedure_id)}
+                            onChange={(value) =>
+                                setData('procedure_id', value === '' ? '' : Number(value))
                             }
-                        >
-                            <option value="">No specific procedure</option>
-                            {procedures.map((procedure) => (
-                                <option key={procedure.id} value={procedure.id}>
-                                    {procedure.name}
-                                </option>
-                            ))}
-                        </select>
-                        <select
+                            emptyLabel="No specific procedure"
+                            options={procedures.map((procedure) => ({
+                                value: String(procedure.id),
+                                label: procedure.name,
+                            }))}
+                            emptyState={
+                                <>
+                                    No procedures yet. <Link href={route('procedures.create')} className="font-medium underline">Create a procedure</Link> to
+                                    record work against it.
+                                </>
+                            }
+                        />
+                        <SearchableSelect
                             className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            value={data.performed_by}
-                            onChange={(e) =>
-                                setData(
-                                    'performed_by',
-                                    e.target.value === ''
-                                        ? ''
-                                        : Number(e.target.value),
-                                )
+                            value={String(data.performed_by)}
+                            onChange={(value) =>
+                                setData('performed_by', value === '' ? '' : Number(value))
                             }
+                            emptyLabel="Who performed it"
                             required
-                        >
-                            <option value="">Who performed it</option>
-                            {members.map((member) => (
-                                <option key={member.id} value={member.id}>
-                                    {member.name}
-                                </option>
-                            ))}
-                        </select>
+                            options={members.map((member) => ({
+                                value: String(member.id),
+                                label: member.name,
+                            }))}
+                            emptyState={
+                                <>
+                                    No team members yet. <Link href={route('team.index')} className="font-medium underline">Invite someone</Link> first.
+                                </>
+                            }
+                        />
                     </div>
 
                     <div>

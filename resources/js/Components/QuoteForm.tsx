@@ -5,8 +5,9 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import QuoteLineItemCard, {
     lineTotal,
 } from '@/Components/QuoteLineItemCard';
+import SearchableSelect from '@/Components/SearchableSelect';
 import SecondaryButton from '@/Components/SecondaryButton';
-import { useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 export interface LineItem {
@@ -186,20 +187,25 @@ export default function QuoteForm({
 
                 <div>
                     <InputLabel htmlFor="customer_id" value="Customer" />
-                    <select
+                    <SearchableSelect
                         id="customer_id"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                        value={data.customer_id}
-                        onChange={(e) => setData('customer_id', e.target.value)}
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        wrapperClassName="mt-1"
+                        value={String(data.customer_id ?? '')}
+                        onChange={(value) => setData('customer_id', value)}
+                        emptyLabel="Select a customer"
                         required
-                    >
-                        <option value="">Select a customer</option>
-                        {customers.map((customer) => (
-                            <option key={customer.id} value={customer.id}>
-                                {customer.name}
-                            </option>
-                        ))}
-                    </select>
+                        options={customers.map((customer) => ({
+                            value: String(customer.id),
+                            label: customer.name,
+                        }))}
+                        emptyState={
+                            <>
+                                No customers yet. <Link href={route('customers.create')} className="font-medium underline">Create a customer</Link> before
+                                starting a quote.
+                            </>
+                        }
+                    />
                     <InputError message={errors.customer_id} className="mt-2" />
                 </div>
 

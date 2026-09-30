@@ -1,6 +1,7 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import FlashToast from '@/Components/FlashToast';
+import NavIcon from '@/Components/NavIcon';
 import NavLink from '@/Components/NavLink';
 import RequiresSubscription from '@/Components/RequiresSubscription';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
@@ -27,6 +28,7 @@ function GatedNavLink({
     if (enabled) {
         return (
             <NavLink href={href} active={active}>
+                <NavIcon label={label} />
                 {label}
                 {locked && <RequiresSubscription />}
             </NavLink>
@@ -37,6 +39,7 @@ function GatedNavLink({
         <span
             className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-300"
         >
+            <NavIcon label={label} />
             {label}
             <RequiresSubscription />
         </span>
@@ -59,6 +62,7 @@ function GatedResponsiveNavLink({
     if (enabled) {
         return (
             <ResponsiveNavLink href={href} active={active}>
+                <NavIcon label={label} />
                 {label}
                 {locked && <RequiresSubscription />}
             </ResponsiveNavLink>
@@ -67,6 +71,7 @@ function GatedResponsiveNavLink({
 
     return (
         <span className="flex items-center py-2 pe-4 ps-3 text-base font-medium text-gray-300">
+            <NavIcon label={label} />
             {label}
             <RequiresSubscription />
         </span>
@@ -87,6 +92,7 @@ function GatedDropdownLink({
     if (enabled) {
         return (
             <Dropdown.Link href={href}>
+                <NavIcon label={label} />
                 {label}
                 {locked && <RequiresSubscription />}
             </Dropdown.Link>
@@ -97,6 +103,7 @@ function GatedDropdownLink({
         <span
             className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-300"
         >
+            <NavIcon label={label} />
             {label}
             <RequiresSubscription />
         </span>
@@ -227,7 +234,9 @@ export default function Authenticated({
             locked: isLocked('job-board'),
             visible: can('job-stages.view'),
         },
-    ].filter((item) => item.visible);
+    ]
+        .filter((item) => item.visible)
+        .sort((a, b) => a.label.localeCompare(b.label));
     const setupActive = setupNavItems.some((item) => item.active);
 
     // The shop itself - its settings, team, who can do what, and its
@@ -275,7 +284,9 @@ export default function Authenticated({
             locked: false,
             visible: auth.isOwner,
         },
-    ].filter((item) => item.visible);
+    ]
+        .filter((item) => item.visible)
+        .sort((a, b) => a.label.localeCompare(b.label));
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -297,7 +308,8 @@ export default function Authenticated({
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
                                 >
-                                    Dashboard
+                                    <NavIcon label="Dashboard" />
+                            Dashboard
                                 </NavLink>
                                 {can('quotes.view') && (
                                     <GatedNavLink

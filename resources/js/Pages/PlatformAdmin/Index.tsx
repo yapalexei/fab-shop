@@ -1,5 +1,6 @@
 import PageHelp from '@/Components/PageHelp';
 import Pagination, { PaginationLink } from '@/Components/Pagination';
+import SearchableSelect from '@/Components/SearchableSelect';
 import SecondaryButton from '@/Components/SecondaryButton';
 import ShopManageDialog, { ManagedShop } from '@/Components/ShopManageDialog';
 import TextInput from '@/Components/TextInput';
@@ -264,41 +265,44 @@ export default function Index({
                             <label className="block text-xs font-medium text-gray-500">
                                 Status
                             </label>
-                            <select
-                                className="mt-1 w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            <SearchableSelect
+                                wrapperClassName="mt-1 w-32"
+                                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 value={status}
-                                onChange={(e) => {
-                                    setStatus(e.target.value);
-                                    applyFilters({ status: e.target.value });
+                                onChange={(value) => {
+                                    setStatus(value);
+                                    applyFilters({ status: value });
                                 }}
-                            >
-                                <option value="">Any</option>
-                                <option value="trial">Trial</option>
-                                <option value="active">Active</option>
-                                <option value="onboarding">Onboarding</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
+                                emptyLabel="Any"
+                                options={[
+                                    { value: 'trial', label: 'Trial' },
+                                    { value: 'active', label: 'Active' },
+                                    { value: 'onboarding', label: 'Onboarding' },
+                                    { value: 'suspended', label: 'Suspended' },
+                                ]}
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-500">
                                 Plan
                             </label>
-                            <select
-                                className="mt-1 w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            <SearchableSelect
+                                wrapperClassName="mt-1 w-32"
+                                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 value={planId}
-                                onChange={(e) => {
-                                    setPlanId(e.target.value);
-                                    applyFilters({ plan_id: e.target.value });
+                                onChange={(value) => {
+                                    setPlanId(value);
+                                    applyFilters({ plan_id: value });
                                 }}
-                            >
-                                <option value="">Any</option>
-                                <option value="none">No plan</option>
-                                {plans.map((plan) => (
-                                    <option key={plan.id} value={plan.id}>
-                                        {plan.name}
-                                    </option>
-                                ))}
-                            </select>
+                                emptyLabel="Any"
+                                options={[
+                                    { value: 'none', label: 'No plan' },
+                                    ...plans.map((plan) => ({
+                                        value: String(plan.id),
+                                        label: plan.name,
+                                    })),
+                                ]}
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-500">
@@ -322,21 +326,21 @@ export default function Index({
                             <label className="block text-xs font-medium text-gray-500">
                                 Subscription
                             </label>
-                            <select
-                                className="mt-1 w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            <SearchableSelect
+                                wrapperClassName="mt-1 w-32"
+                                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 value={subscription}
-                                onChange={(e) => {
-                                    setSubscription(e.target.value);
-                                    applyFilters({
-                                        subscription: e.target.value,
-                                    });
+                                onChange={(value) => {
+                                    setSubscription(value);
+                                    applyFilters({ subscription: value });
                                 }}
-                            >
-                                <option value="">Any</option>
-                                <option value="paid">Paid</option>
-                                <option value="overdue">Overdue</option>
-                                <option value="not_tracked">Not tracked</option>
-                            </select>
+                                emptyLabel="Any"
+                                options={[
+                                    { value: 'paid', label: 'Paid' },
+                                    { value: 'overdue', label: 'Overdue' },
+                                    { value: 'not_tracked', label: 'Not tracked' },
+                                ]}
+                            />
                         </div>
                         {(search ||
                             status ||

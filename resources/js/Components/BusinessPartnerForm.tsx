@@ -6,7 +6,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import { useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 export interface BusinessPartnerFormData {
@@ -118,6 +118,13 @@ export default function BusinessPartnerForm({
                     itemLabel="Material"
                     addLabel="Add material"
                     options={materialOptions}
+                    emptyState={
+                        <>
+                            No materials yet.{' '}
+                            <Link href={route('materials.create')} className="font-medium underline">Create a material</Link> before
+                            adding supplier prices.
+                        </>
+                    }
                     rows={data.materials}
                     onChange={(rows) => setData('materials', rows)}
                     getError={(index, field) =>
@@ -132,6 +139,13 @@ export default function BusinessPartnerForm({
                     itemLabel="Service"
                     addLabel="Add service"
                     options={serviceOptions}
+                    emptyState={
+                        <>
+                            No services yet.{' '}
+                            <Link href={route('services.create')} className="font-medium underline">Create a service</Link> before
+                            adding prices.
+                        </>
+                    }
                     rows={data.services}
                     onChange={(rows) => setData('services', rows)}
                     getError={(index, field) =>

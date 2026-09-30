@@ -7,6 +7,8 @@ use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\JobStages;
+use App\Support\MaterialTypes;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
@@ -37,6 +39,11 @@ class DatabaseSeeder extends Seeder
             'onboarded_at' => now(),
         ]);
 
+        // WithoutModelEvents suppresses Shop::created, which is what normally
+        // gives a shop its material types and job board stages - do it here.
+        MaterialTypes::seedDefaults($shop);
+        JobStages::seedDefaults($shop);
+
         $shop->members()->attach($user);
         $user->update(['current_shop_id' => $shop->id]);
 
@@ -51,5 +58,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'orders@riversidemetal.test',
             'phone' => '555-0100',
         ]);
+
+        $this->call(CommonMaterialsSeeder::class);
     }
 }

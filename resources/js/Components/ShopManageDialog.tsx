@@ -1,6 +1,7 @@
 import DangerButton from '@/Components/DangerButton';
 import InputLabel from '@/Components/InputLabel';
 import Modal from '@/Components/Modal';
+import SearchableSelect from '@/Components/SearchableSelect';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import { router } from '@inertiajs/react';
@@ -156,18 +157,17 @@ export default function ShopManageDialog({
                 <div className="mt-6 space-y-6">
                     <div>
                         <InputLabel value="Plan" />
-                        <select
-                            className="mt-1 w-48 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            value={shown.plan_id ?? ''}
-                            onChange={(e) => changePlan(e.target.value)}
-                        >
-                            <option value="">No plan</option>
-                            {plans.map((plan) => (
-                                <option key={plan.id} value={plan.id}>
-                                    {plan.name}
-                                </option>
-                            ))}
-                        </select>
+                        <SearchableSelect
+                            wrapperClassName="mt-1 w-48"
+                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            value={String(shown.plan_id ?? '')}
+                            onChange={changePlan}
+                            emptyLabel="No plan"
+                            options={plans.map((plan) => ({
+                                value: String(plan.id),
+                                label: plan.name,
+                            }))}
+                        />
                     </div>
 
                     <div>

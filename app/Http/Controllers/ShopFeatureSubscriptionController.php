@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Feature;
 use App\Models\FeatureSetting;
 use App\Models\ShopFeatureSubscription;
+use App\Support\PlanAdvisor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -37,8 +38,15 @@ class ShopFeatureSubscriptionController extends Controller
                     'priceCents' => $settings[$feature->value]->price_cents,
                     'bundledInPlan' => $bundled->contains($feature),
                     'subscribed' => $subscribed->contains($feature->value),
+                    // A plan that beats paying for this add-on separately (or
+                    // null) - the page confirms with the owner before subscribing.
+                    'advice' => $bundled->contains($feature) || $subscribed->contains($feature->value)
+                        ? null
+                        : PlanAdvisor::forNewAddon($shop, $feature),
                 ])
                 ->values(),
+            // Existing add-ons that a plan would now cover for less.
+            'bannerAdvice' => PlanAdvisor::forExistingAddons($shop),
         ]);
     }
 
@@ -50,6 +58,14 @@ class ShopFeatureSubscriptionController extends Controller
 
         if ($shop->plan?->hasFeature($feature)) {
             return back()->with('error', "{$feature->label()} is already included in your plan.");
+        }
+
+        // Server-side half of the "a plan is cheaper" warning: the page asks
+        // the owner first and re-posts with confirm_separate, but a request
+        // that skips the page gets the same stop.
+        $advice = PlanAdvisor::forNewAddon($shop, $feature);
+        if ($advice !== null && ! request()->boolean('confirm_separate')) {
+            return back()->with('error', PlanAdvisor::sentence($advice));
         }
 
         ShopFeatureSubscription::query()->updateOrCreate(

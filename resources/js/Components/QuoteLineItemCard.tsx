@@ -1,4 +1,6 @@
+import { Link } from '@inertiajs/react';
 import InputLabel from '@/Components/InputLabel';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 import {
     EmployeeOption,
@@ -277,167 +279,155 @@ export default function QuoteLineItemCard({
                 <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                         <InputLabel value="Type" />
-                        <select
-                            className={`mt-1 ${selectClass}`}
+                        <SearchableSelect
+                            wrapperClassName="mt-1"
+                            className={selectClass}
                             value={item.type}
-                            onChange={(e) =>
-                                changeType(e.target.value as LineItem['type'])
-                            }
-                        >
-                            <option value="material">Material</option>
-                            <option value="labor">Labor</option>
-                            <option value="equipment">Equipment</option>
-                            <option value="tooling">Tooling</option>
-                        </select>
+                            onChange={(value) => changeType(value as LineItem['type'])}
+                            options={[
+                                { value: 'material', label: 'Material' },
+                                { value: 'labor', label: 'Labor' },
+                                { value: 'equipment', label: 'Equipment' },
+                                { value: 'tooling', label: 'Tooling' },
+                            ]}
+                        />
                     </div>
 
                     {item.type === 'material' && (
                         <div>
                             <InputLabel value="Material" />
-                            <select
-                                className={`mt-1 ${selectClass}`}
-                                value={item.material_id ?? ''}
-                                onChange={(e) => selectMaterial(e.target.value)}
-                            >
-                                <option value="">
-                                    Custom (not in catalog)
-                                </option>
-                                {materials.map((material) => (
-                                    <option
-                                        key={material.id}
-                                        value={material.id}
-                                    >
-                                        {material.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="mt-1">
+                                <SearchableSelect
+                                    className={selectClass}
+                                    value={
+                                        item.material_id
+                                            ? String(item.material_id)
+                                            : ''
+                                    }
+                                    onChange={selectMaterial}
+                                    emptyLabel="Custom (not in catalog)"
+                                    options={materials.map((material) => ({
+                                        value: String(material.id),
+                                        label: material.name,
+                                    }))}
+                                    emptyState={
+                                        <>
+                                            No materials yet.{' '}
+                                            <Link href={route('materials.create')} className="font-medium underline">Create a material</Link> to
+                                            price it on a quote.
+                                        </>
+                                    }
+                                />
+                            </div>
                         </div>
                     )}
 
                     {item.type === 'material' && selectedMaterial && (
                         <div>
                             <InputLabel value="Supplier price" />
-                            <select
-                                className={`mt-1 ${selectClass}`}
-                                value={item.business_partner_id ?? ''}
-                                onChange={(e) =>
-                                    selectMaterialPartner(e.target.value)
+                            <SearchableSelect
+                                wrapperClassName="mt-1"
+                                className={selectClass}
+                                value={item.business_partner_id ? String(item.business_partner_id) : ''}
+                                onChange={selectMaterialPartner}
+                                emptyLabel="Custom price"
+                                options={selectedMaterial.partners.map((partner) => ({
+                                    value: String(partner.business_partner_id),
+                                    label: `${partner.name} (${currency.format(partner.price)})`,
+                                }))}
+                                emptyState={
+                                    <>
+                                        No supplier prices this material yet.{' '}
+                                        <Link href={route('business-partners.create')} className="font-medium underline">Add a business partner</Link> that supplies it.
+                                    </>
                                 }
-                            >
-                                <option value="">Custom price</option>
-                                {selectedMaterial.partners.map((partner) => (
-                                    <option
-                                        key={partner.business_partner_id}
-                                        value={partner.business_partner_id}
-                                    >
-                                        {partner.name} (
-                                        {currency.format(partner.price)})
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </div>
                     )}
 
                     {item.type === 'labor' && (
                         <div>
                             <InputLabel value="Labor source" />
-                            <select
-                                className={`mt-1 ${selectClass}`}
+                            <SearchableSelect
+                                wrapperClassName="mt-1"
+                                className={selectClass}
                                 value={laborSourceValue()}
-                                onChange={(e) =>
-                                    selectLaborSource(e.target.value)
+                                onChange={selectLaborSource}
+                                emptyLabel="Custom"
+                                options={[
+                                    ...employees.map((employee) => ({
+                                        value: `emp:${employee.user_id}`,
+                                        label: `${employee.name}${
+                                            employee.hourly_rate !== null
+                                                ? ` (${currency.format(employee.hourly_rate)}/hr)`
+                                                : ' (no rate set)'
+                                        }`,
+                                        group: 'Employees',
+                                    })),
+                                    ...services.flatMap((service) =>
+                                        service.partners.map((partner) => ({
+                                            value: `svc:${service.id}:${partner.business_partner_id}`,
+                                            label: `${service.name} — ${partner.name} (${currency.format(partner.price)})`,
+                                            group: 'Outsourced services',
+                                        })),
+                                    ),
+                                ]}
+                                emptyState={
+                                    <>
+                                        No team members or outsourced services yet.{' '}
+                                        <Link href={route('team.index')} className="font-medium underline">Add a team member</Link> or{' '}
+                                        <Link href={route('services.create')} className="font-medium underline">an outsourced service</Link>.
+                                    </>
                                 }
-                            >
-                                <option value="">Custom</option>
-                                {employees.length > 0 && (
-                                    <optgroup label="Employees">
-                                        {employees.map((employee) => (
-                                            <option
-                                                key={`emp:${employee.user_id}`}
-                                                value={`emp:${employee.user_id}`}
-                                            >
-                                                {employee.name}
-                                                {employee.hourly_rate !== null
-                                                    ? ` (${currency.format(employee.hourly_rate)}/hr)`
-                                                    : ' (no rate set)'}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                )}
-                                {services.some(
-                                    (s) => s.partners.length > 0,
-                                ) && (
-                                    <optgroup label="Outsourced services">
-                                        {services.flatMap((service) =>
-                                            service.partners.map((partner) => (
-                                                <option
-                                                    key={`svc:${service.id}:${partner.business_partner_id}`}
-                                                    value={`svc:${service.id}:${partner.business_partner_id}`}
-                                                >
-                                                    {service.name} —{' '}
-                                                    {partner.name} (
-                                                    {currency.format(
-                                                        partner.price,
-                                                    )}
-                                                    )
-                                                </option>
-                                            )),
-                                        )}
-                                    </optgroup>
-                                )}
-                            </select>
+                            />
                         </div>
                     )}
 
                     {item.type === 'equipment' && (
                         <div>
                             <InputLabel value="Equipment" />
-                            <select
-                                className={`mt-1 ${selectClass}`}
-                                value={item.equipment_id ?? ''}
-                                onChange={(e) =>
-                                    selectEquipment(e.target.value)
+                            <SearchableSelect
+                                wrapperClassName="mt-1"
+                                className={selectClass}
+                                value={item.equipment_id ? String(item.equipment_id) : ''}
+                                onChange={selectEquipment}
+                                emptyLabel="Custom (not in catalog)"
+                                options={equipmentList.map((equipment) => ({
+                                    value: String(equipment.id),
+                                    label: `${equipment.name} (${currency.format(equipment.rate)}${
+                                        equipment.billing_method === 'hourly' ? '/hr' : ' flat'
+                                    })`,
+                                }))}
+                                emptyState={
+                                    <>
+                                        No equipment yet. <Link href={route('equipment.create')} className="font-medium underline">Create equipment</Link> to bill
+                                        it on a quote.
+                                    </>
                                 }
-                            >
-                                <option value="">
-                                    Custom (not in catalog)
-                                </option>
-                                {equipmentList.map((equipment) => (
-                                    <option
-                                        key={equipment.id}
-                                        value={equipment.id}
-                                    >
-                                        {equipment.name} (
-                                        {currency.format(equipment.rate)}
-                                        {equipment.billing_method === 'hourly'
-                                            ? '/hr'
-                                            : ' flat'}
-                                        )
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </div>
                     )}
 
                     {item.type === 'tooling' && (
                         <div>
                             <InputLabel value="Tool" />
-                            <select
-                                className={`mt-1 ${selectClass}`}
-                                value={item.tool_id ?? ''}
-                                onChange={(e) => selectTool(e.target.value)}
-                            >
-                                <option value="">
-                                    Custom (not in catalog)
-                                </option>
-                                {tools.map((tool) => (
-                                    <option key={tool.id} value={tool.id}>
-                                        {tool.name} — {tool.cuts} (
-                                        {currency.format(tool.cost)}/{tool.unit}
-                                        )
-                                    </option>
-                                ))}
-                            </select>
+                            <SearchableSelect
+                                wrapperClassName="mt-1"
+                                className={selectClass}
+                                value={item.tool_id ? String(item.tool_id) : ''}
+                                onChange={selectTool}
+                                emptyLabel="Custom (not in catalog)"
+                                options={tools.map((tool) => ({
+                                    value: String(tool.id),
+                                    label: `${tool.name} — ${tool.cuts} (${currency.format(tool.cost)}/${tool.unit})`,
+                                }))}
+                                emptyState={
+                                    <>
+                                        No tooling yet. <Link href={route('tools.create')} className="font-medium underline">Create a tool</Link> to bill it on a
+                                        quote.
+                                    </>
+                                }
+                            />
                         </div>
                     )}
                 </div>

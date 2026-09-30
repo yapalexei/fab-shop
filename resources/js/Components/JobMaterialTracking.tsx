@@ -1,9 +1,10 @@
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 import { useCan } from '@/lib/permissions';
 import { useShopDateTime } from '@/lib/datetime';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 export interface MaterialUsage {
@@ -183,31 +184,31 @@ export default function JobMaterialTracking({
                     className="mt-4 space-y-3 border-t border-gray-100 pt-4"
                 >
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <select
+                        <SearchableSelect
                             className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            value={data.material_id}
-                            onChange={(e) => selectMaterial(e.target.value)}
-                        >
-                            <option value="">Custom (not in catalog)</option>
-                            {materials.map((material) => (
-                                <option key={material.id} value={material.id}>
-                                    {material.name}
-                                </option>
-                            ))}
-                        </select>
-                        <select
+                            value={String(data.material_id)}
+                            onChange={selectMaterial}
+                            emptyLabel="Custom (not in catalog)"
+                            options={materials.map((material) => ({
+                                value: String(material.id),
+                                label: material.name,
+                            }))}
+                            emptyState={
+                                <>
+                                    No materials yet. <Link href={route('materials.create')} className="font-medium underline">Create a material</Link> to
+                                    pick it here.
+                                </>
+                            }
+                        />
+                        <SearchableSelect
                             className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             value={data.type}
-                            onChange={(e) =>
-                                setData(
-                                    'type',
-                                    e.target.value as 'used' | 'scrap',
-                                )
-                            }
-                        >
-                            <option value="used">Used</option>
-                            <option value="scrap">Scrap</option>
-                        </select>
+                            onChange={(value) => setData('type', value as 'used' | 'scrap')}
+                            options={[
+                                { value: 'used', label: 'Used' },
+                                { value: 'scrap', label: 'Scrap' },
+                            ]}
+                        />
                     </div>
 
                     <div>

@@ -2,6 +2,7 @@ import FormErrorSummary from '@/Components/FormErrorSummary';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 import OnboardingLayout from '@/Layouts/OnboardingLayout';
 import { PageProps } from '@/types';
@@ -58,18 +59,17 @@ export default function ShopStep({
 
                 <div>
                     <InputLabel htmlFor="timezone" value="Timezone" />
-                    <select
+                    <SearchableSelect
                         id="timezone"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        wrapperClassName="mt-1"
                         value={data.timezone}
-                        onChange={(e) => setData('timezone', e.target.value)}
-                    >
-                        {timezones.map((tz) => (
-                            <option key={tz} value={tz}>
-                                {tz.replaceAll('_', ' ')}
-                            </option>
-                        ))}
-                    </select>
+                        onChange={(value) => setData('timezone', value)}
+                        options={timezones.map((tz) => ({
+                            value: tz,
+                            label: tz.replaceAll('_', ' '),
+                        }))}
+                    />
                     <p className="mt-1 text-xs text-gray-500">
                         Dates on the dashboard and your quotes follow this
                         clock - changeable later in Shop settings.

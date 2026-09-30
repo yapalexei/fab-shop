@@ -1,5 +1,7 @@
+import { Link } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 
 export interface MaterialFormData {
@@ -43,21 +45,23 @@ export default function MaterialFields({
 
             <div className="mt-4">
                 <InputLabel htmlFor="material_type_id" value="Material type" />
-                <select
+                <SearchableSelect
                     id="material_type_id"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    value={data.material_type_id}
-                    onChange={(e) =>
-                        setData('material_type_id', e.target.value)
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    wrapperClassName="mt-1"
+                    value={String(data.material_type_id ?? '')}
+                    onChange={(value) => setData('material_type_id', value)}
+                    emptyLabel="Not set"
+                    options={materialTypes.map((type) => ({
+                        value: String(type.id),
+                        label: type.name,
+                    }))}
+                    emptyState={
+                        <>
+                            No material types yet. <Link href={route('material-types.index')} className="font-medium underline">Add a material type</Link> first.
+                        </>
                     }
-                >
-                    <option value="">Not set</option>
-                    {materialTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                            {type.name}
-                        </option>
-                    ))}
-                </select>
+                />
                 <p className="mt-1 text-xs text-gray-500">
                     Lets quotes check their tooling is rated to cut this
                     material.

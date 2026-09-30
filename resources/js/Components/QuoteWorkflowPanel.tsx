@@ -31,7 +31,8 @@ export default function QuoteWorkflowPanel({
     isArchived,
     jobId,
 }: Props) {
-    const { errors, enabledFeatures } = usePage<PageProps>().props as PageProps & {
+    const { errors, enabledFeatures } = usePage<PageProps>()
+        .props as PageProps & {
         errors: Record<string, string>;
     };
     const can = useCan();
