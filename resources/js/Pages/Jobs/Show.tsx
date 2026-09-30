@@ -49,12 +49,14 @@ interface MaterialTracking {
     usages: MaterialUsage[];
     cost_summary: MaterialCostSummary;
     materials: MaterialOption[];
+    read_only: boolean;
 }
 
 interface QualificationRecords {
     records: QualificationRecord[];
     procedures: QualificationOption[];
     members: QualificationOption[];
+    read_only: boolean;
 }
 
 const currency = new Intl.NumberFormat('en-US', {
@@ -170,6 +172,7 @@ export default function Show({
                     {materialTracking && (
                         <JobMaterialTracking
                             jobId={job.id}
+                            readOnly={materialTracking.read_only}
                             usages={materialTracking.usages}
                             costSummary={materialTracking.cost_summary}
                             materials={materialTracking.materials}
@@ -179,6 +182,7 @@ export default function Show({
                     {qualificationRecords && (
                         <JobQualificationRecords
                             jobId={job.id}
+                            readOnly={qualificationRecords.read_only}
                             records={qualificationRecords.records}
                             procedures={qualificationRecords.procedures}
                             members={qualificationRecords.members}

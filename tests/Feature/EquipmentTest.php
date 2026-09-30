@@ -55,11 +55,12 @@ test('a user cannot access another shop\'s equipment', function () {
     $this->actingAs($user)->get(route('equipment.edit', $foreignEquipment))->assertNotFound();
 });
 
-test('the equipment route is locked for a shop without the feature', function () {
+test('the equipment route is read-only for a shop without the feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('equipment.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('equipment.index'))->assertOk();
+    $this->actingAs($user)->post(route('equipment.store'), [])->assertForbidden();
 });

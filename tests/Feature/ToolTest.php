@@ -120,13 +120,14 @@ test('staff can see tooling but not change it by default', function () {
     $this->actingAs($staff)->delete(route('tools.destroy', $tool))->assertForbidden();
 });
 
-test('tooling is locked for a shop without the quote builder', function () {
+test('tooling is read-only for a shop without the quote builder', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('tools.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('tools.index'))->assertOk();
+    $this->actingAs($user)->post(route('tools.store'), [])->assertForbidden();
 });
 
 test('a quote can carry a tooling line that references a tool', function () {

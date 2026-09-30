@@ -150,11 +150,12 @@ test('an incomplete line item returns a field-specific, friendly error', functio
     expect(session('errors')->get('line_items.0.description')[0])->toBe('The description field is required.');
 });
 
-test('the quote builder route is locked for a shop without the feature', function () {
+test('the quote builder route is read-only for a shop without the feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('quotes.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('quotes.index'))->assertOk();
+    $this->actingAs($user)->post(route('quotes.store'), [])->assertForbidden();
 });

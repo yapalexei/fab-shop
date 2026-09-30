@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Feature;
+use App\Models\Customer;
 use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
@@ -34,14 +35,15 @@ test('a shop past trial only has its plan\'s features', function () {
         ->and($shop->hasFeature(Feature::JobBoard))->toBeFalse();
 });
 
-test('a locked feature route 403s once the trial has ended and the plan lacks it', function () {
+test('a locked feature route is read-only once the trial has ended and the plan lacks it', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
 
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('customers.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('customers.index'))->assertOk();
+    $this->actingAs($user)->post(route('customers.store'), [])->assertForbidden();
 });
 
 test('enabledFeatures is shared with the frontend and reflects trial access', function () {
@@ -230,4 +232,62 @@ test('onboarding captures the platform\'s current default trial length as the ne
 
     expect($shop->trial_baseline_days)->toBe(21)
         ->and((int) $shop->trial_started_at->diffInDays($shop->trial_ends_at))->toBe(21);
+});
+
+test('a shop whose trial ended keeps view access but loses every write permission on locked resources', function () {
+    $plan = Plan::factory()->create();
+    $plan->syncFeatures([]);
+    $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
+    $owner = actingAsShopMember($shop);
+    $customer = Customer::factory()->create(['shop_id' => $shop->id]);
+
+    $permissions = $owner->fresh()->shopPermissions();
+
+    expect($permissions)->toContain('customers.view')
+        ->not->toContain('customers.update')
+        ->not->toContain('customers.create')
+        ->not->toContain('customers.delete')
+        // resources with no feature stay fully usable
+        ->toContain('shop-settings.update');
+
+    $this->actingAs($owner)->get(route('customers.index'))->assertOk();
+    $this->actingAs($owner)->get(route('customers.create'))->assertForbidden();
+    $this->actingAs($owner)->get(route('customers.edit', $customer))->assertOk(); // renders read-only (view is enough)
+    $this->actingAs($owner)->patch(route('customers.update', $customer), ['name' => 'X'])->assertForbidden();
+    $this->actingAs($owner)->delete(route('customers.destroy', $customer))->assertForbidden();
+});
+
+test('read-only features and the upgrade flag are shared once the trial ended', function () {
+    $this->seed(PlanSeeder::class);
+    $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => Plan::where('key', 'free')->value('id')]);
+    $owner = actingAsShopMember($shop);
+
+    $this->actingAs($owner)->get(route('dashboard'))->assertInertia(fn ($page) => $page
+        ->where('shop.can_upgrade', true)
+        ->where('readOnlyFeatures', fn ($features) => collect($features)->contains('customers')));
+});
+
+test('the top tier sees no upgrade button and only the owner can upgrade', function () {
+    $this->seed(PlanSeeder::class);
+    $pro = Shop::factory()->create(['plan_id' => Plan::where('key', 'pro')->value('id')]);
+    $owner = actingAsShopMember($pro);
+
+    $this->actingAs($owner)->get(route('dashboard'))->assertInertia(fn ($page) => $page->where('shop.can_upgrade', false));
+
+    $solo = Shop::factory()->create(['plan_id' => Plan::where('key', 'solo')->value('id')]);
+    $admin = actingAsShopRole($solo, 'Admin');
+    $this->actingAs($admin)->get(route('dashboard'))->assertInertia(fn ($page) => $page->where('shop.can_upgrade', false));
+    $this->actingAs($admin)->post(route('shop.plan.update'), ['plan' => 'pro'])->assertForbidden();
+});
+
+test('an owner can upgrade but not downgrade or stay put', function () {
+    $this->seed(PlanSeeder::class);
+    $shop = Shop::factory()->create(['plan_id' => Plan::where('key', 'start-up')->value('id')]);
+    $owner = actingAsShopMember($shop);
+
+    $this->actingAs($owner)->post(route('shop.plan.update'), ['plan' => 'solo'])->assertSessionHasErrors('plan');
+    $this->actingAs($owner)->post(route('shop.plan.update'), ['plan' => 'start-up'])->assertSessionHasErrors('plan');
+    $this->actingAs($owner)->post(route('shop.plan.update'), ['plan' => 'pro'])->assertRedirect(route('dashboard'));
+
+    expect($shop->fresh()->plan->key)->toBe('pro');
 });

@@ -44,16 +44,18 @@ function QualifiedBadge({ wasQualified }: { wasQualified: boolean | null }) {
 
 export default function JobQualificationRecords({
     jobId,
+    readOnly = false,
     records,
     procedures,
     members,
 }: {
     jobId: number;
+    readOnly?: boolean;
     records: QualificationRecord[];
     procedures: QualificationOption[];
     members: QualificationOption[];
 }) {
-    const canEdit = useCan()('jobs.update');
+    const canEdit = useCan()('jobs.update') && !readOnly;
     const formatDateTime = useShopDateTime();
     const [showForm, setShowForm] = useState(false);
 

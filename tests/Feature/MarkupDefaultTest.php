@@ -66,11 +66,12 @@ test('markup defaults are scoped per shop', function () {
     expect(MarkupDefault::forType(LineItemType::Material))->toBe(0.0);
 });
 
-test('the markup-defaults route is locked for a shop without the feature', function () {
+test('the markup-defaults route is read-only for a shop without the feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('markup-defaults.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('markup-defaults.index'))->assertOk();
+    $this->actingAs($user)->patch(route('markup-defaults.update'), [])->assertForbidden();
 });

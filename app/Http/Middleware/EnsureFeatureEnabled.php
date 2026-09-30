@@ -18,7 +18,15 @@ class EnsureFeatureEnabled
     {
         $shop = $request->user()?->currentShop;
 
-        abort_unless($shop?->hasFeature(Feature::from($feature)), 403);
+        $feature = Feature::from($feature);
+
+        // A shop that lost the feature (trial ended, plan change) can still
+        // read what it created; anything that writes needs the feature.
+        $allowed = $request->isMethodSafe()
+            ? $shop?->canViewFeature($feature)
+            : $shop?->hasFeature($feature);
+
+        abort_unless($allowed, 403);
 
         return $next($request);
     }

@@ -123,13 +123,15 @@ test('a user cannot access another shop\'s business partner', function () {
     $this->actingAs($user)->get(route('business-partners.edit', $foreignPartner))->assertNotFound();
 });
 
-test('material, service, and business partner routes are locked for a shop without the feature', function () {
+test('material, service, and business partner routes are read-only for a shop without the feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('materials.index'))->assertForbidden();
-    $this->actingAs($user)->get(route('services.index'))->assertForbidden();
-    $this->actingAs($user)->get(route('business-partners.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('materials.index'))->assertOk();
+    $this->actingAs($user)->post(route('materials.store'), [])->assertForbidden();
+    $this->actingAs($user)->get(route('services.index'))->assertOk();
+    $this->actingAs($user)->get(route('business-partners.index'))->assertOk();
+    $this->actingAs($user)->post(route('materials.store'), [])->assertForbidden();
 });

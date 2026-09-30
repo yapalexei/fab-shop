@@ -139,6 +139,26 @@ enum ShopResource: string
         };
     }
 
+    /**
+     * The plan feature that unlocks writing to this resource, or null for
+     * resources every shop always has (team, financials, shop settings).
+     * When a shop has lost that feature (e.g. its trial ran out) the
+     * resource stays viewable but every non-view permission is withheld -
+     * see User::resolveShopPermissions().
+     */
+    public function feature(): ?Feature
+    {
+        return match ($this) {
+            self::Customers => Feature::Customers,
+            self::Quotes, self::Materials, self::Services, self::BusinessPartners,
+            self::Equipment, self::Tooling, self::MaterialTypes, self::Markup => Feature::QuoteBuilder,
+            self::Jobs, self::JobStages => Feature::JobBoard,
+            self::Procedures, self::Certifications => Feature::QualificationRecords,
+            self::QuickBooks => Feature::QuickbooksSync,
+            self::Team, self::Financials, self::ShopSettings => null,
+        };
+    }
+
     public function permission(string $action): string
     {
         return "{$this->value}.{$action}";

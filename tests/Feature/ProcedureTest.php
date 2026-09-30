@@ -80,13 +80,14 @@ test('staff can view but not create or delete procedures', function () {
     $this->actingAs($staff)->delete(route('procedures.destroy', $procedure))->assertForbidden();
 });
 
-test('procedures are locked for a shop without the qualification-records feature', function () {
+test('procedures are read-only for a shop without the qualification-records feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('procedures.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('procedures.index'))->assertOk();
+    $this->actingAs($user)->post(route('procedures.store'), [])->assertForbidden();
 });
 
 test('the qualification-records feature is flagged as shipped', function () {

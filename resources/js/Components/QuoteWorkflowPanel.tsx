@@ -1,6 +1,17 @@
+import RequiresSubscription from '@/Components/RequiresSubscription';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { useCan } from '@/lib/permissions';
+import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
+
+function SubscriptionNotice({ children }: { children: string }) {
+    return (
+        <p className="flex w-full items-center text-sm text-amber-700">
+            <RequiresSubscription />
+            <span className="ms-1">{children}</span>
+        </p>
+    );
+}
 
 interface Props {
     quoteId: number;
@@ -20,8 +31,24 @@ export default function QuoteWorkflowPanel({
     isArchived,
     jobId,
 }: Props) {
-    const errors = usePage().props.errors as Record<string, string>;
+    const { errors, enabledFeatures } = usePage<PageProps>().props as PageProps & {
+        errors: Record<string, string>;
+    };
     const can = useCan();
+    const quoteBuilderLocked = !enabledFeatures.includes('quote-builder');
+    const jobBoardLocked = !enabledFeatures.includes('job-board');
+
+    // Trial ended / plan lacks the quote builder: no workflow action is
+    // possible, so say why instead of rendering nothing.
+    if (quoteBuilderLocked && !(status === 'won' && jobId)) {
+        return (
+            <div className="mb-6 rounded-md bg-gray-50 p-4">
+                <SubscriptionNotice>
+                    Changing this quote requires a Quote builder subscription.
+                </SubscriptionNotice>
+            </div>
+        );
+    }
 
     // Workflow steps are part of editing a quote; converting creates a job.
     if (!can('quotes.update') && !(status === 'won' && jobId)) {
@@ -79,9 +106,17 @@ export default function QuoteWorkflowPanel({
                         Convert to job
                     </SecondaryButton>
                 ) : (
-                    <span className="text-sm text-gray-500">
-                        Won - waiting to be converted into a job
-                    </span>
+                    <>
+                        <span className="text-sm text-gray-500">
+                            Won - waiting to be converted into a job
+                        </span>
+                        {jobBoardLocked && (
+                            <SubscriptionNotice>
+                                Converting to a job requires a Job board
+                                subscription.
+                            </SubscriptionNotice>
+                        )}
+                    </>
                 )
             ) : status === 'lost' ? (
                 <SecondaryButton onClick={() => post('quotes.archive')}>

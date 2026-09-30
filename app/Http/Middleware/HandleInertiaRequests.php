@@ -49,7 +49,14 @@ class HandleInertiaRequests extends Middleware
                 'job_board_drag_enabled' => $shop->jobBoardDragEnabled(),
                 'on_trial' => $shop->onTrial(),
                 'trial_ends_at' => $shop->trial_ends_at?->toIso8601String(),
+                'plan_name' => $shop->plan?->name,
+                // Only the owner can change the plan, so only they get the button.
+                'can_upgrade' => Gate::allows('manage-shop') && $shop->canUpgrade(),
             ] : null,
+            // Features the shop can look at but not use (trial ended / not in plan).
+            'readOnlyFeatures' => $shop
+                ? $shop->readOnlyFeatures()->map(fn ($feature) => $feature->value)->values()
+                : [],
             'enabledFeatures' => $shop
                 ? $shop->enabledFeatures()->map(fn ($feature) => $feature->value)->values()
                 : [],

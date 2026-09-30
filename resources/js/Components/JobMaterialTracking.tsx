@@ -70,16 +70,18 @@ function SummaryStat({
 
 export default function JobMaterialTracking({
     jobId,
+    readOnly = false,
     usages,
     costSummary,
     materials,
 }: {
     jobId: number;
+    readOnly?: boolean;
     usages: MaterialUsage[];
     costSummary: MaterialCostSummary;
     materials: MaterialOption[];
 }) {
-    const canEdit = useCan()('jobs.update');
+    const canEdit = useCan()('jobs.update') && !readOnly;
     const formatDateTime = useShopDateTime();
     const [showForm, setShowForm] = useState(false);
 

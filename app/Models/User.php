@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ShopResource;
 use App\Support\ShopPermissions;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -128,7 +129,7 @@ class User extends Authenticatable implements MustVerifyEmail
     private function resolveShopPermissions(int $shopId): array
     {
         if ($this->hasRole('Owner')) {
-            return ShopPermissions::all();
+            return $this->withoutWritesToLockedResources(ShopPermissions::all());
         }
 
         $granted = $this->roles->flatMap(fn ($role) => $role->permissions->pluck('name'))->all();
@@ -139,6 +140,34 @@ class User extends Authenticatable implements MustVerifyEmail
             fn (string $name) => array_key_exists($name, $overrides) ? (bool) $overrides[$name] : in_array($name, $granted, true),
         );
 
-        return ShopPermissions::withImpliedViews(array_values($effective));
+        return $this->withoutWritesToLockedResources(ShopPermissions::withImpliedViews(array_values($effective)));
+    }
+
+    /**
+     * A resource whose plan feature the shop no longer has (e.g. its trial
+     * ran out) is read-only: only `view` survives. Applied on top of role
+     * grants and overrides, so no role - Owner included - can write to it.
+     *
+     * @param  array<int, string>  $permissions
+     * @return array<int, string>
+     */
+    private function withoutWritesToLockedResources(array $permissions): array
+    {
+        $shop = $this->currentShop;
+
+        if ($shop === null) {
+            return $permissions;
+        }
+
+        $locked = collect(ShopResource::cases())
+            ->filter(fn (ShopResource $resource) => $resource->feature() !== null && ! $shop->hasFeature($resource->feature()))
+            ->map(fn (ShopResource $resource) => $resource->value)
+            ->all();
+
+        return array_values(array_filter($permissions, function (string $permission) use ($locked) {
+            [$resource, $action] = explode('.', $permission, 2);
+
+            return $action === 'view' || ! in_array($resource, $locked, true);
+        }));
     }
 }

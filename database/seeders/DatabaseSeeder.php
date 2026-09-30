@@ -33,7 +33,8 @@ class DatabaseSeeder extends Seeder
             'name' => "Test User's Shop",
             'owner_id' => $user->id,
             'plan_id' => Plan::where('key', 'free')->value('id'),
-            'trial_ends_at' => now()->addDays(14),
+            'trial_ends_at' => now()->addMinutes(5),
+            'onboarded_at' => now(),
         ]);
 
         $shop->members()->attach($user);

@@ -94,11 +94,12 @@ test('staff can view but not create or delete certifications', function () {
     $this->actingAs($staff)->delete(route('certifications.destroy', $certification))->assertForbidden();
 });
 
-test('certifications are locked for a shop without the qualification-records feature', function () {
+test('certifications are read-only for a shop without the qualification-records feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);
     $user = actingAsShopMember($shop);
 
-    $this->actingAs($user)->get(route('certifications.index'))->assertForbidden();
+    $this->actingAs($user)->get(route('certifications.index'))->assertOk();
+    $this->actingAs($user)->post(route('certifications.store'), [])->assertForbidden();
 });

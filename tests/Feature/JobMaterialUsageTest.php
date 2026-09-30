@@ -137,7 +137,7 @@ test('someone without jobs.update cannot log or remove material usage', function
         ->assertForbidden();
 });
 
-test('material tracking is locked for a shop without the feature', function () {
+test('material tracking is read-only for a shop without the feature', function () {
     $plan = Plan::factory()->create();
     $plan->syncFeatures([Feature::JobBoard]);
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => $plan->id]);

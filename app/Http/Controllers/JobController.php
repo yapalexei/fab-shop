@@ -51,8 +51,15 @@ class JobController extends Controller
         $job->load('quote.lineItems', 'customer', 'jobStage', 'activitiesAsSubject.causer');
 
         $shop = Auth::user()->currentShop;
-        $hasMaterialTracking = $shop->hasFeature(Feature::MaterialTracking);
-        $hasQualificationRecords = $shop->hasFeature(Feature::QualificationRecords);
+        // Entitled shops get the panel; a shop that lost the feature (trial
+        // ended) still sees its existing entries, read-only, but nothing
+        // when it never logged any - "don't send what they're not entitled to".
+        $materialTrackingEnabled = $shop->hasFeature(Feature::MaterialTracking);
+        $qualificationRecordsEnabled = $shop->hasFeature(Feature::QualificationRecords);
+        $hasMaterialTracking = $materialTrackingEnabled
+            || ($shop->canViewFeature(Feature::MaterialTracking) && $job->materialUsages()->exists());
+        $hasQualificationRecords = $qualificationRecordsEnabled
+            || ($shop->canViewFeature(Feature::QualificationRecords) && $job->qualificationRecords()->exists());
 
         if ($hasMaterialTracking) {
             $job->load('materialUsages.material', 'materialUsages.recordedBy');
@@ -97,8 +104,8 @@ class JobController extends Controller
             // Omitted entirely (not just hidden) for a shop without the
             // feature - same "don't send what they're not entitled to" rule
             // the dashboard's financials prop follows.
-            'materialTracking' => $hasMaterialTracking ? $this->materialTrackingProps($job) : null,
-            'qualificationRecords' => $hasQualificationRecords ? $this->qualificationRecordProps($job) : null,
+            'materialTracking' => $hasMaterialTracking ? [...$this->materialTrackingProps($job), 'read_only' => ! $materialTrackingEnabled] : null,
+            'qualificationRecords' => $hasQualificationRecords ? [...$this->qualificationRecordProps($job), 'read_only' => ! $qualificationRecordsEnabled] : null,
         ]);
     }
 

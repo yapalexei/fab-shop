@@ -2,20 +2,24 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import FlashToast from '@/Components/FlashToast';
 import NavLink from '@/Components/NavLink';
+import RequiresSubscription from '@/Components/RequiresSubscription';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeToggle from '@/Components/ThemeToggle';
 import TrialBanner from '@/Components/TrialBanner';
 import { useCan } from '@/lib/permissions';
+import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
 
 function GatedNavLink({
     enabled,
+    locked = false,
     href,
     active,
     label,
 }: {
     enabled: boolean;
+    locked?: boolean;
     href: string;
     active: boolean;
     label: string;
@@ -24,6 +28,7 @@ function GatedNavLink({
         return (
             <NavLink href={href} active={active}>
                 {label}
+                {locked && <RequiresSubscription />}
             </NavLink>
         );
     }
@@ -31,20 +36,22 @@ function GatedNavLink({
     return (
         <span
             className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-300"
-            title={`Upgrade your plan to unlock ${label}`}
         >
             {label}
+            <RequiresSubscription />
         </span>
     );
 }
 
 function GatedResponsiveNavLink({
     enabled,
+    locked = false,
     href,
     active,
     label,
 }: {
     enabled: boolean;
+    locked?: boolean;
     href: string;
     active: boolean;
     label: string;
@@ -53,36 +60,45 @@ function GatedResponsiveNavLink({
         return (
             <ResponsiveNavLink href={href} active={active}>
                 {label}
+                {locked && <RequiresSubscription />}
             </ResponsiveNavLink>
         );
     }
 
     return (
-        <span className="block py-2 pe-4 ps-3 text-base font-medium text-gray-300">
+        <span className="flex items-center py-2 pe-4 ps-3 text-base font-medium text-gray-300">
             {label}
+            <RequiresSubscription />
         </span>
     );
 }
 
 function GatedDropdownLink({
     enabled,
+    locked = false,
     href,
     label,
 }: {
     enabled: boolean;
+    locked?: boolean;
     href: string;
     label: string;
 }) {
     if (enabled) {
-        return <Dropdown.Link href={href}>{label}</Dropdown.Link>;
+        return (
+            <Dropdown.Link href={href}>
+                {label}
+                {locked && <RequiresSubscription />}
+            </Dropdown.Link>
+        );
     }
 
     return (
         <span
             className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-300"
-            title={`Upgrade your plan to unlock ${label}`}
         >
             {label}
+            <RequiresSubscription />
         </span>
     );
 }
@@ -91,13 +107,26 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth, enabledFeatures, availableShops } = usePage().props;
+    const { auth, enabledFeatures, readOnlyFeatures, availableShops, shop } =
+        usePage<PageProps>().props;
     const user = auth.user;
-    const customersEnabled = enabledFeatures.includes('customers');
-    const quoteBuilderEnabled = enabledFeatures.includes('quote-builder');
-    const jobBoardEnabled = enabledFeatures.includes('job-board');
-    const quickbooksEnabled = enabledFeatures.includes('quickbooks-sync');
-    const qualificationRecordsEnabled = enabledFeatures.includes(
+    // A read-only feature (trial ended) keeps its pages reachable - the
+    // pages themselves hide every edit control.
+    const accessibleFeatures = [...enabledFeatures, ...readOnlyFeatures];
+    const upgradeLink = shop?.can_upgrade ? (
+        <Link
+            href={route('shop.plan.index')}
+            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-indigo-500"
+        >
+            Upgrade
+        </Link>
+    ) : null;
+    const isLocked = (feature: string) => readOnlyFeatures.includes(feature);
+    const customersEnabled = accessibleFeatures.includes('customers');
+    const quoteBuilderEnabled = accessibleFeatures.includes('quote-builder');
+    const jobBoardEnabled = accessibleFeatures.includes('job-board');
+    const quickbooksEnabled = accessibleFeatures.includes('quickbooks-sync');
+    const qualificationRecordsEnabled = accessibleFeatures.includes(
         'qualification-records',
     );
     const currentShop = availableShops.find(
@@ -115,6 +144,7 @@ export default function Authenticated({
             href: route('customers.index'),
             active: route().current('customers.*'),
             enabled: customersEnabled,
+            locked: isLocked('customers'),
             visible: can('customers.view'),
         },
         {
@@ -122,6 +152,7 @@ export default function Authenticated({
             href: route('materials.index'),
             active: route().current('materials.*'),
             enabled: quoteBuilderEnabled,
+            locked: isLocked('quote-builder'),
             visible: can('materials.view'),
         },
         {
@@ -129,6 +160,7 @@ export default function Authenticated({
             href: route('services.index'),
             active: route().current('services.*'),
             enabled: quoteBuilderEnabled,
+            locked: isLocked('quote-builder'),
             visible: can('services.view'),
         },
         {
@@ -136,6 +168,7 @@ export default function Authenticated({
             href: route('business-partners.index'),
             active: route().current('business-partners.*'),
             enabled: quoteBuilderEnabled,
+            locked: isLocked('quote-builder'),
             visible: can('business-partners.view'),
         },
         {
@@ -143,6 +176,7 @@ export default function Authenticated({
             href: route('equipment.index'),
             active: route().current('equipment.*'),
             enabled: quoteBuilderEnabled,
+            locked: isLocked('quote-builder'),
             visible: can('equipment.view'),
         },
         {
@@ -150,6 +184,7 @@ export default function Authenticated({
             href: route('tools.index'),
             active: route().current('tools.*'),
             enabled: quoteBuilderEnabled,
+            locked: isLocked('quote-builder'),
             visible: can('tooling.view'),
         },
         {
@@ -157,6 +192,7 @@ export default function Authenticated({
             href: route('material-types.index'),
             active: route().current('material-types.*'),
             enabled: quoteBuilderEnabled,
+            locked: isLocked('quote-builder'),
             visible: can('material-types.view'),
         },
         {
@@ -164,6 +200,7 @@ export default function Authenticated({
             href: route('procedures.index'),
             active: route().current('procedures.*'),
             enabled: qualificationRecordsEnabled,
+            locked: isLocked('qualification-records'),
             visible: can('procedures.view'),
         },
         {
@@ -171,6 +208,7 @@ export default function Authenticated({
             href: route('certifications.index'),
             active: route().current('certifications.*'),
             enabled: qualificationRecordsEnabled,
+            locked: isLocked('qualification-records'),
             visible: can('certifications.view'),
         },
         {
@@ -178,6 +216,7 @@ export default function Authenticated({
             href: route('markup-defaults.index'),
             active: route().current('markup-defaults.*'),
             enabled: quoteBuilderEnabled,
+            locked: isLocked('quote-builder'),
             visible: can('markup.view'),
         },
         {
@@ -185,6 +224,7 @@ export default function Authenticated({
             href: route('job-stages.index'),
             active: route().current('job-stages.*'),
             enabled: jobBoardEnabled,
+            locked: isLocked('job-board'),
             visible: can('job-stages.view'),
         },
     ].filter((item) => item.visible);
@@ -200,6 +240,7 @@ export default function Authenticated({
             href: route('shop.settings.edit'),
             active: route().current('shop.settings.*'),
             enabled: true,
+            locked: false,
             visible: can('shop-settings.update'),
         },
         {
@@ -207,6 +248,7 @@ export default function Authenticated({
             href: route('team.index'),
             active: route().current('team.*'),
             enabled: true,
+            locked: false,
             visible: can('team.view'),
         },
         {
@@ -214,6 +256,7 @@ export default function Authenticated({
             href: route('shop.permissions.edit'),
             active: route().current('shop.permissions.*'),
             enabled: true,
+            locked: false,
             visible: auth.isOwner,
         },
         {
@@ -221,6 +264,7 @@ export default function Authenticated({
             href: route('quickbooks.show'),
             active: route().current('quickbooks.*'),
             enabled: quickbooksEnabled,
+            locked: isLocked('quickbooks-sync'),
             visible: can('quickbooks.view'),
         },
         {
@@ -228,6 +272,7 @@ export default function Authenticated({
             href: route('shop.addons.index'),
             active: route().current('shop.addons.*'),
             enabled: true,
+            locked: false,
             visible: auth.isOwner,
         },
     ].filter((item) => item.visible);
@@ -257,6 +302,7 @@ export default function Authenticated({
                                 {can('quotes.view') && (
                                     <GatedNavLink
                                         enabled={quoteBuilderEnabled}
+                                        locked={isLocked('quote-builder')}
                                         href={route('quotes.index')}
                                         active={route().current('quotes.*')}
                                         label="Quotes"
@@ -265,6 +311,7 @@ export default function Authenticated({
                                 {can('jobs.view') && (
                                     <GatedNavLink
                                         enabled={jobBoardEnabled}
+                                        locked={isLocked('job-board')}
                                         href={route('jobs.index')}
                                         active={route().current('jobs.*')}
                                         label="Jobs"
@@ -305,6 +352,7 @@ export default function Authenticated({
                                                     <GatedDropdownLink
                                                         key={item.label}
                                                         enabled={item.enabled}
+                                                        locked={item.locked}
                                                         href={item.href}
                                                         label={item.label}
                                                     />
@@ -316,7 +364,8 @@ export default function Authenticated({
                             </div>
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                        <div className="hidden sm:ms-6 sm:flex sm:items-center sm:gap-3">
+                            {upgradeLink}
                             <div className="relative">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -355,6 +404,7 @@ export default function Authenticated({
                                             <GatedDropdownLink
                                                 key={item.label}
                                                 enabled={item.enabled}
+                                                locked={item.locked}
                                                 href={item.href}
                                                 label={item.label}
                                             />
@@ -446,6 +496,7 @@ export default function Authenticated({
                         </div>
 
                         <div className="-me-2 flex items-center gap-1 sm:hidden">
+                            {upgradeLink}
                             <ThemeToggle />
 
                             <button
@@ -506,6 +557,7 @@ export default function Authenticated({
                         {can('quotes.view') && (
                             <GatedResponsiveNavLink
                                 enabled={quoteBuilderEnabled}
+                                locked={isLocked('quote-builder')}
                                 href={route('quotes.index')}
                                 active={route().current('quotes.*')}
                                 label="Quotes"
@@ -514,6 +566,7 @@ export default function Authenticated({
                         {can('jobs.view') && (
                             <GatedResponsiveNavLink
                                 enabled={jobBoardEnabled}
+                                locked={isLocked('job-board')}
                                 href={route('jobs.index')}
                                 active={route().current('jobs.*')}
                                 label="Jobs"
@@ -531,6 +584,7 @@ export default function Authenticated({
                                     <GatedResponsiveNavLink
                                         key={item.label}
                                         enabled={item.enabled}
+                                        locked={item.locked}
                                         href={item.href}
                                         active={item.active}
                                         label={item.label}
@@ -549,6 +603,7 @@ export default function Authenticated({
                                 <GatedResponsiveNavLink
                                     key={item.label}
                                     enabled={item.enabled}
+                                    locked={item.locked}
                                     href={item.href}
                                     active={item.active}
                                     label={item.label}

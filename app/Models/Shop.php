@@ -235,6 +235,48 @@ class Shop extends Model
     }
 
     /**
+     * Whether the shop may still *see* $feature's pages and data without
+     * being entitled to use it. Any shop that ever had a trial keeps
+     * read-only access to what it built during it (a trial that ran out, or
+     * a plan without the feature, must not hide the shop's own records) -
+     * writes still require hasFeature().
+     */
+    public function canViewFeature(Feature $feature): bool
+    {
+        return $this->hasFeature($feature) || $this->trial_ends_at !== null;
+    }
+
+    /**
+     * Features the shop can view but not use - drives the "read-only" UI.
+     *
+     * @return Collection<int, Feature>
+     */
+    public function readOnlyFeatures(): Collection
+    {
+        if ($this->trial_ends_at === null) {
+            return collect();
+        }
+
+        $enabled = $this->enabledFeatures();
+
+        return collect(Feature::cases())
+            ->filter(fn (Feature $feature) => $feature->isShipped() && ! $enabled->contains($feature))
+            ->values();
+    }
+
+    /**
+     * Whether a higher tier than the shop's current plan exists. A shop with
+     * no plan counts as below every tier.
+     */
+    public function canUpgrade(): bool
+    {
+        $tiers = Plan::orderedByTier();
+        $current = $tiers->search(fn (Plan $plan) => $plan->id === $this->plan_id);
+
+        return $tiers->isNotEmpty() && ($current === false || $current < $tiers->count() - 1);
+    }
+
+    /**
      * Bypasses the BelongsToShop global scope deliberately: that scope
      * filters by the *authenticated user's* current shop, which is wrong
      * here if $this isn't that shop (e.g. a platform-admin context, or no
