@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import ServiceFields, { ServiceFormData } from '@/Components/ServiceFields';
@@ -31,9 +32,12 @@ export default function Edit({ service }: PageProps<{ service: Service }>) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Edit service
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Services', href: route('services.index') },
+                        { label: 'Edit service' },
+                    ]}
+                />
             }
         >
             <Head title="Edit service" />

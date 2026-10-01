@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import ToolFields, {
@@ -28,9 +29,12 @@ export default function Create({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Add tooling
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Tooling', href: route('tools.index') },
+                        { label: 'Add tooling' },
+                    ]}
+                />
             }
         >
             <Head title="Add tooling" />

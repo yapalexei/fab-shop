@@ -7,6 +7,8 @@ import TextInput from '@/Components/TextInput';
 export interface CapabilityRow {
     itemId: number | string;
     price: number | string;
+    /** Only for tables with `withDimension`: the size this price is for. */
+    dimension?: string;
 }
 
 export default function CapabilityPriceTable({
@@ -18,6 +20,7 @@ export default function CapabilityPriceTable({
     onChange,
     getError,
     emptyState,
+    withDimension = false,
 }: {
     title: string;
     itemLabel: string;
@@ -25,7 +28,15 @@ export default function CapabilityPriceTable({
     options: { id: number; name: string }[];
     rows: CapabilityRow[];
     onChange: (rows: CapabilityRow[]) => void;
-    getError: (index: number, field: 'itemId' | 'price') => string | undefined;
+    getError: (
+        index: number,
+        field: 'itemId' | 'price' | 'dimension',
+    ) => string | undefined;
+    /**
+     * Adds an optional size column, so the same item can be listed more
+     * than once at different sizes (4 ft vs 4 in of bar stock).
+     */
+    withDimension?: boolean;
     /** Shown under the picker when `options` is empty - say what to create and link to it. */
     emptyState?: ReactNode;
 }) {
@@ -36,7 +47,12 @@ export default function CapabilityPriceTable({
     };
 
     const addRow = () => {
-        onChange([...rows, { itemId: '', price: '' }]);
+        onChange([
+            ...rows,
+            withDimension
+                ? { itemId: '', price: '', dimension: '' }
+                : { itemId: '', price: '' },
+        ]);
     };
 
     const removeRow = (index: number) => {
@@ -55,6 +71,11 @@ export default function CapabilityPriceTable({
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
                                     {itemLabel}
                                 </th>
+                                {withDimension && (
+                                    <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                                        Size (optional)
+                                    </th>
+                                )}
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
                                     Price
                                 </th>
@@ -83,6 +104,30 @@ export default function CapabilityPriceTable({
                                             className="mt-1"
                                         />
                                     </td>
+                                    {withDimension && (
+                                        <td className="px-3 py-2">
+                                            <TextInput
+                                                className="block w-36"
+                                                placeholder="e.g. 4 ft"
+                                                maxLength={100}
+                                                value={row.dimension ?? ''}
+                                                onChange={(e) =>
+                                                    update(
+                                                        index,
+                                                        'dimension',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={getError(
+                                                    index,
+                                                    'dimension',
+                                                )}
+                                                className="mt-1"
+                                            />
+                                        </td>
+                                    )}
                                     <td className="px-3 py-2">
                                         <TextInput
                                             type="number"

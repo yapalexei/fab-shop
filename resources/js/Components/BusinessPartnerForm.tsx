@@ -47,6 +47,7 @@ export default function BusinessPartnerForm({
         ...form,
         materials: form.materials.map((row) => ({
             material_id: row.itemId,
+            dimension: row.dimension ?? '',
             price: row.price,
         })),
         services: form.services.map((row) => ({
@@ -126,10 +127,11 @@ export default function BusinessPartnerForm({
                         </>
                     }
                     rows={data.materials}
+                    withDimension
                     onChange={(rows) => setData('materials', rows)}
                     getError={(index, field) =>
                         errorMap[
-                            `materials.${index}.${field === 'itemId' ? 'material_id' : 'price'}`
+                            `materials.${index}.${field === 'itemId' ? 'material_id' : field}`
                         ]
                     }
                 />

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Consent;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', ['agreementText' => Consent::AGREEMENT]);
     }
 
     /**
@@ -40,13 +41,17 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+            'accepted_terms' => ['accepted'],
+        ], ['accepted_terms.accepted' => 'You need to agree to the Terms of Service and Privacy Policy to create an account.']);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
+
+        // Proof of what was agreed, to which version, from where.
+        Consent::recordAgreement($user, 'registration', $request);
 
         // Triggers the verification email (App\Providers\AppServiceProvider
         // wires Registered -> SendEmailVerificationNotification).

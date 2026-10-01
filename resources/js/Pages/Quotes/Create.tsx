@@ -9,7 +9,8 @@ import QuoteForm, {
 } from '@/Components/QuoteForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
-import { Head } from '@inertiajs/react';
+import Breadcrumbs from '@/Components/Breadcrumbs';
+import { Head, usePage } from '@inertiajs/react';
 
 export default function Create({
     customers,
@@ -28,12 +29,17 @@ export default function Create({
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
 }>) {
+    const { auth, shop } = usePage<PageProps>().props;
+
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    New quote
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Quotes', href: route('quotes.index') },
+                        { label: 'New quote' },
+                    ]}
+                />
             }
         >
             <Head title="New quote" />
@@ -51,6 +57,7 @@ export default function Create({
                             markupDefaults={markupDefaults}
                             submitUrl={route('quotes.store')}
                             method="post"
+                            draftKey={`quote-draft:${shop?.id}:${auth.user.id}`}
                             initialData={{
                                 customer_id: '',
                                 notes: '',

@@ -1,3 +1,5 @@
+import Modal from '@/Components/Modal';
+import PrimaryButton from '@/Components/PrimaryButton';
 import RequiresSubscription from '@/Components/RequiresSubscription';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
@@ -49,6 +51,10 @@ export default function QuoteWorkflowPanel({
     const formatDateTime = useShopDateTime();
     const [skipping, setSkipping] = useState(false);
     const [reason, setReason] = useState('');
+    // Emailing the customer can't be undone, so ask first.
+    const [confirmEmail, setConfirmEmail] = useState<'send' | 'resend' | null>(
+        null,
+    );
     const { errors, enabledFeatures } = usePage<PageProps>()
         .props as PageProps & {
         errors: Record<string, string>;
@@ -103,11 +109,19 @@ export default function QuoteWorkflowPanel({
             ) : status === 'draft' ? (
                 <>
                     <SecondaryButton
-                        onClick={() => post('quotes.send')}
+                        onClick={() => setConfirmEmail('send')}
                         disabled={!canEmail}
                     >
                         Send to customer
                     </SecondaryButton>
+                    <a
+                        href={route('quotes.preview', quoteId)}
+                        className="text-sm text-indigo-600 hover:text-indigo-900"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        Preview PDF
+                    </a>
                     {!skipping && (
                         <button
                             type="button"
@@ -181,7 +195,7 @@ export default function QuoteWorkflowPanel({
                               : 'Email queued - it should arrive shortly.'}
                     </p>
                     {canEmail && (
-                        <SecondaryButton onClick={() => post('quotes.resend')}>
+                        <SecondaryButton onClick={() => setConfirmEmail('resend')}>
                             {emailedAt || !sendSkippedReason
                                 ? 'Resend email'
                                 : 'Email customer'}
@@ -234,6 +248,59 @@ export default function QuoteWorkflowPanel({
                     Archive
                 </SecondaryButton>
             ) : null}
+
+            <Modal
+                show={confirmEmail !== null}
+                maxWidth="md"
+                onClose={() => setConfirmEmail(null)}
+            >
+                <div className="space-y-4 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        {confirmEmail === 'resend'
+                            ? 'Email this quote again?'
+                            : 'Send this quote to the customer?'}
+                    </h3>
+                    <p className="text-sm text-gray-700">
+                        An email with the quote PDF will go to{' '}
+                        <strong>{customerEmail}</strong> right away
+                        {confirmEmail === 'send' &&
+                            ', and the quote will be marked as sent'}
+                        . You can't unsend it.
+                    </p>
+                    <p className="text-sm">
+                        <a
+                            href={route('quotes.preview', quoteId)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            Preview the PDF they'll receive
+                        </a>{' '}
+                        <span className="text-gray-500">
+                            (the quote as last saved)
+                        </span>
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <SecondaryButton onClick={() => setConfirmEmail(null)}>
+                            Cancel
+                        </SecondaryButton>
+                        <PrimaryButton
+                            onClick={() => {
+                                post(
+                                    confirmEmail === 'resend'
+                                        ? 'quotes.resend'
+                                        : 'quotes.send',
+                                );
+                                setConfirmEmail(null);
+                            }}
+                        >
+                            {confirmEmail === 'resend'
+                                ? 'Send again'
+                                : 'Send quote'}
+                        </PrimaryButton>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

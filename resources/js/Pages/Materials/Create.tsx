@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import MaterialFields, {
     MaterialFormData,
@@ -28,9 +29,12 @@ export default function Create({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Add material
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Materials', href: route('materials.index') },
+                        { label: 'Add material' },
+                    ]}
+                />
             }
         >
             <Head title="Add material" />

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invitation;
 use App\Models\User;
+use App\Support\Consent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,6 +58,7 @@ class InvitationController extends Controller
             'email' => $invitation->email,
             'role' => $invitation->role,
             'shopName' => $invitation->shop->name,
+            'agreementText' => Consent::AGREEMENT,
         ]);
     }
 
@@ -83,7 +85,8 @@ class InvitationController extends Controller
             $validated = $request->validate([
                 'name' => ['required', 'string', 'max:255'],
                 'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            ]);
+                'accepted_terms' => ['accepted'],
+            ], ['accepted_terms.accepted' => 'You need to agree to the Terms of Service and Privacy Policy to create an account.']);
 
             $newUser = User::create([
                 'name' => $validated['name'],
@@ -99,6 +102,8 @@ class InvitationController extends Controller
             $newUser->save();
 
             Auth::login($newUser);
+
+            Consent::recordAgreement($newUser, 'invitation', $request, $invitation->shop);
         }
 
         $user = Auth::user();

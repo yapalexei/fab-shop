@@ -20,8 +20,8 @@ export default function PlatformAdminLayout({
     const { auth } = usePage<PageProps>().props;
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="border-b border-gray-100 bg-white">
+        <div className="app-shell flex flex-col bg-gray-100">
+            <nav className="shrink-0 border-b border-gray-100 bg-white">
                 <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-3">
                         <Link href={route('platform-admin.index')}>
@@ -100,17 +100,23 @@ export default function PlatformAdminLayout({
                 </div>
             </nav>
 
-            {header && (
-                <header className="bg-white shadow-sm">
-                    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {header}
-                    </div>
-                </header>
-            )}
-
             <FlashToast />
 
-            <main>{children}</main>
+            {/* Same shell as AuthenticatedLayout: the nav stays put, the page scrolls here. */}
+            <div
+                scroll-region=""
+                className="app-scroll min-h-0 flex-1 overflow-y-auto"
+            >
+                {header && (
+                    <header className="bg-white shadow-sm">
+                        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                            {header}
+                        </div>
+                    </header>
+                )}
+
+                <main>{children}</main>
+            </div>
         </div>
     );
 }

@@ -58,7 +58,5 @@ class DatabaseSeeder extends Seeder
             'email' => 'orders@riversidemetal.test',
             'phone' => '555-0100',
         ]);
-
-        $this->call(CommonMaterialsSeeder::class);
     }
 }

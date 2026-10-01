@@ -1,4 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
+import LegalLinks from '@/Components/LegalLinks';
 import { formatCents } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -362,6 +363,7 @@ export default function Welcome({
                             <ApplicationLogo className="h-5 w-5 fill-current text-gray-400" />
                             Fab Shop
                         </span>
+                        <LegalLinks />
                         {canLogin && (
                             <Link
                                 href={route('login')}

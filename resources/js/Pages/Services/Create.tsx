@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import ServiceFields, { ServiceFormData } from '@/Components/ServiceFields';
@@ -20,9 +21,12 @@ export default function Create() {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Add service
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Services', href: route('services.index') },
+                        { label: 'Add service' },
+                    ]}
+                />
             }
         >
             <Head title="Add service" />

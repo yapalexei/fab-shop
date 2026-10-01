@@ -16,7 +16,7 @@ class QuoteLineItem extends Model
 
     protected $fillable = [
         'type', 'description', 'quantity', 'unit_cost', 'markup_percent', 'override_total', 'sort_order',
-        'material_id', 'service_id', 'business_partner_id', 'user_id', 'equipment_id', 'tool_id',
+        'material_id', 'service_id', 'business_partner_id', 'material_dimension', 'user_id', 'equipment_id', 'tool_id',
     ];
 
     protected function casts(): array

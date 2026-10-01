@@ -15,6 +15,7 @@ use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobQualificationRecordController;
 use App\Http\Controllers\JobStageController;
 use App\Http\Controllers\JobStatusController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MarkupDefaultController;
 use App\Http\Controllers\MaterialController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\SampleDataController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ShopFeatureSubscriptionController;
 use App\Http\Controllers\ShopPlanController;
@@ -40,6 +42,12 @@ use App\Http\Controllers\ToolController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', MarketingController::class)->name('marketing');
+
+// Public legal pages - linked from the marketing page, sign-in/registration,
+// emails and the app footer.
+Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/sms-terms', [LegalController::class, 'sms'])->name('legal.sms');
 
 // No auth/guest middleware - the visitor may have no account yet, an
 // account under a different email, or already be exactly who's invited.
@@ -110,6 +118,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
             Route::post('reopen', [QuoteWorkflowController::class, 'reopen'])->name('reopen');
         });
         Route::get('pdf', [QuoteWorkflowController::class, 'downloadPdf'])->name('pdf')->middleware('can:quotes.view');
+        Route::get('preview', [QuoteWorkflowController::class, 'previewPdf'])->name('preview')->middleware('can:quotes.view');
     });
 
     Route::post('quotes/{quote}/convert', [QuoteWorkflowController::class, 'convert'])
@@ -189,6 +198,17 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::resource('certifications', CertificationController::class)
         ->except('show')
         ->middleware('feature:qualification-records');
+
+    // "Load sample ..." dialog on the catalog pages. Permission is per
+    // resource (create) and checked in the controller.
+    Route::get('sample-data/{resource}', [SampleDataController::class, 'index'])
+        ->name('sample-data.index')
+        ->middleware('feature:quote-builder')
+        ->whereIn('resource', ['material-types', 'materials', 'services', 'equipment']);
+    Route::post('sample-data/{resource}', [SampleDataController::class, 'store'])
+        ->name('sample-data.store')
+        ->middleware('feature:quote-builder')
+        ->whereIn('resource', ['material-types', 'materials', 'services', 'equipment']);
 
     // CSV import - one controller shared by every importable resource (see
     // App\Support\CsvImport\ImporterRegistry). Owner-only for now.

@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import MaterialFields, {
     MaterialFormData,
@@ -41,9 +42,12 @@ export default function Edit({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Edit material
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Materials', href: route('materials.index') },
+                        { label: 'Edit material' },
+                    ]}
+                />
             }
         >
             <Head title="Edit material" />

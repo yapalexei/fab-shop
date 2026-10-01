@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import BusinessPartnerForm from '@/Components/BusinessPartnerForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -11,7 +12,12 @@ interface BusinessPartnerDetail {
     phone: string | null;
     address: string | null;
     notes: string | null;
-    materials: { material_id: number; name: string; price: number }[];
+    materials: {
+        material_id: number;
+        name: string;
+        dimension: string | null;
+        price: number;
+    }[];
     services: { service_id: number; name: string; price: number }[];
 }
 
@@ -29,9 +35,12 @@ export default function Edit({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Edit business partner
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Business partners', href: route('business-partners.index') },
+                        { label: 'Edit business partner' },
+                    ]}
+                />
             }
         >
             <Head title="Edit business partner" />
@@ -57,6 +66,7 @@ export default function Edit({
                                 materials: businessPartner.materials.map(
                                     (m) => ({
                                         itemId: m.material_id,
+                                        dimension: m.dimension ?? '',
                                         price: m.price,
                                     }),
                                 ),

@@ -31,8 +31,11 @@ final class MaterialTypes
     /**
      * Give a shop any built-in types it doesn't have yet. Idempotent, so
      * adding a name to DEFAULTS later just needs this run for every shop.
+     *
+     * @param  array<int, string>|null  $only  limit to these names (case-insensitive); null adds all
+     * @return int how many were added
      */
-    public static function seedDefaults(Shop $shop): void
+    public static function seedDefaults(Shop $shop, ?array $only = null): int
     {
         $existing = DB::table('material_types')
             ->where('shop_id', $shop->id)
@@ -40,7 +43,10 @@ final class MaterialTypes
             ->map(fn (string $name) => mb_strtolower($name))
             ->all();
 
+        $only = $only === null ? null : array_map('mb_strtolower', $only);
+
         $rows = collect(self::DEFAULTS)
+            ->filter(fn (string $name) => $only === null || in_array(mb_strtolower($name), $only, true))
             ->reject(fn (string $name) => in_array(mb_strtolower($name), $existing, true))
             ->map(fn (string $name) => [
                 'shop_id' => $shop->id,
@@ -53,5 +59,7 @@ final class MaterialTypes
             ->all();
 
         DB::table('material_types')->insert($rows);
+
+        return count($rows);
     }
 }

@@ -14,7 +14,7 @@ test('new users can register but have no shop yet - that comes from onboarding',
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => 'password',
-        'password_confirmation' => 'password',
+        'password_confirmation' => 'password', 'accepted_terms' => true,
     ]);
 
     $this->assertAuthenticated();
@@ -34,7 +34,7 @@ test('registering sends a verification email', function () {
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => 'password',
-        'password_confirmation' => 'password',
+        'password_confirmation' => 'password', 'accepted_terms' => true,
     ]);
 
     Notification::assertSentTo(auth()->user(), VerifyEmail::class);
@@ -45,7 +45,7 @@ test('an unverified new user is sent to verify their email, not the dashboard', 
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => 'password',
-        'password_confirmation' => 'password',
+        'password_confirmation' => 'password', 'accepted_terms' => true,
     ]);
 
     $this->get(route('dashboard'))->assertRedirect(route('verification.notice'));

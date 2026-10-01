@@ -1,6 +1,7 @@
 import CustomerFields, {
     CustomerFormData,
 } from '@/Components/CustomerFields';
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -39,9 +40,12 @@ export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Edit customer
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Customers', href: route('customers.index') },
+                        { label: 'Edit customer' },
+                    ]}
+                />
             }
         >
             <Head title="Edit customer" />

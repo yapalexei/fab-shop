@@ -1,6 +1,8 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
+import LegalLinks from '@/Components/LegalLinks';
+import TermsAgreement from '@/Components/TermsAgreement';
 import TextInput from '@/Components/TextInput';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import { PageProps } from '@/types';
@@ -18,6 +20,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <div className="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg">
                 {children}
             </div>
+            <LegalLinks className="my-6" />
         </div>
     );
 }
@@ -28,17 +31,20 @@ export default function Accept({
     email,
     role,
     shopName,
+    agreementText,
 }: PageProps<{
     mode: Mode;
     token?: string;
     email?: string;
     role?: string;
     shopName: string;
+    agreementText?: string;
 }>) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         password: '',
         password_confirmation: '',
+        accepted_terms: false,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -185,6 +191,17 @@ export default function Accept({
                     <p className="text-sm text-gray-600">
                         You're signed in as {email} - ready to join.
                     </p>
+                )}
+
+                {mode === 'create-account' && agreementText && (
+                    <TermsAgreement
+                        checked={data.accepted_terms}
+                        onChange={(checked) =>
+                            setData('accepted_terms', checked)
+                        }
+                        text={agreementText}
+                        error={errors.accepted_terms}
+                    />
                 )}
 
                 <PrimaryButton disabled={processing}>

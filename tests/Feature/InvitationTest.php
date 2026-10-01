@@ -148,7 +148,7 @@ test('accepting as a brand new email creates the account, verified, and joins th
     ]);
 
     $this->post(route('invitations.accept', $invitation->token), [
-        'name' => 'Brand New', 'password' => 'password', 'password_confirmation' => 'password',
+        'name' => 'Brand New', 'password' => 'password', 'password_confirmation' => 'password', 'accepted_terms' => true,
     ])->assertRedirect(route('dashboard'));
 
     $this->assertAuthenticated();
@@ -204,7 +204,7 @@ test('an expired or already-accepted invitation cannot be accepted', function ()
     ]);
 
     $this->post(route('invitations.accept', $expired->token), [
-        'name' => 'X', 'password' => 'password', 'password_confirmation' => 'password',
+        'name' => 'X', 'password' => 'password', 'password_confirmation' => 'password', 'accepted_terms' => true,
     ])->assertNotFound();
 
     expect(User::where('email', 'a@example.com')->exists())->toBeFalse();
@@ -219,7 +219,7 @@ test('accepting an invite to shop B does not grant access to any other shop', fu
     ]);
 
     $this->post(route('invitations.accept', $invitation->token), [
-        'name' => 'X', 'password' => 'password', 'password_confirmation' => 'password',
+        'name' => 'X', 'password' => 'password', 'password_confirmation' => 'password', 'accepted_terms' => true,
     ]);
 
     $user = User::where('email', 'brand-new@example.com')->sole();

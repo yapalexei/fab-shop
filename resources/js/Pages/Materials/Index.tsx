@@ -1,9 +1,12 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SampleDataDialog from '@/Components/SampleDataDialog';
+import SampleDataPrompt from '@/Components/SampleDataPrompt';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
+import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 
 interface MaterialRow {
@@ -18,6 +21,7 @@ export default function Index({
     materials,
 }: PageProps<{ materials: MaterialRow[] } & { auth: { isOwner: boolean } }>) {
     const can = useCan();
+    const [sampleOpen, setSampleOpen] = useState(false);
     const destroy = (material: MaterialRow) => {
         if (confirm(`Delete ${material.name}?`)) {
             router.delete(route('materials.destroy', material.id));
@@ -43,6 +47,12 @@ export default function Index({
                                 price - a line can still be typed freeform if
                                 the material isn't in here.
                             </p>
+                            {can('materials.create') && (
+                                <SampleDataPrompt
+                                    label="materials"
+                                    onOpen={() => setSampleOpen(true)}
+                                />
+                            )}
                         </PageHelp>
                     )}
                 </div>
@@ -83,6 +93,12 @@ export default function Index({
                                         still be typed freeform if the material
                                         isn't in here.
                                     </p>
+                                    {can('materials.create') && (
+                                        <SampleDataPrompt
+                                            label="materials"
+                                            onOpen={() => setSampleOpen(true)}
+                                        />
+                                    )}
                                 </PageHelp>
                             </div>
                         ) : (
@@ -144,6 +160,14 @@ export default function Index({
                     </div>
                 </div>
             </div>
+
+            <SampleDataDialog
+                resource="materials"
+                label="materials"
+                note="Metals, plastics and woods common in fabrication, filed under the built-in material types."
+                show={sampleOpen}
+                onClose={() => setSampleOpen(false)}
+            />
         </AuthenticatedLayout>
     );
 }

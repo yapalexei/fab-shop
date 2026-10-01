@@ -1,17 +1,19 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
+import TermsAgreement from '@/Components/TermsAgreement';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
-export default function Register() {
+export default function Register({ agreementText }: { agreementText: string }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
         password: '',
         password_confirmation: '',
+        accepted_terms: false,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -100,6 +102,17 @@ export default function Register() {
                     <InputError
                         message={errors.password_confirmation}
                         className="mt-2"
+                    />
+                </div>
+
+                <div className="mt-4">
+                    <TermsAgreement
+                        checked={data.accepted_terms}
+                        onChange={(checked) =>
+                            setData('accepted_terms', checked)
+                        }
+                        text={agreementText}
+                        error={errors.accepted_terms}
                     />
                 </div>
 

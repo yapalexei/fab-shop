@@ -42,11 +42,11 @@ test('running the seeder again does not duplicate materials or overwrite edits',
         ->and(Material::query()->withoutGlobalScopes()->where('shop_id', $shop->id)->where('name', '304 stainless steel')->value('notes'))->toBe('edited');
 });
 
-test('DatabaseSeeder gives its shop the built-in material types despite WithoutModelEvents', function () {
+test('DatabaseSeeder gives its shop the built-in material types but no sample materials', function () {
     $this->seed();
 
     $shop = Shop::query()->first();
 
     expect(MaterialType::query()->withoutGlobalScopes()->where('shop_id', $shop->id)->count())->toBeGreaterThanOrEqual(count(MaterialTypes::DEFAULTS))
-        ->and(Material::query()->withoutGlobalScopes()->where('shop_id', $shop->id)->count())->toBe(count(CommonMaterialsSeeder::MATERIALS));
+        ->and(Material::query()->withoutGlobalScopes()->where('shop_id', $shop->id)->count())->toBe(0);
 });

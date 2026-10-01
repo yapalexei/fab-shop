@@ -46,6 +46,7 @@ class StoreQuoteRequest extends FormRequest
                 'nullable',
                 Rule::exists('business_partners', 'id')->where('shop_id', $this->user()->current_shop_id),
             ],
+            'line_items.*.material_dimension' => ['nullable', 'string', 'max:100'],
             'line_items.*.user_id' => [
                 'nullable',
                 Rule::exists('shop_user', 'user_id')->where('shop_id', $this->user()->current_shop_id),

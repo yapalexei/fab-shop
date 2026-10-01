@@ -10,8 +10,10 @@ use App\Models\Job;
 use App\Models\JobStage;
 use App\Models\Quote;
 use App\Support\QuoteHistory;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -147,6 +149,17 @@ class QuoteWorkflowController extends Controller
         broadcast(new JobBoardUpdated($job->shop_id))->toOthers();
 
         return redirect()->route('jobs.show', $job)->with('status', 'Job created.');
+    }
+
+    /**
+     * The PDF the customer would get, rendered now from the quote as last
+     * saved and shown inline - nothing is stored or emailed, so it works at
+     * any stage (including before the quote has ever been sent).
+     */
+    public function previewPdf(Quote $quote): Response
+    {
+        return Pdf::loadView('quotes.pdf', ['quote' => $quote])
+            ->stream("quote-{$quote->id}-preview.pdf");
     }
 
     public function downloadPdf(Quote $quote): BinaryFileResponse

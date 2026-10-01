@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import ProcedureFields, {
@@ -37,9 +38,12 @@ export default function Edit({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Edit procedure
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Procedures', href: route('procedures.index') },
+                        { label: 'Edit procedure' },
+                    ]}
+                />
             }
         >
             <Head title="Edit procedure" />

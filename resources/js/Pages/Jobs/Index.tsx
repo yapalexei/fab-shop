@@ -647,21 +647,6 @@ export default function Index({
                 </div>
             )}
 
-            {jobs.length === 0 ? (
-                <div className="rounded-lg bg-white p-6 shadow-sm">
-                    <PageHelp empty>
-                        <p>
-                            No jobs yet. This is the job board - every job
-                            converted from a won quote, tracked from cutting
-                            through shipped and invoiced.
-                        </p>
-                        <p>
-                            Convert a won quote to create one - go to Quotes,
-                            mark one won, then convert it.
-                        </p>
-                    </PageHelp>
-                </div>
-            ) : (
                 <DndContext
                     sensors={sensors}
                     // The column under the pointer is the target - not
@@ -681,6 +666,7 @@ export default function Index({
                         flex-1/min-h-0/h-full again only bite in kiosk mode -
                         in normal mode this whole block just sizes to its
                         content and the page scrolls, same as before. */}
+                    <div className="relative flex min-h-0 flex-1 flex-col">
                     <div className="-mx-4 min-h-0 flex-1 overflow-x-auto pb-4 sm:-mx-6 lg:-mx-8">
                         <div
                             className="grid h-full gap-4 px-4 sm:px-6 lg:px-8"
@@ -697,6 +683,8 @@ export default function Index({
                                 gridTemplateColumns: `repeat(${stages.length}, minmax(320px, 1fr))`,
                                 gridTemplateRows: '1fr',
                                 minWidth: '1280px',
+                                // Room for the empty-board message in the normal page flow.
+                                minHeight: jobs.length === 0 ? '24rem' : undefined,
                             }}
                         >
                             {stages.map((stage) => (
@@ -721,6 +709,31 @@ export default function Index({
                         </div>
                     </div>
 
+                    {jobs.length === 0 && (
+                        // The empty board stays visible behind a message, so
+                        // a new shop sees the shape of what it will fill.
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100/70 p-4">
+                            <div className="max-w-md rounded-lg bg-white p-6 text-center shadow-lg">
+                                <p className="text-sm font-medium text-gray-900">
+                                    No jobs yet. This is the job board - every
+                                    job converted from a won quote, tracked
+                                    from cutting through shipped and invoiced.
+                                </p>
+                                <p className="mt-3 text-sm text-gray-600">
+                                    Convert a won quote to create one - go to{' '}
+                                    <Link
+                                        href={route('quotes.index')}
+                                        className="font-medium text-indigo-600 hover:text-indigo-900"
+                                    >
+                                        Quotes
+                                    </Link>
+                                    , mark one won, then convert it.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    </div>
+
                     {/* Rendered outside the scrolling board so the card
                         isn't clipped while it's dragged across it. */}
                     <DragOverlay>
@@ -731,7 +744,6 @@ export default function Index({
                         )}
                     </DragOverlay>
                 </DndContext>
-            )}
         </div>
     );
 

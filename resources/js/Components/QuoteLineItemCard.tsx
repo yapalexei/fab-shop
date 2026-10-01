@@ -79,6 +79,7 @@ export default function QuoteLineItemCard({
             material_id: null,
             service_id: null,
             business_partner_id: null,
+            material_dimension: null,
             user_id: null,
             equipment_id: null,
             tool_id: null,
@@ -87,27 +88,38 @@ export default function QuoteLineItemCard({
 
     const selectMaterial = (materialId: string) => {
         if (materialId === '') {
-            onChange(index, { material_id: null, business_partner_id: null });
+            onChange(index, {
+                material_id: null,
+                business_partner_id: null,
+                material_dimension: null,
+            });
             return;
         }
         const material = materials.find((m) => m.id === Number(materialId));
         onChange(index, {
             material_id: Number(materialId),
             business_partner_id: null,
+            material_dimension: null,
             description: material?.name ?? item.description,
         });
     };
 
-    const selectMaterialPartner = (partnerId: string) => {
+    // A supplier can price the same material at several sizes, so an option
+    // is a supplier + size pair, keyed "partnerId|size".
+    const partnerKey = (partnerId: number, dimension: string | null) =>
+        `${partnerId}|${dimension ?? ''}`;
+
+    const selectMaterialPartner = (key: string) => {
         const material = materials.find(
             (m) => m.id === Number(item.material_id),
         );
         const partner = material?.partners.find(
-            (p) => p.business_partner_id === Number(partnerId),
+            (p) => partnerKey(p.business_partner_id, p.dimension) === key,
         );
 
         onChange(index, {
-            business_partner_id: partner ? Number(partnerId) : null,
+            business_partner_id: partner ? partner.business_partner_id : null,
+            material_dimension: partner?.dimension ?? null,
             unit_cost: partner ? partner.price : item.unit_cost,
         });
     };
@@ -126,6 +138,7 @@ export default function QuoteLineItemCard({
                 user_id: null,
                 service_id: null,
                 business_partner_id: null,
+                material_dimension: null,
             });
             return;
         }
@@ -137,6 +150,7 @@ export default function QuoteLineItemCard({
                 user_id: userId,
                 service_id: null,
                 business_partner_id: null,
+                material_dimension: null,
                 unit_cost: employee?.hourly_rate ?? item.unit_cost,
             });
             return;
@@ -216,6 +230,7 @@ export default function QuoteLineItemCard({
             'material_id',
             'service_id',
             'business_partner_id',
+            'material_dimension',
             'user_id',
             'equipment_id',
             'tool_id',
@@ -328,16 +343,26 @@ export default function QuoteLineItemCard({
                             <SearchableSelect
                                 wrapperClassName="mt-1"
                                 className={selectClass}
-                                value={item.business_partner_id ? String(item.business_partner_id) : ''}
+                                value={
+                                    item.business_partner_id
+                                        ? partnerKey(
+                                              Number(item.business_partner_id),
+                                              item.material_dimension,
+                                          )
+                                        : ''
+                                }
                                 onChange={selectMaterialPartner}
                                 emptyLabel="Custom price"
                                 options={selectedMaterial.partners.map((partner) => ({
-                                    value: String(partner.business_partner_id),
-                                    label: `${partner.name} (${currency.format(partner.price)})`,
+                                    value: partnerKey(
+                                        partner.business_partner_id,
+                                        partner.dimension,
+                                    ),
+                                    label: `${partner.name}${partner.dimension ? ` - ${partner.dimension}` : ''} (${currency.format(partner.price)})`,
                                 }))}
                                 emptyState={
                                     <>
-                                        No supplier prices this material yet.{' '}
+                                        No supplier prices for this material yet.{' '}
                                         <Link href={route('business-partners.create')} className="font-medium underline">Add a business partner</Link> that supplies it.
                                     </>
                                 }

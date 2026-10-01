@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import BusinessPartnerForm from '@/Components/BusinessPartnerForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
@@ -13,9 +14,12 @@ export default function Create({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Add business partner
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Business partners', href: route('business-partners.index') },
+                        { label: 'Add business partner' },
+                    ]}
+                />
             }
         >
             <Head title="Add business partner" />

@@ -7,6 +7,7 @@ import QuoteForm, {
     ServiceOption,
     ToolOption,
 } from '@/Components/QuoteForm';
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import QuoteHistoryPanel, { QuoteHistory } from '@/Components/QuoteHistoryPanel';
 import QuoteWorkflowPanel from '@/Components/QuoteWorkflowPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -53,9 +54,12 @@ export default function Edit({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Edit quote
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Quotes', href: route('quotes.index') },
+                        { label: 'Edit quote' },
+                    ]}
+                />
             }
         >
             <Head title="Edit quote" />

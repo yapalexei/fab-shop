@@ -2,6 +2,8 @@ import CsvImportDialog from '@/Components/CsvImportDialog';
 import InputError from '@/Components/InputError';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SampleDataDialog from '@/Components/SampleDataDialog';
+import SampleDataPrompt from '@/Components/SampleDataPrompt';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -129,6 +131,7 @@ export default function Index({
     } & { auth: { isOwner: boolean } }
 >) {
     const can = useCan();
+    const [sampleOpen, setSampleOpen] = useState(false);
     const builtIn = types.filter((t) => t.is_default);
     const custom = types.filter((t) => !t.is_default);
     const atLimit = customCount >= customLimit;
@@ -164,6 +167,12 @@ export default function Index({
                             what it can cut, so the quote builder can warn when
                             a tool doesn't match a quote's materials.
                         </p>
+                        {can('material-types.create') && (
+                            <SampleDataPrompt
+                                label="material types"
+                                onOpen={() => setSampleOpen(true)}
+                            />
+                        )}
                     </PageHelp>
                 </div>
             }
@@ -282,6 +291,14 @@ export default function Index({
                     </section>
                 </div>
             </div>
+
+            <SampleDataDialog
+                resource="material-types"
+                label="material types"
+                note="Specialty types count toward your custom type limit."
+                show={sampleOpen}
+                onClose={() => setSampleOpen(false)}
+            />
         </AuthenticatedLayout>
     );
 }

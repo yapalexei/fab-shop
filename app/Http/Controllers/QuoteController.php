@@ -101,6 +101,7 @@ class QuoteController extends Controller implements HasMiddleware
                     'material_id' => $item->material_id,
                     'service_id' => $item->service_id,
                     'business_partner_id' => $item->business_partner_id,
+                    'material_dimension' => $item->material_dimension,
                     'user_id' => $item->user_id,
                     'equipment_id' => $item->equipment_id,
                     'tool_id' => $item->tool_id,
@@ -199,6 +200,7 @@ class QuoteController extends Controller implements HasMiddleware
                     'partners' => $material->businessPartners->map(fn ($partner) => [
                         'business_partner_id' => $partner->id,
                         'name' => $partner->name,
+                        'dimension' => $partner->pivot->dimension,
                         'price' => (float) $partner->pivot->price,
                     ]),
                 ]),

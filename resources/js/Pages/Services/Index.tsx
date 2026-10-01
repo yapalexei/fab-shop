@@ -1,9 +1,12 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SampleDataDialog from '@/Components/SampleDataDialog';
+import SampleDataPrompt from '@/Components/SampleDataPrompt';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
+import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 
 interface ServiceRow {
@@ -16,6 +19,7 @@ export default function Index({
     services,
 }: PageProps<{ services: ServiceRow[] } & { auth: { isOwner: boolean } }>) {
     const can = useCan();
+    const [sampleOpen, setSampleOpen] = useState(false);
     const destroy = (service: ServiceRow) => {
         if (confirm(`Delete ${service.name}?`)) {
             router.delete(route('services.destroy', service.id));
@@ -41,6 +45,12 @@ export default function Index({
                                 when the work is outsourced rather than done
                                 in-house.
                             </p>
+                            {can('services.create') && (
+                                <SampleDataPrompt
+                                    label="services"
+                                    onOpen={() => setSampleOpen(true)}
+                                />
+                            )}
                         </PageHelp>
                     )}
                 </div>
@@ -80,6 +90,12 @@ export default function Index({
                                         items when the work is outsourced rather
                                         than done in-house.
                                     </p>
+                                    {can('services.create') && (
+                                        <SampleDataPrompt
+                                            label="services"
+                                            onOpen={() => setSampleOpen(true)}
+                                        />
+                                    )}
                                 </PageHelp>
                             </div>
                         ) : (
@@ -129,6 +145,13 @@ export default function Index({
                     </div>
                 </div>
             </div>
+
+            <SampleDataDialog
+                resource="services"
+                label="services"
+                show={sampleOpen}
+                onClose={() => setSampleOpen(false)}
+            />
         </AuthenticatedLayout>
     );
 }

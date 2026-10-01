@@ -1,4 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
+import LegalLinks from '@/Components/LegalLinks';
 import { Link } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
 
@@ -85,6 +86,8 @@ export default function OnboardingLayout({
                 <div className="rounded-lg bg-white p-6 shadow-sm sm:p-8">
                     {children}
                 </div>
+
+                <LegalLinks className="mt-8" />
             </main>
         </div>
     );

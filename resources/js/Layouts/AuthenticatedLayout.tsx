@@ -1,6 +1,7 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import FlashToast from '@/Components/FlashToast';
+import LegalLinks from '@/Components/LegalLinks';
 import NavIcon from '@/Components/NavIcon';
 import NavLink from '@/Components/NavLink';
 import RequiresSubscription from '@/Components/RequiresSubscription';
@@ -10,7 +11,7 @@ import TrialBanner from '@/Components/TrialBanner';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useState } from 'react';
+import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
 
 function GatedNavLink({
     enabled,
@@ -114,8 +115,9 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
+    const page = usePage<PageProps>();
     const { auth, enabledFeatures, readOnlyFeatures, availableShops, shop } =
-        usePage<PageProps>().props;
+        page.props;
     const user = auth.user;
     // A read-only feature (trial ended) keeps its pages reachable - the
     // pages themselves hide every edit control.
@@ -291,9 +293,24 @@ export default function Authenticated({
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
+    // The mobile menu is a drawer over the page: close it when navigating
+    // (the layout persists across Inertia visits) or on Escape.
+    useEffect(() => {
+        setShowingNavigationDropdown(false);
+    }, [page.url]);
+
+    useEffect(() => {
+        if (!showingNavigationDropdown) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setShowingNavigationDropdown(false);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [showingNavigationDropdown]);
+
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="border-b border-gray-100 bg-white">
+        <div className="app-shell flex flex-col bg-gray-100">
+            <nav className="shrink-0 border-b border-gray-100 bg-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex">
@@ -553,12 +570,48 @@ export default function Authenticated({
                     </div>
                 </div>
 
-                <div
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
-                    }
-                >
+                <div className="sm:hidden">
+                    <div
+                        onClick={() => setShowingNavigationDropdown(false)}
+                        aria-hidden="true"
+                        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ${
+                            showingNavigationDropdown
+                                ? 'opacity-100'
+                                : 'pointer-events-none opacity-0'
+                        }`}
+                    />
+                    <div
+                        id="mobile-menu"
+                        role="dialog"
+                        aria-label="Menu"
+                        className={`fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] overflow-y-auto bg-white shadow-xl transition-[transform,visibility] duration-200 ease-out ${
+                            showingNavigationDropdown
+                                ? 'visible translate-x-0'
+                                : 'invisible translate-x-full'
+                        }`}
+                    >
+                    <div className="flex justify-end px-2 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowingNavigationDropdown(false)}
+                            aria-label="Close menu"
+                            className="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none"
+                        >
+                            <svg
+                                className="h-6 w-6"
+                                stroke="currentColor"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </button>
+                    </div>
                     <div className="space-y-1 pb-3 pt-2">
                         <ResponsiveNavLink
                             href={route('dashboard')}
@@ -673,22 +726,34 @@ export default function Authenticated({
                             </ResponsiveNavLink>
                         </div>
                     </div>
+                    </div>
                 </div>
             </nav>
 
-            <TrialBanner />
-
-            {header && (
-                <header className="bg-white shadow">
-                    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {header}
-                    </div>
-                </header>
-            )}
+            <div className="shrink-0">
+                <TrialBanner />
+            </div>
 
             <FlashToast />
 
-            <main>{children}</main>
+            {/* The page scrolls here, not the window, so the nav above stays
+                put. `scroll-region` lets Inertia reset/preserve this scroll
+                position on visits like it does the window's. */}
+            <div scroll-region="" className="app-scroll min-h-0 flex-1 overflow-y-auto">
+                {header && (
+                    <header className="bg-white shadow">
+                        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                            {header}
+                        </div>
+                    </header>
+                )}
+
+                <main>{children}</main>
+
+                <footer className="px-4 py-6">
+                    <LegalLinks />
+                </footer>
+            </div>
         </div>
     );
 }

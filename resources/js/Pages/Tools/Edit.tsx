@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import ToolFields, {
@@ -41,9 +42,12 @@ export default function Edit({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    {readOnly ? tool.name : 'Edit tooling'}
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Tooling', href: route('tools.index') },
+                        { label: readOnly ? tool.name : 'Edit tooling' },
+                    ]}
+                />
             }
         >
             <Head title={tool.name} />

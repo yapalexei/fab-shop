@@ -142,7 +142,9 @@ class JobController extends Controller
                     // The cheapest known supplier price, as a starting point
                     // for unit cost - always overridable, since the whole
                     // point of tracking actual cost is that it can differ.
-                    'suggested_cost' => $material->businessPartners->min('pivot.price'),
+                    // Only an unsized price is unambiguous - the cheapest of several
+                    // sizes (4 in vs 4 ft) would be a misleading starting point.
+                    'suggested_cost' => $material->businessPartners->whereNull('pivot.dimension')->min('pivot.price'),
                 ]),
         ];
     }

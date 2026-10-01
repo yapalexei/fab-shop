@@ -1,9 +1,12 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SampleDataDialog from '@/Components/SampleDataDialog';
+import SampleDataPrompt from '@/Components/SampleDataPrompt';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
+import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 
 interface EquipmentRow {
@@ -23,6 +26,7 @@ export default function Index({
     equipment,
 }: PageProps<{ equipment: EquipmentRow[] } & { auth: { isOwner: boolean } }>) {
     const can = useCan();
+    const [sampleOpen, setSampleOpen] = useState(false);
     const destroy = (item: EquipmentRow) => {
         if (confirm(`Delete ${item.name}?`)) {
             router.delete(route('equipment.destroy', item.id));
@@ -46,6 +50,12 @@ export default function Index({
                                 Used by the quote builder's equipment line
                                 items.
                             </p>
+                            {can('equipment.create') && (
+                                <SampleDataPrompt
+                                    label="equipment"
+                                    onOpen={() => setSampleOpen(true)}
+                                />
+                            )}
                         </PageHelp>
                     )}
                 </div>
@@ -83,6 +93,12 @@ export default function Index({
                                         Used by the quote builder's equipment
                                         line items.
                                     </p>
+                                    {can('equipment.create') && (
+                                        <SampleDataPrompt
+                                            label="equipment"
+                                            onOpen={() => setSampleOpen(true)}
+                                        />
+                                    )}
                                 </PageHelp>
                             </div>
                         ) : (
@@ -149,6 +165,14 @@ export default function Index({
                     </div>
                 </div>
             </div>
+
+            <SampleDataDialog
+                resource="equipment"
+                label="equipment"
+                note="The hourly rates are ballpark figures - adjust them to your own costs after adding."
+                show={sampleOpen}
+                onClose={() => setSampleOpen(false)}
+            />
         </AuthenticatedLayout>
     );
 }

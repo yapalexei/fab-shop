@@ -1,3 +1,4 @@
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import JobMaterialTracking, {
     MaterialCostSummary,
     MaterialOption,
@@ -78,9 +79,12 @@ export default function Show({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Job {job.job_number}
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Jobs', href: route('jobs.index') },
+                        { label: `Job ${job.job_number}` },
+                    ]}
+                />
             }
         >
             <Head title={`Job ${job.job_number}`} />

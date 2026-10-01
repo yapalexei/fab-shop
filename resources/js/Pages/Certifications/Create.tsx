@@ -3,6 +3,7 @@ import CertificationFields, {
     MemberOption,
     ProcedureOption,
 } from '@/Components/CertificationFields';
+import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -33,9 +34,12 @@ export default function Create({
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Add certification
-                </h2>
+                <Breadcrumbs
+                    items={[
+                        { label: 'Certifications', href: route('certifications.index') },
+                        { label: 'Add certification' },
+                    ]}
+                />
             }
         >
             <Head title="Add certification" />

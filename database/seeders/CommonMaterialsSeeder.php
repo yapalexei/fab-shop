@@ -111,8 +111,14 @@ class CommonMaterialsSeeder extends Seeder
         }
     }
 
-    public static function seedShop(Shop $shop): void
+    /**
+     * @param  array<int, string>|null  $only  limit to these material names (case-insensitive); null adds all
+     * @return int how many materials were added (ones the shop already had are skipped)
+     */
+    public static function seedShop(Shop $shop, ?array $only = null): int
     {
+        // Materials are filed under the built-in types, so make sure they exist
+        // (without touching which types the shop chose to keep).
         MaterialTypes::seedDefaults($shop);
 
         $typeIds = DB::table('material_types')
@@ -126,7 +132,10 @@ class CommonMaterialsSeeder extends Seeder
             ->map(fn (string $name) => mb_strtolower($name))
             ->all();
 
+        $only = $only === null ? null : array_map('mb_strtolower', $only);
+
         $rows = collect(self::MATERIALS)
+            ->filter(fn (array $m) => $only === null || in_array(mb_strtolower($m[1]), $only, true))
             ->reject(fn (array $m) => in_array(mb_strtolower($m[1]), $existing, true))
             ->map(fn (array $m) => [
                 'shop_id' => $shop->id,
@@ -141,5 +150,7 @@ class CommonMaterialsSeeder extends Seeder
             ->all();
 
         DB::table('materials')->insert($rows);
+
+        return count($rows);
     }
 }

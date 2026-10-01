@@ -3,6 +3,34 @@
 @tailwind utilities;
 
 /*
+ * App shell: the window itself never scrolls. The nav is a fixed-height strip
+ * and the page scrolls in `.app-scroll` beneath it (dvh keeps mobile browser
+ * toolbars from cutting the bottom off; vh is the fallback).
+ */
+.app-shell {
+    height: 100vh;
+    height: 100dvh;
+}
+
+/*
+ * Keep the scroll area's width the same whether or not its content is tall
+ * enough to scroll, so nothing jumps sideways when a scrollbar appears.
+ * Browsers with `scrollbar-gutter` (Chrome/Edge 94+, Firefox 97+, Safari
+ * 18.2+) reserve the space only; older ones fall back to an always-present
+ * track. Overlay scrollbars (macOS default, mobile) take no space either way.
+ */
+.app-scroll {
+    overflow-y: scroll;
+}
+
+@supports (scrollbar-gutter: stable) {
+    .app-scroll {
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+    }
+}
+
+/*
  * Dark theme, applied via the `dark` class on <html> (see
  * resources/js/lib/theme.ts) rather than the `media` strategy, so an
  * explicit user choice can override the OS preference it defaults to.

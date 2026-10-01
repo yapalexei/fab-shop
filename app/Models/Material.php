@@ -28,7 +28,7 @@ class Material extends Model
     public function businessPartners(): BelongsToMany
     {
         return $this->belongsToMany(BusinessPartner::class, 'material_business_partner')
-            ->withPivot('price')
+            ->withPivot('price', 'dimension')
             ->withTimestamps();
     }
 }

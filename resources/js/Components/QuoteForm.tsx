@@ -7,8 +7,9 @@ import QuoteLineItemCard, {
 } from '@/Components/QuoteLineItemCard';
 import SearchableSelect from '@/Components/SearchableSelect';
 import SecondaryButton from '@/Components/SecondaryButton';
+import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { Link, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 export interface LineItem {
     type: 'material' | 'labor' | 'equipment' | 'tooling';
@@ -20,6 +21,8 @@ export interface LineItem {
     material_id: number | string | null;
     service_id: number | string | null;
     business_partner_id: number | string | null;
+    /** The supplier size the price was taken at (see material supplier prices). */
+    material_dimension: string | null;
     user_id: number | string | null;
     equipment_id: number | string | null;
     tool_id: number | string | null;
@@ -34,7 +37,12 @@ export interface MaterialOption {
     id: number;
     name: string;
     material_type: MaterialTypeRef | null;
-    partners: { business_partner_id: number; name: string; price: number }[];
+    partners: {
+        business_partner_id: number;
+        name: string;
+        dimension: string | null;
+        price: number;
+    }[];
 }
 
 export interface ServiceOption {
@@ -90,10 +98,40 @@ export function createEmptyLineItem(markupDefaults: MarkupDefaults): LineItem {
         material_id: null,
         service_id: null,
         business_partner_id: null,
+        material_dimension: null,
         user_id: null,
         equipment_id: null,
         tool_id: null,
     };
+}
+
+/**
+ * A saved draft, if there is one worth restoring: shaped like a quote form
+ * (and filled out to today's fields, in case the form has grown since it was
+ * saved) and different from a blank start.
+ */
+function restoreDraft(
+    key: string,
+    initialData: QuoteFormData,
+    markupDefaults: MarkupDefaults,
+): { data: QuoteFormData; savedAt: number } | null {
+    const draft = readDraft(key);
+    const raw = draft?.data as Partial<QuoteFormData> | undefined;
+
+    if (!draft || !raw || !Array.isArray(raw.line_items)) return null;
+
+    const data: QuoteFormData = {
+        customer_id: raw.customer_id ?? initialData.customer_id,
+        notes: typeof raw.notes === 'string' ? raw.notes : initialData.notes,
+        line_items: raw.line_items.map((item) => ({
+            ...createEmptyLineItem(markupDefaults),
+            ...item,
+        })),
+    };
+
+    return JSON.stringify(data) === JSON.stringify(initialData)
+        ? null
+        : { data, savedAt: draft.savedAt };
 }
 
 export default function QuoteForm({
@@ -108,6 +146,7 @@ export default function QuoteForm({
     submitUrl,
     method,
     readOnly = false,
+    draftKey,
 }: {
     customers: { id: number; name: string }[];
     materials: MaterialOption[];
@@ -121,9 +160,46 @@ export default function QuoteForm({
     method: 'post' | 'put';
     /** View-only (no update permission): every field disabled, no save. */
     readOnly?: boolean;
+    /**
+     * Saves the unsaved form to localStorage under this key (and restores it
+     * on the next visit) - for the new-quote form, so leaving midway to
+     * create a missing material doesn't lose the work.
+     */
+    draftKey?: string;
 }) {
+    // Read once, before the form exists, so it starts out as the draft.
+    const [restored] = useState(() =>
+        draftKey ? restoreDraft(draftKey, initialData, markupDefaults) : null,
+    );
+    const [showRestored, setShowRestored] = useState(restored !== null);
     const { data, setData, post, put, processing, errors } =
-        useForm<QuoteFormData>(initialData);
+        useForm<QuoteFormData>(restored?.data ?? initialData);
+
+    // Keep the draft current (debounced); a form back at its starting values
+    // isn't a draft. `submitted` stops a late write recreating it after a save.
+    const submitted = useRef(false);
+    useEffect(() => {
+        if (!draftKey) return;
+
+        const timer = setTimeout(() => {
+            if (submitted.current) return;
+
+            if (JSON.stringify(data) === JSON.stringify(initialData)) {
+                clearDraft(draftKey);
+            } else {
+                writeDraft(draftKey, data);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data, draftKey]);
+
+    const discardDraft = () => {
+        if (draftKey) clearDraft(draftKey);
+        setData(initialData);
+        setShowRestored(false);
+    };
 
     // Laravel validates array fields as e.g. "line_items.0.description",
     // which falls outside useForm's keyof-QuoteFormData error typing.
@@ -131,7 +207,12 @@ export default function QuoteForm({
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        (method === 'post' ? post : put)(submitUrl);
+        (method === 'post' ? post : put)(submitUrl, {
+            onSuccess: () => {
+                submitted.current = true;
+                if (draftKey) clearDraft(draftKey);
+            },
+        });
     };
 
     const patchLineItem = (index: number, patch: Partial<LineItem>) => {
@@ -182,6 +263,24 @@ export default function QuoteForm({
 
     return (
         <form onSubmit={submit}>
+            {showRestored && restored && (
+                <div
+                    role="status"
+                    className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-900"
+                >
+                    <span>
+                        Restored your unsaved draft from{' '}
+                        {new Date(restored.savedAt).toLocaleString()}.
+                    </span>
+                    <button
+                        type="button"
+                        onClick={discardDraft}
+                        className="font-medium underline hover:text-amber-700"
+                    >
+                        Start over
+                    </button>
+                </div>
+            )}
             <fieldset disabled={readOnly}>
                 <FormErrorSummary errors={errorMap} />
 

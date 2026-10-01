@@ -260,3 +260,31 @@ test('resending needs a customer email on file', function () {
 
     $this->actingAs($user)->post(route('quotes.resend', $quote))->assertSessionHasErrors('status');
 });
+
+test('a quote can be previewed as a pdf at any stage without sending or storing anything', function () {
+    Bus::fake();
+    Mail::fake();
+
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $user = actingAsShopMember($shop);
+
+    $response = $this->actingAs($user)->get(route('quotes.preview', $quote))->assertOk();
+
+    expect($response->headers->get('Content-Type'))->toBe('application/pdf')
+        ->and($response->getContent())->toStartWith('%PDF')
+        ->and($quote->fresh()->status)->toBe(QuoteStatus::Draft)
+        ->and($quote->fresh()->pdf())->toBeNull();
+
+    Bus::assertNothingDispatched();
+    Mail::assertNothingQueued();
+});
+
+test('previewing a quote needs view access and stays within the shop', function () {
+    $shop = Shop::factory()->create();
+    $other = Shop::factory()->create();
+    $foreign = draftQuoteWithLineItem($other);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->get(route('quotes.preview', $foreign))->assertNotFound();
+});

@@ -22,6 +22,9 @@
     <x-slot:footer>
         <x-mail::footer>
             © {{ date('Y') }} {{ config('app.name') }}. @lang('All rights reserved.')
+
+            @lang('Terms of Service'): {{ route('legal.terms') }}
+            @lang('Privacy Policy'): {{ route('legal.privacy') }}
         </x-mail::footer>
     </x-slot:footer>
 </x-mail::layout>

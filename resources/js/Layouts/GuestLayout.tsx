@@ -1,4 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
+import LegalLinks from '@/Components/LegalLinks';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { Link } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
@@ -17,6 +18,8 @@ export default function Guest({ children }: PropsWithChildren) {
             <div className="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg">
                 {children}
             </div>
+
+            <LegalLinks className="my-6" />
         </div>
     );
 }
