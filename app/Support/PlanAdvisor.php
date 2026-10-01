@@ -121,7 +121,7 @@ class PlanAdvisor
     {
         return $shop->featureSubscriptions()
             ->withoutGlobalScopes()
-            ->whereNull('cancelled_at')
+            ->active()
             ->pluck('feature')
             ->map(fn (string $feature) => Feature::from($feature))
             ->reject(fn (Feature $f) => $shop->plan?->hasFeature($f) ?? false)

@@ -11,6 +11,7 @@ enum Feature: string
     case MaterialTracking = 'material-tracking';
     case QualificationRecords = 'qualification-records';
     case MobileApi = 'mobile-api';
+    case QuoteHistory = 'quote-history';
 
     public function label(): string
     {
@@ -22,6 +23,7 @@ enum Feature: string
             self::MaterialTracking => 'Material & scrap tracking',
             self::QualificationRecords => 'Qualification records',
             self::MobileApi => 'Mobile app & API access',
+            self::QuoteHistory => 'Quote history',
         };
     }
 
@@ -36,7 +38,7 @@ enum Feature: string
     {
         return match ($this) {
             self::Customers, self::QuoteBuilder, self::JobBoard, self::QuickbooksSync,
-            self::MaterialTracking, self::QualificationRecords => true,
+            self::MaterialTracking, self::QualificationRecords, self::QuoteHistory => true,
             self::MobileApi => false,
         };
     }
@@ -55,6 +57,19 @@ enum Feature: string
             self::MaterialTracking => 'Track material and scrap against the job so estimates get sharper over time.',
             self::QualificationRecords => 'Track shop procedures, who is certified for them, and whether the job was actually covered.',
             self::MobileApi => 'Check and update job status from the shop floor or a connected app.',
+            self::QuoteHistory => 'See what changed on every quote, when, and who changed it.',
+        };
+    }
+
+    /**
+     * What the feature costs as a standalone add-on until an admin edits it
+     * (FeatureSetting seeds each new row from this).
+     */
+    public function defaultPriceCents(): int
+    {
+        return match ($this) {
+            self::QuoteHistory => 1000,
+            default => 2000,
         };
     }
 }

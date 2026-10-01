@@ -78,7 +78,8 @@ test('generating and sending the pdf attaches it to the quote and emails the cus
 
     (new GenerateAndSendQuotePdf($quote))->handle(app(GenerateQuotePdf::class));
 
-    expect($quote->fresh()->pdf())->not->toBeNull();
+    expect($quote->fresh()->pdf())->not->toBeNull()
+        ->and($quote->fresh()->emailed_at)->not->toBeNull();
 
     Mail::assertQueued(QuoteReadyMail::class, fn ($mail) => $mail->hasTo('buyer@example.com') && $mail->quote->is($quote));
 });
@@ -174,4 +175,88 @@ test('a user cannot run workflow actions on another shop\'s quote', function () 
     $user = actingAsShopMember($shopA);
 
     $this->actingAs($user)->post(route('quotes.send', $quote))->assertNotFound();
+});
+
+test('sending can be skipped with a reason, without emailing the customer', function () {
+    Bus::fake();
+
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.skip-send', $quote), ['reason' => 'Customer agreed verbally'])
+        ->assertRedirect();
+
+    expect($quote->refresh()->status)->toBe(QuoteStatus::Sent)
+        ->and($quote->sent_at)->not->toBeNull()
+        ->and($quote->emailed_at)->toBeNull()
+        ->and($quote->send_skipped_reason)->toBe('Customer agreed verbally');
+
+    Bus::assertNotDispatched(GenerateAndSendQuotePdf::class);
+});
+
+test('skipping the send needs a reason, a draft with line items, and works without a customer email', function () {
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop, null);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.skip-send', $quote), ['reason' => ''])->assertSessionHasErrors('reason');
+    expect($quote->refresh()->status)->toBe(QuoteStatus::Draft);
+
+    $this->actingAs($user)->post(route('quotes.skip-send', $quote), ['reason' => 'Agreed on the phone'])->assertSessionHasNoErrors();
+    expect($quote->refresh()->status)->toBe(QuoteStatus::Sent);
+
+    $this->actingAs($user)->post(route('quotes.skip-send', $quote), ['reason' => 'again'])->assertSessionHasErrors('status');
+});
+
+test('a sent quote can be emailed again', function () {
+    Bus::fake();
+
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now(), 'emailed_at' => now()->subDay()]);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.resend', $quote))->assertSessionHasNoErrors();
+
+    Bus::assertDispatched(GenerateAndSendQuotePdf::class, fn ($job) => $job->quote->is($quote));
+});
+
+test('a quote whose sending was skipped can still be emailed later', function () {
+    Bus::fake();
+
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now(), 'send_skipped_reason' => 'Agreed verbally']);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.resend', $quote))->assertSessionHasNoErrors();
+
+    expect($quote->refresh()->send_skipped_reason)->toBeNull();
+    Bus::assertDispatched(GenerateAndSendQuotePdf::class);
+});
+
+test('once a quote is won or lost the email can no longer be sent', function () {
+    Bus::fake();
+
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+
+    foreach ([QuoteStatus::Won, QuoteStatus::Lost, QuoteStatus::Draft] as $status) {
+        $quote = draftQuoteWithLineItem($shop);
+        $quote->update(['status' => $status, 'sent_at' => now()]);
+
+        $this->actingAs($user)->post(route('quotes.resend', $quote))->assertSessionHasErrors('status');
+    }
+
+    Bus::assertNotDispatched(GenerateAndSendQuotePdf::class);
+});
+
+test('resending needs a customer email on file', function () {
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop, null);
+    $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now()]);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.resend', $quote))->assertSessionHasErrors('status');
 });

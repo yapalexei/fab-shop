@@ -9,7 +9,9 @@ use App\Jobs\GenerateAndSendQuotePdf;
 use App\Models\Job;
 use App\Models\JobStage;
 use App\Models\Quote;
+use App\Support\QuoteHistory;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -31,8 +33,51 @@ class QuoteWorkflowController extends Controller
         $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now()]);
 
         GenerateAndSendQuotePdf::dispatch($quote);
+        QuoteHistory::log($quote, 'sent', "Emailed to {$quote->customer->email}");
 
         return back()->with('status', 'Quote sent to customer.');
+    }
+
+    /**
+     * Mark a draft as sent to the customer without emailing it - they may
+     * have agreed verbally, or been handed a copy. The reason is required so
+     * the quote's history still explains why no email went out.
+     */
+    public function skipSend(Request $request, Quote $quote): RedirectResponse
+    {
+        $this->guard($quote->status === QuoteStatus::Draft && ! $quote->is_archived, 'This quote has already been sent.');
+        $this->guard($quote->lineItems->isNotEmpty(), 'A quote needs at least one line item before it can be marked as sent.');
+
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:255']]);
+
+        $quote->update([
+            'status' => QuoteStatus::Sent,
+            'sent_at' => now(),
+            'send_skipped_reason' => trim($validated['reason']),
+        ]);
+        QuoteHistory::log($quote, 'send_skipped', 'Marked as sent without emailing - '.trim($validated['reason']));
+
+        return back()->with('status', 'Quote marked as sent without emailing the customer.');
+    }
+
+    /**
+     * Email a sent quote again (the first one may never have arrived), or
+     * email one whose sending was skipped. Only while the customer's answer
+     * is still pending - once won, lost or archived the quote is closed out.
+     */
+    public function resend(Quote $quote): RedirectResponse
+    {
+        $this->guard($quote->status === QuoteStatus::Sent && ! $quote->is_archived, 'Only a sent quote that is still awaiting an answer can be emailed.');
+        $this->guard(filled($quote->customer->email), 'This customer has no email address on file.');
+
+        // emailed_at is left alone: it still records the earlier send until the
+        // new one goes out and replaces it.
+        $quote->update(['send_skipped_reason' => null]);
+
+        GenerateAndSendQuotePdf::dispatch($quote);
+        QuoteHistory::log($quote, 'resent', "Emailed again to {$quote->customer->email}");
+
+        return back()->with('status', 'Quote emailed to the customer.');
     }
 
     public function markWon(Quote $quote): RedirectResponse
@@ -40,6 +85,7 @@ class QuoteWorkflowController extends Controller
         $this->guard($quote->status === QuoteStatus::Sent, 'Only a sent quote can be marked won.');
 
         $quote->update(['status' => QuoteStatus::Won]);
+        QuoteHistory::log($quote, 'won', 'Marked won');
 
         return back()->with('status', 'Quote marked won.');
     }
@@ -49,6 +95,7 @@ class QuoteWorkflowController extends Controller
         $this->guard($quote->status === QuoteStatus::Sent, 'Only a sent quote can be marked lost.');
 
         $quote->update(['status' => QuoteStatus::Lost]);
+        QuoteHistory::log($quote, 'lost', 'Marked lost');
 
         return back()->with('status', 'Quote marked lost.');
     }
@@ -58,6 +105,7 @@ class QuoteWorkflowController extends Controller
         $this->guard($quote->status === QuoteStatus::Lost, 'Only a lost quote can be archived.');
 
         $quote->update(['archived_at' => now()]);
+        QuoteHistory::log($quote, 'archived', 'Archived');
 
         return redirect()->route('quotes.index')->with('status', 'Quote archived.');
     }
@@ -66,7 +114,13 @@ class QuoteWorkflowController extends Controller
     {
         $this->guard($quote->is_archived, 'This quote is not archived.');
 
-        $quote->update(['archived_at' => null, 'status' => QuoteStatus::Draft]);
+        $quote->update([
+            'archived_at' => null,
+            'status' => QuoteStatus::Draft,
+            'emailed_at' => null,
+            'send_skipped_reason' => null,
+        ]);
+        QuoteHistory::log($quote, 'reopened', 'Reopened as a draft');
 
         return redirect()->route('quotes.edit', $quote)->with('status', 'Quote reopened as a draft.');
     }
@@ -83,6 +137,8 @@ class QuoteWorkflowController extends Controller
             'job_number' => Job::nextNumber(),
             'job_stage_id' => $notStarted->id,
         ]));
+
+        QuoteHistory::log($quote, 'converted', "Converted to job {$job->job_number}");
 
         // A converting user is redirected to the job itself, not the board -
         // this is what tells anyone else already watching the board (a

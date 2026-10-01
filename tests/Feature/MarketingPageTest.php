@@ -64,14 +64,14 @@ test('a paid tier shows how much it saves vs. buying its bundled features as add
     // Every feature falls back to the same $20 placeholder price with no
     // feature_settings rows seeded - Solo bundles 2 features ($40
     // standalone) for $29, Start-up bundles 3 ($60 standalone) for $49,
-    // Pro bundles all 7 ($140 standalone) for $99.
+    // Pro bundles all 8 ($150 standalone: seven at $20, Quote history at $10) for $99.
     $this->get('/')->assertInertia(fn ($page) => $page
         ->where('tiers.1.monthlyPriceCents', 2900)
         ->where('tiers.1.savingsCents', 1100)
         ->where('tiers.2.monthlyPriceCents', 4900)
         ->where('tiers.2.savingsCents', 1100)
         ->where('tiers.3.monthlyPriceCents', 9900)
-        ->where('tiers.3.savingsCents', 4100));
+        ->where('tiers.3.savingsCents', 5100));
 });
 
 test('bundle savings reflect admin-edited feature prices, not the placeholder default', function () {

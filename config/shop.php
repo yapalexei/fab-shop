@@ -36,6 +36,10 @@ return [
     // and may add this many of its own on top.
     'max_custom_material_types' => (int) env('SHOP_MAX_CUSTOM_MATERIAL_TYPES', 20),
 
+    // Annual billing: a year is charged as this many months of the monthly
+    // price (10 = two months free). Placeholder until pricing is decided.
+    'annual_months_charged' => (int) env('SHOP_ANNUAL_MONTHS_CHARGED', 10),
+
     // How long a team invite (onboarding step 2, or Team > Invite) stays
     // acceptable before it needs to be re-sent.
     'invitation_expiry_days' => (int) env('SHOP_INVITATION_EXPIRY_DAYS', 7),

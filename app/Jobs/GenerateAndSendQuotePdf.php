@@ -23,5 +23,9 @@ class GenerateAndSendQuotePdf implements ShouldQueue
         $generatePdf($this->quote);
 
         Mail::to($this->quote->customer->email)->send(new QuoteReadyMail($this->quote));
+
+        // Recorded only once the mail was handed off, so the quote page can
+        // tell "queued" from "sent" - and a failed job leaves it null.
+        $this->quote->update(['emailed_at' => now()]);
     }
 }

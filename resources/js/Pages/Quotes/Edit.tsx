@@ -7,6 +7,7 @@ import QuoteForm, {
     ServiceOption,
     ToolOption,
 } from '@/Components/QuoteForm';
+import QuoteHistoryPanel, { QuoteHistory } from '@/Components/QuoteHistoryPanel';
 import QuoteWorkflowPanel from '@/Components/QuoteWorkflowPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -19,6 +20,9 @@ interface QuoteDetail {
     status: string;
     is_archived: boolean;
     job_id: number | null;
+    customer_email: string | null;
+    emailed_at: string | null;
+    send_skipped_reason: string | null;
     notes: string | null;
     line_items: LineItem[];
 }
@@ -32,6 +36,7 @@ export default function Edit({
     tools,
     employees,
     markupDefaults,
+    history,
 }: PageProps<{
     quote: QuoteDetail;
     customers: { id: number; name: string }[];
@@ -41,6 +46,7 @@ export default function Edit({
     tools: ToolOption[];
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
+    history: QuoteHistory;
 }>) {
     const can = useCan();
 
@@ -62,6 +68,9 @@ export default function Edit({
                             status={quote.status}
                             isArchived={quote.is_archived}
                             jobId={quote.job_id}
+                            customerEmail={quote.customer_email}
+                            emailedAt={quote.emailed_at}
+                            sendSkippedReason={quote.send_skipped_reason}
                         />
 
                         <QuoteForm
@@ -81,6 +90,8 @@ export default function Edit({
                                 line_items: quote.line_items,
                             }}
                         />
+
+                        <QuoteHistoryPanel history={history} />
                     </div>
                 </div>
             </div>

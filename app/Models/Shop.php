@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BillingInterval;
 use App\Enums\Feature;
 use App\Support\JobStages;
 use App\Support\MaterialTypes;
@@ -38,7 +39,7 @@ class Shop extends Model
 
     protected $fillable = [
         'name', 'owner_id', 'plan_id', 'seat_limit_override', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
-        'trial_baseline_days', 'subscription_renews_at', 'timezone', 'stale_quote_days', 'win_rate_window_days',
+        'trial_baseline_days', 'subscription_renews_at', 'billing_interval', 'timezone', 'stale_quote_days', 'win_rate_window_days',
         'job_board_drag_enabled', 'onboarded_at', 'onboarding_step',
     ];
 
@@ -49,6 +50,7 @@ class Shop extends Model
             'trial_ends_at' => 'datetime',
             'trial_ended_notified_at' => 'datetime',
             'subscription_renews_at' => 'datetime',
+            'billing_interval' => BillingInterval::class,
             'onboarded_at' => 'datetime',
             'suspended_at' => 'datetime',
             'stale_quote_days' => 'integer',
@@ -171,6 +173,12 @@ class Shop extends Model
         return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
     }
 
+    /** The cadence the plan and add-ons renew on (monthly until the shop picks annual). */
+    public function billingInterval(): BillingInterval
+    {
+        return $this->billing_interval ?? BillingInterval::Monthly;
+    }
+
     /**
      * subscription_renews_at is a platform admin's own manually-set "paid
      * through" date, not something a real payment processor derives - no
@@ -288,7 +296,7 @@ class Shop extends Model
         return $this->featureSubscriptions()
             ->withoutGlobalScopes()
             ->where('feature', $feature->value)
-            ->whereNull('cancelled_at')
+            ->active()
             ->exists();
     }
 
@@ -311,7 +319,7 @@ class Shop extends Model
 
         $addons = $this->featureSubscriptions()
             ->withoutGlobalScopes()
-            ->whereNull('cancelled_at')
+            ->active()
             ->pluck('feature')
             ->map(fn (string $feature) => Feature::from($feature));
 
@@ -346,7 +354,7 @@ class Shop extends Model
         return $this->featureSubscriptions()
             ->withoutGlobalScopes()
             ->whereIn('feature', $bundledFeatureValues)
-            ->whereNull('cancelled_at')
-            ->update(['cancelled_at' => now()]);
+            ->active()
+            ->update(['cancelled_at' => now(), 'ends_at' => now()]);
     }
 }

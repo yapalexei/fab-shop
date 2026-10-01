@@ -20,13 +20,14 @@ class Quote extends Model implements HasMedia
     /** @use HasFactory<QuoteFactory> */
     use BelongsToShop, HasFactory, InteractsWithMedia;
 
-    protected $fillable = ['customer_id', 'status', 'notes', 'sent_at', 'archived_at'];
+    protected $fillable = ['customer_id', 'status', 'notes', 'sent_at', 'emailed_at', 'send_skipped_reason', 'archived_at'];
 
     protected function casts(): array
     {
         return [
             'status' => QuoteStatus::class,
             'sent_at' => 'datetime',
+            'emailed_at' => 'datetime',
             'archived_at' => 'datetime',
         ];
     }
@@ -53,6 +54,11 @@ class Quote extends Model implements HasMedia
     public function lineItems(): HasMany
     {
         return $this->hasMany(QuoteLineItem::class)->orderBy('sort_order');
+    }
+
+    public function historyEntries(): HasMany
+    {
+        return $this->hasMany(QuoteHistoryEntry::class)->latest('id');
     }
 
     public function job(): HasOne

@@ -1,10 +1,17 @@
+import BillingDisclosure, {
+    BillingQuote,
+} from '@/Components/BillingDisclosure';
+import BillingIntervalToggle, {
+    Interval,
+} from '@/Components/BillingIntervalToggle';
 import DangerButton from '@/Components/DangerButton';
 import Modal from '@/Components/Modal';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatCents } from '@/lib/money';
+import { useShopDateTime } from '@/lib/datetime';
+import { formatCents, formatMoney } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -28,10 +35,13 @@ interface AddonRow {
     bundledInPlan: boolean;
     subscribed: boolean;
     advice: PlanAdvice | null;
+    endsAt: string | null;
+    quotes: Record<Interval, BillingQuote>;
 }
 
-function upgrade(advice: PlanAdvice) {
-    router.post(route('shop.plan.update'), { plan: advice.plan_key });
+// The plan page shows what the upgrade costs today and asks for confirmation.
+function upgrade(_advice: PlanAdvice) {
+    router.visit(route('shop.plan.index'));
 }
 
 function AdviceSummary({ advice }: { advice: PlanAdvice }) {
@@ -60,11 +70,15 @@ function AdviceSummary({ advice }: { advice: PlanAdvice }) {
 
 function AddonAction({
     addon,
-    onAdvise,
+    onSubscribe,
+    onCancel,
 }: {
     addon: AddonRow;
-    onAdvise: (addon: AddonRow) => void;
+    onSubscribe: (addon: AddonRow) => void;
+    onCancel: (addon: AddonRow) => void;
 }) {
+    const formatDate = useShopDateTime({ dateStyle: 'medium' });
+
     if (addon.bundledInPlan) {
         return (
             <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
@@ -73,39 +87,35 @@ function AddonAction({
         );
     }
 
+    if (addon.endsAt) {
+        return (
+            <div className="flex flex-col items-end gap-1">
+                <span className="text-xs text-amber-700">
+                    Ends {formatDate(addon.endsAt)}
+                </span>
+                <SecondaryButton
+                    onClick={() =>
+                        router.post(
+                            route('shop.addons.store', addon.feature),
+                            {},
+                            { preserveScroll: true },
+                        )
+                    }
+                >
+                    Keep
+                </SecondaryButton>
+            </div>
+        );
+    }
+
     if (addon.subscribed) {
         return (
-            <DangerButton
-                onClick={() => {
-                    if (
-                        confirm(
-                            `Cancel ${addon.label}? You'll lose access immediately.`,
-                        )
-                    ) {
-                        router.delete(
-                            route('shop.addons.destroy', addon.feature),
-                            { preserveScroll: true },
-                        );
-                    }
-                }}
-            >
-                Cancel
-            </DangerButton>
+            <DangerButton onClick={() => onCancel(addon)}>Cancel</DangerButton>
         );
     }
 
     return (
-        <PrimaryButton
-            onClick={() =>
-                addon.advice
-                    ? onAdvise(addon)
-                    : router.post(
-                          route('shop.addons.store', addon.feature),
-                          {},
-                          { preserveScroll: true },
-                      )
-            }
-        >
+        <PrimaryButton onClick={() => onSubscribe(addon)}>
             Subscribe
         </PrimaryButton>
     );
@@ -114,8 +124,28 @@ function AddonAction({
 export default function Index({
     addons,
     bannerAdvice,
-}: PageProps<{ addons: AddonRow[]; bannerAdvice: PlanAdvice | null }>) {
+    hasBillingPeriod,
+    billingInterval,
+    annualMonthsCharged,
+}: PageProps<{
+    addons: AddonRow[];
+    bannerAdvice: PlanAdvice | null;
+    hasBillingPeriod: boolean;
+    billingInterval: Interval;
+    annualMonthsCharged: number;
+}>) {
+    const formatDate = useShopDateTime({ dateStyle: 'medium' });
+    // One dialog at a time: the cheaper-plan warning, the charge
+    // confirmation, or the cancellation notice.
     const [advising, setAdvising] = useState<AddonRow | null>(null);
+    const [confirming, setConfirming] = useState<AddonRow | null>(null);
+    const [cancelling, setCancelling] = useState<AddonRow | null>(null);
+    // Only chosen by a shop with no billing period yet; otherwise it follows theirs.
+    const [chosenInterval, setChosenInterval] = useState<Interval>('monthly');
+    const interval = hasBillingPeriod ? billingInterval : chosenInterval;
+
+    const startSubscribe = (addon: AddonRow) =>
+        addon.advice ? setAdvising(addon) : setConfirming(addon);
 
     return (
         <AuthenticatedLayout
@@ -129,6 +159,12 @@ export default function Index({
                             Subscribe to a feature on its own, without upgrading
                             your whole plan. A feature your current plan already
                             includes is never billed again as a separate add-on.
+                        </p>
+                        <p>
+                            An add-on you start part-way through a billing
+                            period is charged for the days remaining, then
+                            renews with everything else. Cancelling keeps it
+                            until the end of the period you've paid for.
                         </p>
                         <p>
                             These subscriptions aren't charged automatically yet
@@ -159,7 +195,7 @@ export default function Index({
                             <PrimaryButton
                                 onClick={() => upgrade(bannerAdvice)}
                             >
-                                Upgrade to {bannerAdvice.plan_name}
+                                Review the {bannerAdvice.plan_name} plan
                             </PrimaryButton>
                         </div>
                     )}
@@ -190,7 +226,8 @@ export default function Index({
                                 </div>
                                 <AddonAction
                                     addon={addon}
-                                    onAdvise={setAdvising}
+                                    onSubscribe={startSubscribe}
+                                    onCancel={setCancelling}
                                 />
                             </div>
                         ))}
@@ -212,14 +249,7 @@ export default function Index({
                         <div className="flex flex-wrap justify-end gap-3">
                             <SecondaryButton
                                 onClick={() => {
-                                    router.post(
-                                        route(
-                                            'shop.addons.store',
-                                            advising.feature,
-                                        ),
-                                        { confirm_separate: true },
-                                        { preserveScroll: true },
-                                    );
+                                    setConfirming(advising);
                                     setAdvising(null);
                                 }}
                             >
@@ -228,8 +258,109 @@ export default function Index({
                             <PrimaryButton
                                 onClick={() => upgrade(advising.advice!)}
                             >
-                                Upgrade to {advising.advice.plan_name}
+                                Review the {advising.advice.plan_name} plan
                             </PrimaryButton>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal
+                show={confirming !== null}
+                maxWidth="lg"
+                onClose={() => setConfirming(null)}
+            >
+                {confirming && (
+                    <div className="space-y-4 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            Subscribe to {confirming.label}
+                        </h3>
+                        {!hasBillingPeriod && (
+                            <BillingIntervalToggle
+                                value={chosenInterval}
+                                onChange={setChosenInterval}
+                                annualMonthsCharged={annualMonthsCharged}
+                            />
+                        )}
+                        <BillingDisclosure
+                            quote={confirming.quotes[interval]}
+                        />
+                        <div className="flex justify-end gap-3">
+                            <SecondaryButton
+                                onClick={() => setConfirming(null)}
+                            >
+                                Not now
+                            </SecondaryButton>
+                            <PrimaryButton
+                                onClick={() => {
+                                    router.post(
+                                        route(
+                                            'shop.addons.store',
+                                            confirming.feature,
+                                        ),
+                                        { confirm_separate: true, interval },
+                                        { preserveScroll: true },
+                                    );
+                                    setConfirming(null);
+                                }}
+                            >
+                                Subscribe
+                                {confirming.quotes[interval].charge_cents > 0 &&
+                                    ` - ${formatMoney(confirming.quotes[interval].charge_cents)} today`}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal
+                show={cancelling !== null}
+                maxWidth="md"
+                onClose={() => setCancelling(null)}
+            >
+                {cancelling && (
+                    <div className="space-y-4 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            Cancel {cancelling.label}?
+                        </h3>
+                        <p className="text-sm text-gray-700">
+                            {hasBillingPeriod ? (
+                                <>
+                                    You'll keep it until{' '}
+                                    <strong>
+                                        {formatDate(
+                                            cancelling.quotes[billingInterval]
+                                                .renews_at,
+                                        )}
+                                    </strong>
+                                    , the end of the period you've already paid
+                                    for, and it won't renew. We don't refund the
+                                    current period.
+                                </>
+                            ) : (
+                                "You'll lose access immediately."
+                            )}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <SecondaryButton
+                                onClick={() => setCancelling(null)}
+                            >
+                                Keep it
+                            </SecondaryButton>
+                            <DangerButton
+                                onClick={() => {
+                                    router.delete(
+                                        route(
+                                            'shop.addons.destroy',
+                                            cancelling.feature,
+                                        ),
+                                        { preserveScroll: true },
+                                    );
+                                    setCancelling(null);
+                                }}
+                            >
+                                Cancel subscription
+                            </DangerButton>
                         </div>
                     </div>
                 )}

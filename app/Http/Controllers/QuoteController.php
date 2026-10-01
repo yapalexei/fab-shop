@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\LineItemType;
 use App\Enums\QuoteStatus;
 use App\Enums\ShopResource;
@@ -10,11 +11,14 @@ use App\Http\Requests\StoreQuoteRequest;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\Models\Customer;
 use App\Models\Equipment;
+use App\Models\FeatureSetting;
 use App\Models\MarkupDefault;
 use App\Models\Material;
 use App\Models\Quote;
+use App\Models\QuoteHistoryEntry;
 use App\Models\Service;
 use App\Models\Tool;
+use App\Support\QuoteHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\Auth;
@@ -68,6 +72,8 @@ class QuoteController extends Controller implements HasMiddleware
             return $quote;
         });
 
+        QuoteHistory::log($quote, 'created', 'Quote created');
+
         return redirect()->route('quotes.edit', $quote);
     }
 
@@ -80,6 +86,9 @@ class QuoteController extends Controller implements HasMiddleware
                 'status' => $quote->status->value,
                 'is_archived' => $quote->is_archived,
                 'job_id' => $quote->job?->id,
+                'customer_email' => $quote->customer->email,
+                'emailed_at' => $quote->emailed_at?->toIso8601String(),
+                'send_skipped_reason' => $quote->send_skipped_reason,
                 'notes' => $quote->notes,
                 'line_items' => $quote->lineItems->map(fn ($item) => [
                     'id' => $item->id,
@@ -98,17 +107,60 @@ class QuoteController extends Controller implements HasMiddleware
                 ]),
             ],
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name']),
+            'history' => $this->historyProps($quote),
             ...$this->catalogProps(),
         ]);
     }
 
+    /**
+     * The quote's change log, or null for a shop with no claim to it - the
+     * table isn't even queried then. A shop that lost the feature (trial
+     * ended, add-on cancelled) still sees what was recorded, read-only, but
+     * nothing new is written. `upsell` carries the add-on price when there's
+     * nothing to show, so the page can offer it.
+     *
+     * @return array<string, mixed>
+     */
+    private function historyProps(Quote $quote): array
+    {
+        $shop = Auth::user()->currentShop;
+        $entitled = $shop->hasFeature(Feature::QuoteHistory);
+
+        $entries = ($entitled || $shop->canViewFeature(Feature::QuoteHistory))
+            ? $quote->historyEntries()->with('user:id,name')->get()
+            : collect();
+
+        if (! $entitled && $entries->isEmpty()) {
+            return ['entries' => null, 'read_only' => false, 'price_cents' => FeatureSetting::priceFor(Feature::QuoteHistory)];
+        }
+
+        return [
+            'entries' => $entries->map(fn (QuoteHistoryEntry $entry) => [
+                'id' => $entry->id,
+                'summary' => $entry->summary,
+                'changes' => $entry->changes ?? [],
+                'user' => $entry->user?->name,
+                'created_at' => $entry->created_at->toIso8601String(),
+            ])->values(),
+            'read_only' => ! $entitled,
+            'price_cents' => null,
+        ];
+    }
+
     public function update(UpdateQuoteRequest $request, Quote $quote): RedirectResponse
     {
+        // Entitled shops only: snapshot first so the save can be diffed.
+        $before = QuoteHistory::enabled() ? QuoteHistory::snapshot($quote) : null;
+
         DB::transaction(function () use ($request, $quote) {
             $quote->update($request->safe()->only(['customer_id', 'notes']));
 
             $this->syncLineItems($quote, $request->validated('line_items'));
         });
+
+        if ($before !== null) {
+            QuoteHistory::recordSave($quote, $before);
+        }
 
         return redirect()->route('quotes.edit', $quote);
     }

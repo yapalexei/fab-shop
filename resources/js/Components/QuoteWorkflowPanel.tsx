@@ -1,8 +1,11 @@
 import RequiresSubscription from '@/Components/RequiresSubscription';
 import SecondaryButton from '@/Components/SecondaryButton';
+import TextInput from '@/Components/TextInput';
+import { useShopDateTime } from '@/lib/datetime';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
+import { FormEvent, useState } from 'react';
 
 function SubscriptionNotice({ children }: { children: string }) {
     return (
@@ -18,7 +21,16 @@ interface Props {
     status: string;
     isArchived: boolean;
     jobId: number | null;
+    customerEmail: string | null;
+    emailedAt: string | null;
+    sendSkippedReason: string | null;
 }
+
+// One-click reasons for skipping the email: they fill the reason and submit.
+const QUICK_SKIP_REASONS = [
+    'Customer agreed verbally',
+    'Gave the customer a copy in person',
+];
 
 /**
  * Renders whichever action(s) are valid for the quote's current place in the
@@ -30,7 +42,13 @@ export default function QuoteWorkflowPanel({
     status,
     isArchived,
     jobId,
+    customerEmail,
+    emailedAt,
+    sendSkippedReason,
 }: Props) {
+    const formatDateTime = useShopDateTime();
+    const [skipping, setSkipping] = useState(false);
+    const [reason, setReason] = useState('');
     const { errors, enabledFeatures } = usePage<PageProps>()
         .props as PageProps & {
         errors: Record<string, string>;
@@ -56,9 +74,18 @@ export default function QuoteWorkflowPanel({
         return null;
     }
 
-    const post = (routeName: string) => {
-        router.post(route(routeName, quoteId), {}, { preserveScroll: true });
+    const post = (routeName: string, data: Record<string, string> = {}) => {
+        router.post(route(routeName, quoteId), data, { preserveScroll: true });
     };
+
+    const skipSend = (text: string) => post('quotes.skip-send', { reason: text });
+
+    const submitSkip = (event: FormEvent) => {
+        event.preventDefault();
+        skipSend(reason);
+    };
+
+    const canEmail = !!customerEmail;
 
     return (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md bg-gray-50 p-4">
@@ -74,25 +101,108 @@ export default function QuoteWorkflowPanel({
                     </SecondaryButton>
                 </>
             ) : status === 'draft' ? (
-                <SecondaryButton onClick={() => post('quotes.send')}>
-                    Send to customer
-                </SecondaryButton>
+                <>
+                    <SecondaryButton
+                        onClick={() => post('quotes.send')}
+                        disabled={!canEmail}
+                    >
+                        Send to customer
+                    </SecondaryButton>
+                    {!skipping && (
+                        <button
+                            type="button"
+                            onClick={() => setSkipping(true)}
+                            className="text-sm text-indigo-600 hover:text-indigo-900"
+                        >
+                            Skip sending
+                        </button>
+                    )}
+                    {!canEmail && (
+                        <p className="w-full text-sm text-gray-500">
+                            This customer has no email address on file - add
+                            one to email the quote, or skip sending.
+                        </p>
+                    )}
+                    {skipping && (
+                        <form
+                            onSubmit={submitSkip}
+                            className="w-full space-y-2 border-t border-gray-200 pt-3"
+                        >
+                            <p className="text-sm text-gray-700">
+                                Mark this quote as sent without emailing the
+                                customer. Why?
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {QUICK_SKIP_REASONS.map((quick) => (
+                                    <SecondaryButton
+                                        key={quick}
+                                        type="button"
+                                        onClick={() => skipSend(quick)}
+                                    >
+                                        {quick}
+                                    </SecondaryButton>
+                                ))}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <TextInput
+                                    className="block min-w-64 flex-1"
+                                    placeholder="Or type a reason..."
+                                    maxLength={255}
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    required
+                                />
+                                <SecondaryButton type="submit">
+                                    Skip sending
+                                </SecondaryButton>
+                                <button
+                                    type="button"
+                                    onClick={() => setSkipping(false)}
+                                    className="text-sm text-gray-500 hover:text-gray-700"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                            {errors?.reason && (
+                                <p className="text-sm text-red-600">
+                                    {errors.reason}
+                                </p>
+                            )}
+                        </form>
+                    )}
+                </>
             ) : status === 'sent' ? (
                 <>
+                    <p className="w-full text-sm text-gray-600">
+                        {emailedAt
+                            ? `Emailed to ${customerEmail ?? 'the customer'} on ${formatDateTime(emailedAt)}.`
+                            : sendSkippedReason
+                              ? `Not emailed - ${sendSkippedReason}.`
+                              : 'Email queued - it should arrive shortly.'}
+                    </p>
+                    {canEmail && (
+                        <SecondaryButton onClick={() => post('quotes.resend')}>
+                            {emailedAt || !sendSkippedReason
+                                ? 'Resend email'
+                                : 'Email customer'}
+                        </SecondaryButton>
+                    )}
                     <SecondaryButton onClick={() => post('quotes.mark-won')}>
                         Mark won
                     </SecondaryButton>
                     <SecondaryButton onClick={() => post('quotes.mark-lost')}>
                         Mark lost
                     </SecondaryButton>
-                    <a
-                        href={route('quotes.pdf', quoteId)}
-                        className="text-sm text-indigo-600 hover:text-indigo-900"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        View PDF
-                    </a>
+                    {emailedAt && (
+                        <a
+                            href={route('quotes.pdf', quoteId)}
+                            className="text-sm text-indigo-600 hover:text-indigo-900"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            View PDF
+                        </a>
+                    )}
                 </>
             ) : status === 'won' ? (
                 jobId ? (

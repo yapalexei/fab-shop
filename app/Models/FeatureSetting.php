@@ -33,7 +33,7 @@ class FeatureSetting extends Model
      */
     public static function priceFor(Feature $feature): int
     {
-        return static::query()->where('feature', $feature->value)->value('price_cents') ?? 2000;
+        return static::query()->where('feature', $feature->value)->value('price_cents') ?? $feature->defaultPriceCents();
     }
 
     /**
@@ -49,7 +49,7 @@ class FeatureSetting extends Model
         $rows = static::query()->pluck('price_cents', 'feature');
 
         return collect(Feature::cases())->mapWithKeys(
-            fn (Feature $feature) => [$feature->value => $rows[$feature->value] ?? 2000],
+            fn (Feature $feature) => [$feature->value => $rows[$feature->value] ?? $feature->defaultPriceCents()],
         );
     }
 
@@ -103,7 +103,7 @@ class FeatureSetting extends Model
 
         static::query()->insert($missing->map(fn (Feature $feature) => [
             'feature' => $feature->value,
-            'price_cents' => 2000,
+            'price_cents' => $feature->defaultPriceCents(),
             'trial_days' => $trialDays,
             'created_at' => now(),
             'updated_at' => now(),
