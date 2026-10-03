@@ -1,86 +1,41 @@
 # Deploying to Railway
 
-One `Dockerfile` builds one image; Railway runs it as four app services plus two databases. Each app service points at its own config file (Service → Settings → **Config-as-code → Config file path**):
+The whole project - Postgres, Redis, a bucket, and the `web` / `horizon` / `scheduler` / `reverb` services - is declared in [.railway/railway.ts](../.railway/railway.ts) (Railway Infrastructure as Code, beta). All four app services build from the root `Dockerfile` and differ only in start command. `web` runs `migrate --force` and `db:seed --class=PlanSeeder --force` as its single pre-deploy command (Railway allows only one, so they're chained; the seeder is idempotent; plans/features are required data, not demo data).
 
-| Service     | Config file              | Runs                      | Public domain |
-|-------------|--------------------------|---------------------------|---------------|
-| `web`       | `/railway/web.json`      | nginx + php-fpm (default) | yes           |
-| `horizon`   | `/railway/horizon.json`  | `artisan horizon`         | no            |
-| `scheduler` | `/railway/scheduler.json`| `artisan schedule:work`   | no            |
-| `reverb`    | `/railway/reverb.json`   | `artisan reverb:start`    | yes (WebSockets) |
+Two separate mechanisms, on purpose:
 
-Plus **PostgreSQL** and **Redis** (Railway database templates) and a **Bucket** (S3-compatible storage).
+- **App code** - each service is connected to `main` on GitHub, so `git push origin main` builds and deploys all four.
+- **Infrastructure** (`.railway/**`) - [.github/workflows/railway.yml](../.github/workflows/railway.yml) runs `railway config plan` on a PR and `railway config apply` when it merges. Needs a `RAILWAY_TOKEN` repo secret (an environment-scoped project token from Railway's project settings → Tokens).
 
-`web` runs `migrate --force` and `db:seed --class=PlanSeeder --force` as its pre-deploy command (the seeder is idempotent; plans/features are required data, not demo data).
+## One-time bootstrap
+
+1. Upgrade the CLI - IaC needs **5.42.1+** (`brew upgrade railway` or `npm i -g @railway/cli`).
+2. `railway login`, create an empty project in the dashboard (or `railway init`), then `railway link` in this repo. Install the Railway GitHub app on the repo.
+3. `railway config plan` to preview, then `railway config apply`. This creates every service and database and wires the variables between them.
+4. Generate the two public domains: `railway domain --service web` and `railway domain --service reverb`.
+5. Set the values IaC deliberately doesn't own (secrets aren't declared in `railway.ts` at all, so apply never touches them) on each service that needs them - see "Variables you set by hand".
+6. Redeploy. Reverb's domain is baked into the JS bundle at build time, so `web` must build *after* step 4.
+7. Add the `RAILWAY_TOKEN` GitHub secret so later infrastructure edits apply from CI.
 
 ## Why a bucket is required
 
 Services don't share a filesystem. Job photos, generated quote PDFs and CSV import uploads are written by one container and read by another, so they must live on shared storage. `FILESYSTEM_DISK=s3` + `MEDIA_DISK=s3` do that; photo URLs are signed temporary URLs, so the bucket can stay private.
 
-## Setup
+## Variables you set by hand
 
-1. New project → deploy from this GitHub repo (creates `web`). Add `horizon`, `scheduler`, `reverb` as three more services from the same repo. Set each one's config file path.
-2. Add Postgres, Redis, and a Bucket.
-3. Put the shared variables in **Project → Shared Variables** (or reference them per service with `${{shared.NAME}}`), and give every app service the same values. Variables below marked *build* must also be present on the service at build time.
-4. Generate a public domain for `web` and for `reverb`.
-5. Deploy `reverb` first (its domain is needed for the `VITE_*` build args), then the rest.
-
-## Variables (all four app services)
+Everything else in the old variable list (database/Redis/bucket references, reverb hosts, drivers) now comes from `railway.ts`. Set these once per service that uses them (`railway variables --service web --set KEY=value`, or the dashboard):
 
 ```
-APP_NAME="Fab Shop"
-APP_ENV=production
-APP_DEBUG=false
-APP_KEY=base64:...                  # php artisan key:generate --show
+APP_KEY=base64:...            # php artisan key:generate --show
 APP_URL=https://<web domain>
-LOG_CHANNEL=stderr
-LOG_LEVEL=info
-
-DB_CONNECTION=pgsql
-DB_URL=${{Postgres.DATABASE_URL}}
-REDIS_URL=${{Redis.REDIS_URL}}
-QUEUE_CONNECTION=redis
-CACHE_STORE=database
-SESSION_DRIVER=database
-
-FILESYSTEM_DISK=s3
-MEDIA_DISK=s3
-AWS_ACCESS_KEY_ID=${{Bucket.ACCESS_KEY_ID}}
-AWS_SECRET_ACCESS_KEY=${{Bucket.SECRET_ACCESS_KEY}}
-AWS_DEFAULT_REGION=${{Bucket.REGION}}
-AWS_BUCKET=${{Bucket.BUCKET}}
-AWS_ENDPOINT=${{Bucket.ENDPOINT}}
-AWS_USE_PATH_STYLE_ENDPOINT=true    # check the bucket's own variable names in the Railway UI
-
-MAIL_MAILER=smtp                    # or resend/postmark - mailpit does not exist here
-MAIL_HOST=...  MAIL_PORT=...  MAIL_USERNAME=...  MAIL_PASSWORD=...
-MAIL_FROM_ADDRESS=...
-
-BROADCAST_CONNECTION=reverb
-REVERB_APP_ID=<any number>
-REVERB_APP_KEY=<random string>
-REVERB_APP_SECRET=<random string>
-REVERB_HOST=<reverb public domain>  # what the browser connects to
-REVERB_PORT=443
-REVERB_SCHEME=https
-REVERB_INTERNAL_HOST=${{reverb.RAILWAY_PRIVATE_DOMAIN}}   # server-to-server push
-REVERB_INTERNAL_PORT=8080
-REVERB_INTERNAL_SCHEME=http
-
-# build args (baked into the JS bundle)
-VITE_REVERB_APP_KEY=${{REVERB_APP_KEY}}
-VITE_REVERB_HOST=${{REVERB_HOST}}
-VITE_REVERB_PORT=443
-VITE_REVERB_SCHEME=https
-
-LEGAL_*=...                         # see .env.example
+REVERB_APP_ID / REVERB_APP_KEY / REVERB_APP_SECRET   # any values; identical on every service
+VITE_REVERB_APP_KEY=<same as REVERB_APP_KEY>         # web, horizon, scheduler (build-time)
+RESEND_API_KEY                # web + horizon (mail is sent from queued jobs too)
+MAIL_FROM_ADDRESS             # must be on a domain verified in Resend
+LEGAL_*                       # see .env.example
 ```
 
-Extra per service:
-
-- `web`: `PORT=8080`, `PHP_OPCACHE_ENABLE=1`
-- `reverb`: `PORT=8080`, `REVERB_SERVER_PORT=8080` (it listens on 8080; Railway's edge proxies 443 to it)
-- QuickBooks vars: leave unset - the feature is switched off.
+QuickBooks variables stay unset - the feature is switched off.
 
 ## After the first deploy
 
@@ -88,6 +43,13 @@ Extra per service:
 - Never set `APP_MODE=demo` in production (the `demo:*` commands refuse to run without it).
 - Horizon needs the `web` and `horizon` services to share the same `REDIS_URL` and `APP_NAME`/`HORIZON_PREFIX`.
 
-## Not verified
+## Verified / not verified
 
-The image builds and boots locally (extensions, artisan commands, asset build). The Railway wiring itself - reference-variable names for the Bucket, the Reverb WebSocket round-trip through Railway's proxy - hasn't been exercised against a live project, so check the first deploy's logs for each service.
+Applied successfully to a real project: all four services deploy, `/up` returns 200, migrations and the plan seeder run, Horizon and the scheduler start, Reverb listens, and the `VITE_REVERB_*` values end up in the built JS bundle.
+
+Gotchas hit on the first deploy:
+- `preDeployCommand` accepts a single command only.
+- `web`'s bundle must build *after* the `VITE_REVERB_*` variables exist - changing them needs a rebuild (set any variable without `--skip-deploys`).
+- On a brand-new database `reverb` can start before `web` has migrated and crash on the missing `cache` table; redeploy `reverb` once.
+
+Not yet exercised: the bucket (photo/PDF/CSV round-trip on S3 - the `AWS_*` reference names came from a guess), outgoing mail, and a live WebSocket connection through Railway's proxy.
