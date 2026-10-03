@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // SetPermissionsTeamFromCurrentShop must run before Inertia shares
         // props - the shared `auth.can` flags check roles, which need
         // Spatie's team id already pointed at the current shop.
+        // Railway (like most PaaS hosts) terminates TLS at its edge proxy,
+        // so without this Laravel sees plain http and generates http:// URLs.
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
             SetPermissionsTeamFromCurrentShop::class,
             HandleInertiaRequests::class,

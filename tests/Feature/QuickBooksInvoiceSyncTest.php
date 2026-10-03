@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Feature;
 use App\Enums\JobStageRole;
 use App\Jobs\PushJobInvoiceToQuickBooks;
 use App\Models\Customer;
@@ -10,6 +11,12 @@ use App\Models\Shop;
 use App\Services\QuickBooks\QuickBooksClient;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+
+beforeEach(function () {
+    if (! Feature::QuickbooksSync->isShipped()) {
+        $this->markTestSkipped('QuickBooks sync is switched off (future feature) - see Feature::isShipped().');
+    }
+});
 
 function connectedShop(): Shop
 {

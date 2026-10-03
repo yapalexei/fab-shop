@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class JobController extends Controller
 {
@@ -97,8 +98,8 @@ class JobController extends Controller
                 ]),
                 'photos' => $job->photos()->map(fn ($photo) => [
                     'id' => $photo->id,
-                    'url' => $photo->getUrl(),
-                    'thumb_url' => $photo->getUrl('thumb'),
+                    'url' => $this->photoUrl($photo),
+                    'thumb_url' => $this->photoUrl($photo, 'thumb'),
                 ]),
             ],
             // Omitted entirely (not just hidden) for a shop without the
@@ -219,5 +220,18 @@ class JobController extends Controller
             : collect();
 
         return $moves->concat($cancel)->sortByDesc('is_forward')->values()->all();
+    }
+
+    /**
+     * Public disks serve a plain URL; a private S3-compatible bucket (the
+     * production setup) needs a short-lived signed one.
+     */
+    private function photoUrl(Media $photo, string $conversion = ''): string
+    {
+        if (config("filesystems.disks.{$photo->disk}.driver") === 's3') {
+            return $photo->getTemporaryUrl(now()->addMinutes(30), $conversion);
+        }
+
+        return $photo->getUrl($conversion);
     }
 }

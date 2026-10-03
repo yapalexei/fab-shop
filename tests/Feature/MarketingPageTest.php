@@ -29,14 +29,15 @@ test('tier contents on the marketing page are read live from the seeded plans', 
         ->where('tiers.1.key', 'solo')
         ->where('tiers.2.key', 'start-up')
         ->where('tiers.3.key', 'pro')
-        // Solo includes quoting but not the job board; Start-up includes the
-        // job board but not QuickBooks sync; Pro includes both - matches
-        // PlanSeeder exactly, so this test breaks the moment the two drift.
+        // Solo includes quoting but not the job board; Start-up and Pro both
+        // include it - matches PlanSeeder exactly, so this test breaks the
+        // moment the two drift. (QuickBooks sync is a switched-off future
+        // feature and so isn't listed at all.)
         ->where('tiers.1.features', fn ($features) => collect($features)->firstWhere('key', 'quote-builder')['included'] === true
             && collect($features)->firstWhere('key', 'job-board')['included'] === false)
         ->where('tiers.2.features', fn ($features) => collect($features)->firstWhere('key', 'job-board')['included'] === true
-            && collect($features)->firstWhere('key', 'quickbooks-sync')['included'] === false)
-        ->where('tiers.3.features', fn ($features) => collect($features)->firstWhere('key', 'quickbooks-sync')['included'] === true));
+            && collect($features)->firstWhere('key', 'quickbooks-sync') === null)
+        ->where('tiers.3.features', fn ($features) => collect($features)->firstWhere('key', 'job-board')['included'] === true));
 });
 
 test('unshipped features are left off the marketing page entirely, not teased as coming soon', function () {

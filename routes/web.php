@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Feature;
 use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\CsvImportController;
@@ -256,12 +257,15 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->name('markup-defaults.update')
         ->middleware(['feature:quote-builder', 'can:markup.update']);
 
-    Route::middleware('feature:quickbooks-sync')->prefix('quickbooks')->name('quickbooks.')->group(function () {
-        Route::get('/', [QuickBooksConnectionController::class, 'show'])->name('show')->middleware('can:quickbooks.view');
-        Route::get('/connect', [QuickBooksConnectionController::class, 'connect'])->name('connect')->middleware('can:quickbooks.update');
-        Route::get('/callback', [QuickBooksConnectionController::class, 'callback'])->name('callback')->middleware('can:quickbooks.update');
-        Route::delete('/', [QuickBooksConnectionController::class, 'destroy'])->name('destroy')->middleware('can:quickbooks.delete');
-    });
+    // Switched off while QuickBooks is a future feature - see Feature::isShipped().
+    if (Feature::QuickbooksSync->isShipped()) {
+        Route::middleware('feature:quickbooks-sync')->prefix('quickbooks')->name('quickbooks.')->group(function () {
+            Route::get('/', [QuickBooksConnectionController::class, 'show'])->name('show')->middleware('can:quickbooks.view');
+            Route::get('/connect', [QuickBooksConnectionController::class, 'connect'])->name('connect')->middleware('can:quickbooks.update');
+            Route::get('/callback', [QuickBooksConnectionController::class, 'callback'])->name('callback')->middleware('can:quickbooks.update');
+            Route::delete('/', [QuickBooksConnectionController::class, 'destroy'])->name('destroy')->middleware('can:quickbooks.delete');
+        });
+    }
 });
 
 require __DIR__.'/auth.php';

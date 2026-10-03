@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Drives the quote lifecycle (draft -> sent -> won/lost -> archived, plus
@@ -162,13 +162,11 @@ class QuoteWorkflowController extends Controller
             ->stream("quote-{$quote->id}-preview.pdf");
     }
 
-    public function downloadPdf(Quote $quote): BinaryFileResponse
+    public function downloadPdf(Request $request, Quote $quote): StreamedResponse
     {
         abort_unless($quote->pdf(), 404);
 
-        return response()->file($quote->pdf()->getPath(), [
-            'Content-Type' => 'application/pdf',
-        ]);
+        return $quote->pdf()->toInlineResponse($request);
     }
 
     /**

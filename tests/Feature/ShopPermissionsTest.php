@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Feature;
 use App\Models\Customer;
 use App\Models\Material;
 use App\Models\Quote;
@@ -268,7 +269,6 @@ test('staff defaults: quote and move jobs, read-only catalog, no deletes or canc
     $this->actingAs($staff)->patch(route('jobs.status', $job), ['cancel' => true])->assertForbidden();
     expect($job->fresh()->job_stage_id)->toBe($shipped->id);
 
-    $this->actingAs($staff)->get(route('quickbooks.show'))->assertForbidden();
     $this->actingAs($staff)->get(route('shop.settings.edit'))->assertForbidden();
 });
 
@@ -313,6 +313,10 @@ test('a denied view override locks a member out of that section entirely', funct
 });
 
 test('an admin can connect quickbooks but only the owner can disconnect it by default', function () {
+    if (! Feature::QuickbooksSync->isShipped()) {
+        $this->markTestSkipped('QuickBooks sync is switched off (future feature) - see Feature::isShipped().');
+    }
+
     $shop = Shop::factory()->create();
     $admin = actingAsShopMember($shop, 'Admin');
 

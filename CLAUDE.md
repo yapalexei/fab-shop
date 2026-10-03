@@ -34,6 +34,8 @@ Both refuse to run unless `APP_MODE=demo` is set (on top of a non-production `AP
 
 ### QuickBooks Online sync (F4)
 
+**Currently switched off - a "future feature".** `Feature::QuickbooksSync->isShipped()` returns false, so the `/quickbooks/*` routes aren't registered, the nav entry is removed, `JobStatusController` doesn't dispatch `PushJobInvoiceToQuickBooks`, and the feature is hidden from the marketing page and plan/add-on pickers. The code, tables and permissions are all still in place; the QuickBooks tests skip themselves while it's off. To re-enable, flip it to `true` in `Feature::isShipped()` and re-add the nav item in `AuthenticatedLayout.tsx`. The rest of this section describes the integration as built.
+
 Built without real Intuit credentials - `QUICKBOOKS_CLIENT_ID`/`QUICKBOOKS_CLIENT_SECRET` are blank in `.env`/`.env.example`, so the OAuth connect button currently redirects to a real Intuit URL that can't complete the handshake. Everything downstream of that (token exchange, refresh-on-expiry, customer dedupe, invoice push/retry) is built and tested against `Http::fake()` in `tests/Feature/QuickBooksConnectionTest.php` and `QuickBooksInvoiceSyncTest.php` - covers the three acceptance cases from `docs/product-desc.md`'s F4 section (token expiry mid-sync, dedupe not duplicate, retry not silently drop) - but has never round-tripped against a real sandbox company.
 
 To wire up real credentials: register a free app at [developer.intuit.com](https://developer.intuit.com), grab its sandbox Client ID/Secret, set `QUICKBOOKS_CLIENT_ID`/`QUICKBOOKS_CLIENT_SECRET` in `.env`, and add `http://localhost/quickbooks/callback` as the app's redirect URI in Intuit's dashboard (must match `QUICKBOOKS_REDIRECT_URI` exactly). `QUICKBOOKS_ENVIRONMENT=sandbox` talks to a different API base URL than production, not just a header/param switch - flip it deliberately, not as an afterthought.
@@ -41,6 +43,10 @@ To wire up real credentials: register a free app at [developer.intuit.com](https
 `App\Services\QuickBooks\QuickBooksClient` is built directly on Laravel's `Http` facade rather than the official `quickbooks/v3-php-sdk` - that package has its own HTTP internals that bypass `Http::fake()`, which would have made the acceptance-case tests much harder to write without a live sandbox company.
 
 `Job->quickbooks_sync_error` holds the last failure message if a push failed - check it (or the job in Horizon's Failed tab once `$tries` is exhausted) before assuming QuickBooks sync silently isn't happening.
+
+## Deployment (Railway)
+
+Production runs on Railway from the root `Dockerfile` (one image, four services - web/horizon/scheduler/reverb - each with its own `railway/*.json` start command), with Postgres, Redis and an S3-compatible bucket. Full setup and variable list: [docs/deploy-railway.md](docs/deploy-railway.md). Two things differ from Sail and matter when changing code: services don't share a filesystem, so anything written by one process and read by another (job photos, quote PDFs, CSV import uploads) must go through the default/media disk - never `Storage::disk('local')->path()` or `Media::getPath()` - and photo URLs go through `JobController::photoUrl()` (signed URL on S3). Reverb has separate browser (`REVERB_HOST`/`PORT`/`SCHEME`) and server-to-server (`REVERB_INTERNAL_*`) settings.
 
 ## Multi-tenancy (critical)
 

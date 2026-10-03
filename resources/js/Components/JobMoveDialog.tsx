@@ -87,7 +87,7 @@ export default function JobMoveDialog({
                             !shown.transition.is_forward &&
                             ' Material and time already used stay on the job - the move is recorded in its history.'}
                         {shown.transition.role === 'invoiced' &&
-                            ' It will be invoiced and, if QuickBooks is connected, the invoice pushed there.'}
+                            ' It will be marked as invoiced.'}
                     </p>
 
                     {isCancel && (

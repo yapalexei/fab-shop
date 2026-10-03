@@ -44,9 +44,12 @@ return [
                 // the laravel.test/horizon containers. REVERB_INTERNAL_HOST
                 // defaults to REVERB_HOST so this is a no-op outside Sail.
                 'host' => env('REVERB_INTERNAL_HOST', env('REVERB_HOST')),
-                'port' => env('REVERB_PORT', 443),
-                'scheme' => env('REVERB_SCHEME', 'https'),
-                'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+                // Likewise the internal hop can be plain http on Reverb's
+                // own port (Railway's private network) while the browser
+                // uses https on 443 through the public domain.
+                'port' => env('REVERB_INTERNAL_PORT', env('REVERB_PORT', 443)),
+                'scheme' => env('REVERB_INTERNAL_SCHEME', env('REVERB_SCHEME', 'https')),
+                'useTLS' => env('REVERB_INTERNAL_SCHEME', env('REVERB_SCHEME', 'https')) === 'https',
             ],
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html

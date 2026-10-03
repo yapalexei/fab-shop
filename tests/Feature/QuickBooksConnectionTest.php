@@ -1,10 +1,15 @@
 <?php
 
+use App\Enums\Feature;
 use App\Models\QuickBooksConnection;
 use App\Models\Shop;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
+    if (! Feature::QuickbooksSync->isShipped()) {
+        $this->markTestSkipped('QuickBooks sync is switched off (future feature) - see Feature::isShipped().');
+    }
+
     config([
         'services.quickbooks.client_id' => 'test-client-id',
         'services.quickbooks.client_secret' => 'test-client-secret',

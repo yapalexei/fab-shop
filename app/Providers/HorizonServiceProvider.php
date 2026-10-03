@@ -28,9 +28,9 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
     protected function gate(): void
     {
         Gate::define('viewHorizon', function ($user = null) {
-            return in_array(optional($user)->email, [
-                //
-            ]);
+            // Platform staff only (users.is_platform_admin) - the same
+            // internal-access flag the F10 admin console uses.
+            return (bool) $user?->is_platform_admin;
         });
     }
 }

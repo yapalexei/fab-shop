@@ -38,7 +38,7 @@ class QuoteReadyMail extends Mailable implements ShouldQueue
     public function attachments(): array
     {
         return [
-            Attachment::fromPath($this->quote->pdf()->getPath())
+            Attachment::fromStorageDisk($this->quote->pdf()->disk, $this->quote->pdf()->getPathRelativeToRoot())
                 ->as("quote-{$this->quote->id}.pdf")
                 ->withMime('application/pdf'),
         ];

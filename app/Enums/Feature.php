@@ -33,13 +33,18 @@ enum Feature: string
      * nothing enforces or exposes it today - the marketing page shows it as
      * "Coming soon" rather than a checkmark, so a tier's page never claims
      * more than the app can currently do. Flip to true here the day it ships.
+     *
+     * QuickbooksSync is built but deliberately switched off (a future
+     * feature until the core app is settled): its routes, nav entry and the
+     * invoice push all key off this method, so flipping it back to true
+     * re-enables everything at once.
      */
     public function isShipped(): bool
     {
         return match ($this) {
-            self::Customers, self::QuoteBuilder, self::JobBoard, self::QuickbooksSync,
+            self::Customers, self::QuoteBuilder, self::JobBoard,
             self::MaterialTracking, self::QualificationRecords, self::QuoteHistory => true,
-            self::MobileApi => false,
+            self::QuickbooksSync, self::MobileApi => false,
         };
     }
 

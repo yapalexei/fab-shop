@@ -53,7 +53,7 @@ class ProcessCsvImport implements ShouldQueue
         $importer = ImporterRegistry::for($import->resource);
 
         try {
-            $rows = CsvReader::parse(Storage::disk('local')->path($this->storedPath), $importer->templateColumns());
+            $rows = $this->parseStoredFile($importer->templateColumns());
         } catch (CsvFormatException $e) {
             $import->update([
                 'status' => ImportStatus::Failed,
@@ -148,8 +148,26 @@ class ProcessCsvImport implements ShouldQueue
         $this->cleanUp();
     }
 
+    /**
+     * The upload lives on the default disk (S3 in production, so the web and
+     * queue containers see the same file) - copy it to a local temp file for
+     * the parser, which needs a real path.
+     */
+    private function parseStoredFile(array $templateColumns): array
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'import');
+
+        try {
+            file_put_contents($tmp, Storage::get($this->storedPath));
+
+            return CsvReader::parse($tmp, $templateColumns);
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
     private function cleanUp(): void
     {
-        Storage::disk('local')->delete($this->storedPath);
+        Storage::delete($this->storedPath);
     }
 }

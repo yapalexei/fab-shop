@@ -24,7 +24,7 @@ function roleNote(role: StageRow['role']): string {
         case 'shipped':
             return 'Flags a job as ready to invoice on the dashboard.';
         case 'invoiced':
-            return 'Pushes the invoice to QuickBooks, if connected.';
+            return 'Marks the job as invoiced.';
         default:
             return '';
     }

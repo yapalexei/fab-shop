@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Feature;
 use App\Jobs\PushJobInvoiceToQuickBooks;
 use App\Models\Shop;
 use App\Models\User;
@@ -66,6 +67,10 @@ test('the expired-trial check runs hourly so each shop hears about it soon after
 });
 
 test('the quickbooks invoice is dated on the shop\'s calendar', function () {
+    if (! Feature::QuickbooksSync->isShipped()) {
+        $this->markTestSkipped('QuickBooks sync is switched off (future feature) - see Feature::isShipped().');
+    }
+
     Http::fake([
         '*/query*' => Http::response(['QueryResponse' => []]),
         '*/customer' => Http::response(['Customer' => ['Id' => 'qb-cust-1']]),

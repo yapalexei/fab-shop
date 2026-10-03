@@ -134,7 +134,6 @@ export default function Authenticated({
     const customersEnabled = accessibleFeatures.includes('customers');
     const quoteBuilderEnabled = accessibleFeatures.includes('quote-builder');
     const jobBoardEnabled = accessibleFeatures.includes('job-board');
-    const quickbooksEnabled = accessibleFeatures.includes('quickbooks-sync');
     const qualificationRecordsEnabled = accessibleFeatures.includes(
         'qualification-records',
     );
@@ -269,14 +268,6 @@ export default function Authenticated({
             enabled: true,
             locked: false,
             visible: auth.isOwner,
-        },
-        {
-            label: 'QuickBooks',
-            href: route('quickbooks.show'),
-            active: route().current('quickbooks.*'),
-            enabled: quickbooksEnabled,
-            locked: isLocked('quickbooks-sync'),
-            visible: can('quickbooks.view'),
         },
         {
             label: 'Add-ons',

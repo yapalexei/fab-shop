@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\JobStageRole;
 use App\Events\JobBoardUpdated;
 use App\Jobs\PushJobInvoiceToQuickBooks;
@@ -54,7 +55,7 @@ class JobStatusController extends Controller
 
         $this->logAndBroadcast($job, $description);
 
-        if ($target->role === JobStageRole::Invoiced) {
+        if ($target->role === JobStageRole::Invoiced && Feature::QuickbooksSync->isShipped()) {
             PushJobInvoiceToQuickBooks::dispatch($job);
         }
 
