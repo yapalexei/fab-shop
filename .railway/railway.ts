@@ -7,7 +7,7 @@ import { bucket, defineRailway, github, postgres, preserve, project, redis, ref,
 export default defineRailway((ctx) => {
     const db = postgres('postgres');
     const cache = redis('redis');
-    const storage = bucket('storage', { region: 'iad' });
+    const storage = bucket('uploads', { region: 'iad' });
 
     const source = github('yapalexei/fab-shop', { branch: 'main' });
     const build = { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile' } as const;
@@ -33,12 +33,12 @@ export default defineRailway((ctx) => {
 
         FILESYSTEM_DISK: 's3',
         MEDIA_DISK: 's3',
-        AWS_ACCESS_KEY_ID: ref(storage, 'ACCESS_KEY_ID'),
-        AWS_SECRET_ACCESS_KEY: ref(storage, 'SECRET_ACCESS_KEY'),
-        AWS_DEFAULT_REGION: ref(storage, 'REGION'),
-        AWS_BUCKET: ref(storage, 'BUCKET'),
-        AWS_ENDPOINT: ref(storage, 'ENDPOINT'),
-        AWS_USE_PATH_STYLE_ENDPOINT: 'true',
+        AWS_ACCESS_KEY_ID: ref(storage, 'AWS_ACCESS_KEY_ID'),
+        AWS_SECRET_ACCESS_KEY: ref(storage, 'AWS_SECRET_ACCESS_KEY'),
+        AWS_DEFAULT_REGION: ref(storage, 'AWS_DEFAULT_REGION'),
+        AWS_BUCKET: ref(storage, 'AWS_S3_BUCKET_NAME'),
+        AWS_ENDPOINT: ref(storage, 'AWS_ENDPOINT_URL'),
+        AWS_USE_PATH_STYLE_ENDPOINT: 'false', // Railway buckets use virtual-host URLs,
 
         MAIL_MAILER: 'resend',
         MAIL_FROM_ADDRESS: preserve(),
