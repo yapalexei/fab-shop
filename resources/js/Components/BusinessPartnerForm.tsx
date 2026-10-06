@@ -144,7 +144,7 @@ export default function BusinessPartnerForm({
 
     return (
         <form onSubmit={submit}>
-            <fieldset disabled={readOnly}>
+            <fieldset disabled={readOnly} className="min-w-0">
                 <FormErrorSummary errors={errorMap} />
 
                 <ImageField

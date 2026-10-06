@@ -74,7 +74,7 @@ export default function Edit({
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
                     <Card className="p-4 sm:p-8">
                         <form onSubmit={submit}>
-                            <fieldset disabled={readOnly}>
+                            <fieldset disabled={readOnly} className="min-w-0">
                                 <FormErrorSummary
                                     errors={errors as Record<string, string>}
                                 />
