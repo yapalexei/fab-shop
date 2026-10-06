@@ -94,7 +94,9 @@ class CsvImportController extends Controller
             )->all()
             : null;
 
-        ProcessCsvImport::dispatch($import->id, $storedPath, $mapping);
+        ProcessCsvImport::dispatch($import->id, $storedPath, $mapping, array_filter([
+            'business_partner_id' => $request->integer('business_partner_id') ?: null,
+        ]));
 
         return response()->json(['id' => $import->id]);
     }

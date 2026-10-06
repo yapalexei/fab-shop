@@ -20,6 +20,11 @@ class ColumnMapper
         'address' => ['street_address'],
         'cost' => ['price', 'unit_price', 'unit_cost'],
         'rate' => ['price', 'hourly_rate'],
+        'material' => ['name', 'description', 'item', 'item_name', 'product', 'product_name', 'title'],
+        'size' => ['dimension', 'dimensions', 'length', 'dimension_size'],
+        'price' => ['cost', 'unit_price', 'list_price', 'price_each'],
+        'part_number' => ['part', 'part_no', 'part_num', 'item_number', 'item_no', 'sku', 'mfr_part_number'],
+        'source_url' => ['url', 'link', 'product_url', 'product_link', 'page'],
         'material_type' => ['type', 'material', 'category'],
     ];
 

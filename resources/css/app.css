@@ -125,8 +125,8 @@
 :root {
     --surface: #ffffff;
     --box: #f8faff;
-    --ink: #222222;
-    --ink-on-status: #222222;
+    --ink: #0c0d13;
+    --ink-on-status: #0c0d13;
 
     --radius: 0.5rem;
     --background: var(--surface);

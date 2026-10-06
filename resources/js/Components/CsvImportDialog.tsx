@@ -50,11 +50,14 @@ export default function CsvImportDialog({
     resource,
     label,
     reloadProps,
+    extra,
 }: {
     resource: string;
     label: string;
     /** Prop name(s) on the current Index page to refresh after a successful import. */
     reloadProps: string[];
+    /** Extra form fields the import needs, e.g. which supplier a price list is for. */
+    extra?: Record<string, string | number>;
 }) {
     const [open, setOpen] = useState(false);
     const [phase, setPhase] = useState<Phase>('form');
@@ -123,6 +126,9 @@ export default function CsvImportDialog({
         const data = new FormData();
         data.append('file', chosen);
         data.append('overwrite', overwrite ? '1' : '0');
+        Object.entries(extra ?? {}).forEach(([key, value]) =>
+            data.append(key, String(value)),
+        );
         Object.entries(chosenMapping ?? {}).forEach(([column, index]) =>
             data.append(`mapping[${column}]`, index),
         );
@@ -235,12 +241,14 @@ export default function CsvImportDialog({
                                         setOverwrite(e.target.checked)
                                     }
                                 />
-                                Overwrite existing records with the same name
+                                {resource === 'supplier-prices'
+                                    ? 'Overwrite prices already on file'
+                                    : 'Overwrite existing records with the same name'}
                             </label>
                             <p className="text-xs text-gray-500">
-                                Matched by name only (case-insensitive). Left
-                                unchecked, a row matching an existing name is
-                                skipped rather than changed.
+                                {resource === 'supplier-prices'
+                                    ? 'Matched by material and size. Left unchecked, a price already listed for this supplier is skipped. Materials you do not have yet are added.'
+                                    : 'Matched by name only (case-insensitive). Left unchecked, a row matching an existing name is skipped rather than changed.'}
                             </p>
 
                             <div className="flex justify-end gap-3 pt-2">

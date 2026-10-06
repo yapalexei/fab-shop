@@ -1,10 +1,11 @@
 import Breadcrumbs from '@/Components/Breadcrumbs';
+import CsvImportDialog from '@/Components/CsvImportDialog';
 import BusinessPartnerForm, { TypeOption } from '@/Components/BusinessPartnerForm';
 import { Button } from '@/Components/ui/button';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 
 interface BusinessPartnerDetail {
@@ -43,6 +44,7 @@ export default function Edit({
     customerId: number | null;
 }>) {
     const can = useCan();
+    const { auth } = usePage<PageProps>().props;
 
     return (
         <AuthenticatedLayout
@@ -104,8 +106,29 @@ export default function Edit({
                         )
                     )}
 
+                    {auth.isOwner && (
+                        <Card className="flex items-center justify-between gap-4 p-4 text-sm">
+                            <span>
+                                Got this supplier&apos;s price list as a
+                                spreadsheet? Import it to add or update their
+                                material prices, with part numbers and links,
+                                instead of typing each one.
+                            </span>
+                            <CsvImportDialog
+                                resource="supplier-prices"
+                                label={`${businessPartner.name} prices`}
+                                reloadProps={['businessPartner', 'materials']}
+                                extra={{ business_partner_id: businessPartner.id }}
+                            />
+                        </Card>
+                    )}
+
                     <Card className="p-4 sm:p-8">
                         <BusinessPartnerForm
+                            // The form copies its props once, so remount it
+                            // when an import changes the saved prices -
+                            // otherwise saving would put the old ones back.
+                            key={JSON.stringify(businessPartner.materials)}
                             materialOptions={materials}
                             serviceOptions={services}
                             typeOptions={typeOptions}

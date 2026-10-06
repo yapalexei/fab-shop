@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Support\CsvImport\ImporterRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreImportRequest extends FormRequest
@@ -26,6 +27,12 @@ class StoreImportRequest extends FormRequest
             // template column => zero-based file column ('' = leave blank).
             'mapping' => ['nullable', 'array'],
             'mapping.*' => ['nullable', 'integer', 'min:0', 'max:500'],
+            // Only a supplier price list needs one: whose prices these are.
+            'business_partner_id' => [
+                Rule::requiredIf(fn () => $this->route('resource') === 'supplier-prices' && $this->routeIs('imports.store')),
+                'nullable',
+                Rule::exists('business_partners', 'id')->where('shop_id', $this->user()->current_shop_id),
+            ],
         ];
     }
 

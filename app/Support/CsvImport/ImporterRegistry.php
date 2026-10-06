@@ -17,6 +17,7 @@ class ImporterRegistry
             EquipmentImporter::class,
             ToolImporter::class,
             MaterialTypeImporter::class,
+            SupplierPriceImporter::class,
         ];
     }
 

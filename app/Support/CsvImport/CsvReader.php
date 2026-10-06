@@ -18,11 +18,12 @@ class CsvReader
     /**
      * @param  array<int, string>  $expectedColumns
      * @param  array<string, int|null>|null  $mapping  template column => zero-based file column, or null to leave it blank; null here means match by header name
+     * @param  array<int, string>|null  $required  matching by name only: the columns the file must have (others may be absent and read as blank); null = all of them
      * @return array<int, array<string, string>>
      *
      * @throws CsvFormatException
      */
-    public static function parse(string $absolutePath, array $expectedColumns, ?array $mapping = null): array
+    public static function parse(string $absolutePath, array $expectedColumns, ?array $mapping = null, ?array $required = null): array
     {
         $handle = @fopen($absolutePath, 'r');
 
@@ -55,6 +56,12 @@ class CsvReader
                 }
 
                 $index = array_search(mb_strtolower($column), $normalizedHeader, true);
+
+                if ($index === false && $required !== null && ! in_array($column, $required, true)) {
+                    $columnIndex[$column] = null;
+
+                    continue;
+                }
 
                 if ($index === false) {
                     throw new CsvFormatException("Missing required column \"{$column}\". Download the template to see the expected columns.");

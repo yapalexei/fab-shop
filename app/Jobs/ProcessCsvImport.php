@@ -8,6 +8,7 @@ use App\Models\Shop;
 use App\Support\CsvImport\CsvFormatException;
 use App\Support\CsvImport\CsvReader;
 use App\Support\CsvImport\ImporterRegistry;
+use App\Support\CsvImport\ImportsOwnRows;
 use App\Support\CsvImport\ResourceImporter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -39,6 +40,8 @@ class ProcessCsvImport implements ShouldQueue
         public string $storedPath,
         /** @var array<string, int|null>|null template column => file column, when the owner mapped them by hand */
         public ?array $mapping = null,
+        /** @var array<string, mixed> extra choices the importer needs, e.g. which supplier a price list is for */
+        public array $options = [],
     ) {}
 
     public function handle(): void
@@ -55,7 +58,7 @@ class ProcessCsvImport implements ShouldQueue
         $importer = ImporterRegistry::for($import->resource);
 
         try {
-            $rows = $this->parseStoredFile($importer->templateColumns(), $this->mapping);
+            $rows = $this->parseStoredFile($importer, $this->mapping);
         } catch (CsvFormatException $e) {
             $import->update([
                 'status' => ImportStatus::Failed,
@@ -66,7 +69,9 @@ class ProcessCsvImport implements ShouldQueue
             return;
         }
 
-        [$created, $updated, $skipped, $errors] = $this->processRows($rows, $importer, $shop, $import->overwrite);
+        [$created, $updated, $skipped, $errors] = $importer instanceof ImportsOwnRows
+            ? $importer->process($rows, $shop, $this->options, $import->overwrite)
+            : $this->processRows($rows, $importer, $shop, $import->overwrite);
 
         $import->update([
             'status' => ImportStatus::Completed,
@@ -155,14 +160,14 @@ class ProcessCsvImport implements ShouldQueue
      * queue containers see the same file) - copy it to a local temp file for
      * the parser, which needs a real path.
      */
-    private function parseStoredFile(array $templateColumns, ?array $mapping): array
+    private function parseStoredFile(ResourceImporter $importer, ?array $mapping): array
     {
         $tmp = tempnam(sys_get_temp_dir(), 'import');
 
         try {
             file_put_contents($tmp, Storage::get($this->storedPath));
 
-            return CsvReader::parse($tmp, $templateColumns, $mapping);
+            return CsvReader::parse($tmp, $importer->templateColumns(), $mapping, $importer->requiredColumns());
         } finally {
             @unlink($tmp);
         }

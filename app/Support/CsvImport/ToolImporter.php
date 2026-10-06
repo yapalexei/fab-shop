@@ -6,6 +6,7 @@ use App\Enums\Feature;
 use App\Models\MaterialType;
 use App\Models\Shop;
 use App\Models\Tool;
+use App\Support\SupplierPrices;
 use Illuminate\Database\Eloquent\Model;
 
 class ToolImporter extends ResourceImporter
@@ -32,7 +33,7 @@ class ToolImporter extends ResourceImporter
 
     public function templateColumns(): array
     {
-        return ['name', 'cuts', 'cost', 'unit', 'notes'];
+        return ['name', 'cuts', 'cost', 'unit', 'notes', 'part_number', 'source_url'];
     }
 
     public function requiredColumns(): array
@@ -70,6 +71,8 @@ class ToolImporter extends ResourceImporter
                 'cost' => $row['cost'] !== '' ? $row['cost'] : null,
                 'unit' => $row['unit'] ?: null,
                 'notes' => $row['notes'] ?: null,
+                'part_number' => $row['part_number'] ?: null,
+                'source_url' => $row['source_url'] ?: null,
             ],
             'relations' => ['materialTypes' => array_unique($typeIds)],
             'errors' => $errors,
@@ -83,11 +86,18 @@ class ToolImporter extends ResourceImporter
             'cost' => ['required', 'numeric', 'min:0'],
             'unit' => ['required', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            ...SupplierPrices::LINK_RULES,
         ];
     }
 
     public function applyRelations(Model $model, array $relations): void
     {
         $model->materialTypes()->sync($relations['materialTypes'] ?? []);
+
+        // A new tool, or one whose cost the file changed, has a freshly
+        // confirmed price (same rule as the tool form).
+        if ($model->wasRecentlyCreated || $model->wasChanged('cost')) {
+            $model->forceFill(['price_checked_at' => now()])->save();
+        }
     }
 }

@@ -14,6 +14,7 @@ use App\Models\Shop;
 use App\Models\Tool;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 
@@ -393,4 +394,159 @@ test('only an owner can preview a file, and only for a feature the shop has', fu
     $this->actingAs($admin)->post(route('imports.preview', 'customers'), [
         'file' => UploadedFile::fake()->createWithContent('x.csv', "name\nX\n"),
     ])->assertForbidden();
+});
+
+// --- supplier price lists and link columns ------------------------------------------
+
+function priceList(User $user, BusinessPartner $partner, string $csv, array $extra = [])
+{
+    return test()->actingAs($user)->post(route('imports.store', 'supplier-prices'), [
+        'file' => UploadedFile::fake()->createWithContent('prices.csv', $csv),
+        'business_partner_id' => $partner->id,
+        ...$extra,
+    ]);
+}
+
+test('a supplier price list adds prices with part numbers and links, creating materials it lacks', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $partner = BusinessPartner::factory()->for($shop)->create();
+    $plate = Material::factory()->for($shop)->create(['name' => '1/4in A36 plate']);
+
+    $response = priceList($owner, $partner, "material,size,price,unit,part_number,source_url\n"
+        .'1/4in a36 PLATE,4x8 ft,"$1,210.50",sheet,8910K12,https://www.mcmaster.com/8910K12/'."\n"
+        ."Brand new tube,,15,ft,,\n");
+
+    $import = Import::find($response->json('id'));
+    $prices = $partner->fresh()->materials()->get();
+
+    expect($import->status)->toBe(ImportStatus::Completed)
+        ->and($import->created_count)->toBe(2)
+        ->and(Material::count())->toBe(2)
+        ->and($prices)->toHaveCount(2);
+
+    $platePrice = $prices->firstWhere('id', $plate->id)->pivot;
+    expect((float) $platePrice->price)->toBe(1210.5)
+        ->and($platePrice->dimension)->toBe('4x8 ft')
+        ->and($platePrice->part_number)->toBe('8910K12')
+        ->and($platePrice->price_checked_at)->not->toBeNull()
+        ->and(Material::where('name', 'Brand new tube')->value('unit'))->toBe('ft');
+});
+
+test('a price already on file is skipped unless overwrite is on, and an overwrite counts as a fresh check', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $partner = BusinessPartner::factory()->for($shop)->create();
+    $material = Material::factory()->for($shop)->create(['name' => 'Bar']);
+    $partner->materials()->attach($material->id, ['price' => 10, 'dimension' => '4 ft', 'price_checked_at' => now()->subYear()]);
+
+    $csv = "material,size,price\nBar,4 FT,12\nBar,6 ft,18\n";
+
+    $skip = Import::find(priceList($owner, $partner, $csv)->json('id'));
+    expect($skip->skipped_count)->toBe(1)->and($skip->created_count)->toBe(1);
+    expect((float) $partner->fresh()->materials()->wherePivot('dimension', '4 ft')->first()->pivot->price)->toBe(10.0);
+
+    $over = Import::find(priceList($owner, $partner, $csv, ['overwrite' => true])->json('id'));
+    expect($over->updated_count)->toBe(2)->and($over->created_count)->toBe(0);
+
+    $row = $partner->fresh()->materials()->wherePivot('dimension', '4 ft')->first()->pivot;
+    expect((float) $row->price)->toBe(12.0)
+        ->and(Carbon::parse($row->price_checked_at)->isToday())->toBeTrue()
+        ->and($partner->fresh()->materials()->count())->toBe(2);
+});
+
+test('a price list reports bad rows and repeats of the same material and size', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $partner = BusinessPartner::factory()->for($shop)->create();
+
+    $import = Import::find(priceList($owner, $partner, "material,size,price,source_url\n"
+        ."Bar,,10,\nbar,,11,\nTube,,abc,\nRod,,5,javascript:alert(1)\n")->json('id'));
+
+    expect($import->created_count)->toBe(1)
+        ->and(collect($import->errors)->pluck('row')->all())->toBe([3, 4, 5])
+        ->and($import->errors[0]['messages'][0])->toContain('row 2');
+});
+
+test('a price list needs a supplier from this shop', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $foreign = BusinessPartner::factory()->for(Shop::factory()->create())->create();
+    $csv = UploadedFile::fake()->createWithContent('p.csv', "material,price\nBar,1\n");
+
+    $this->actingAs($owner)->post(route('imports.store', 'supplier-prices'), ['file' => $csv])
+        ->assertSessionHasErrors('business_partner_id');
+    $this->actingAs($owner)->post(route('imports.store', 'supplier-prices'), ['file' => $csv, 'business_partner_id' => $foreign->id])
+        ->assertSessionHasErrors('business_partner_id');
+
+    expect(Material::count())->toBe(0);
+});
+
+test('a supplier\'s own export is mapped on the preview step, then imported against the chosen supplier', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $partner = BusinessPartner::factory()->for($shop)->create();
+    $csv = "Part Number,Description,Length,List Price,Link\n8910K12,Steel bar,4 ft,20,https://example.com/a\n";
+
+    $this->actingAs($owner)->post(route('imports.preview', 'supplier-prices'), [
+        'file' => UploadedFile::fake()->createWithContent('export.csv', $csv),
+    ])->assertOk()
+        ->assertJsonPath('suggested.material', 1)
+        ->assertJsonPath('suggested.size', 2)
+        ->assertJsonPath('suggested.price', 3)
+        ->assertJsonPath('suggested.part_number', 0)
+        ->assertJsonPath('suggested.source_url', 4);
+
+    $import = Import::find($this->actingAs($owner)->post(route('imports.store', 'supplier-prices'), [
+        'file' => UploadedFile::fake()->createWithContent('export.csv', $csv),
+        'business_partner_id' => $partner->id,
+        'mapping' => ['material' => 1, 'size' => 2, 'price' => 3, 'unit' => '', 'part_number' => 0, 'source_url' => 4],
+    ])->json('id'));
+
+    expect($import->created_count)->toBe(1)
+        ->and($partner->fresh()->materials()->first()->pivot->part_number)->toBe('8910K12');
+});
+
+test('a price list never touches another shop\'s supplier or materials', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $partner = BusinessPartner::factory()->for($shop)->create();
+    $otherShop = Shop::factory()->create();
+    $theirs = Material::factory()->for($otherShop)->create(['name' => 'Bar']);
+
+    priceList($owner, $partner, "material,price\nBar,10\n");
+
+    expect(Material::withoutGlobalScopes()->where('shop_id', $shop->id)->count())->toBe(1)
+        ->and(Material::withoutGlobalScopes()->find($theirs->id)->shop_id)->toBe($otherShop->id)
+        ->and(DB::table('material_business_partner')->where('material_id', $theirs->id)->count())->toBe(0);
+});
+
+test('tooling imports part number and link columns, and files without them still import', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+
+    $old = Import::find(uploadCsv($owner, 'tools', "name,cuts,cost,unit,notes\nOld bit,Carbon steel,5,each,\n")->json('id'));
+    expect($old->status)->toBe(ImportStatus::Completed)->and($old->created_count)->toBe(1);
+
+    $new = Import::find(uploadCsv($owner, 'tools', "name,cuts,cost,unit,notes,part_number,source_url\nNew bit,Carbon steel,6,each,,2985A21,https://www.mcmaster.com/2985A21/\n")->json('id'));
+    $tool = Tool::where('name', 'New bit')->sole();
+
+    expect($new->created_count)->toBe(1)
+        ->and($tool->part_number)->toBe('2985A21')
+        ->and($tool->source_url)->toBe('https://www.mcmaster.com/2985A21/')
+        ->and($tool->price_checked_at)->not->toBeNull();
+});
+
+test('an overwrite import restamps a tool\'s check date only when its cost changed', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $tool = Tool::factory()->for($shop)->cutting('Carbon steel')->create(['name' => 'Bit', 'cost' => 5, 'unit' => 'each']);
+    $tool->forceFill(['price_checked_at' => now()->subYear()])->save();
+    $stamped = $tool->fresh()->price_checked_at;
+
+    uploadCsv($owner, 'tools', "name,cuts,cost,unit,notes\nBit,Carbon steel,5,each,\n", overwrite: true);
+    expect($tool->fresh()->price_checked_at->equalTo($stamped))->toBeTrue();
+
+    uploadCsv($owner, 'tools', "name,cuts,cost,unit,notes\nBit,Carbon steel,7,each,\n", overwrite: true);
+    expect($tool->fresh()->price_checked_at->greaterThan($stamped))->toBeTrue();
 });
