@@ -81,6 +81,7 @@ class MarketingController extends Controller
             'userLimit' => $plan->user_limit,
             'isTrialOnly' => $isTrialOnly,
             'monthlyPriceCents' => $plan->monthly_price_cents,
+            'extraSeatPriceCents' => $plan->extra_seat_price_cents,
             'savingsCents' => $savingsCents,
             'features' => $features->map(fn (Feature $feature) => [
                 'key' => $feature->value,

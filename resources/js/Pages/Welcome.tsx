@@ -1,4 +1,7 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
+import AnimatedBoard from '@/Components/marketing/AnimatedBoard';
+import FloatingParts from '@/Components/marketing/FloatingParts';
+import Reveal from '@/Components/marketing/Reveal';
 import LegalLinks from '@/Components/LegalLinks';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { Badge } from '@/Components/ui/badge';
@@ -9,13 +12,23 @@ import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import {
     ArrowRight,
+    Bot,
     Check,
     ClipboardList,
+    FileSpreadsheet,
     FileText,
     Hammer,
+    History,
+    LucideIcon,
+    Mail,
     Minus,
+    PackageSearch,
     Receipt,
+    ShieldCheck,
+    Sparkles,
+    Store,
     TriangleAlert,
+    Users,
 } from 'lucide-react';
 
 interface FeatureRow {
@@ -36,6 +49,7 @@ interface Tier {
     userLimit: number;
     isTrialOnly: boolean;
     monthlyPriceCents: number;
+    extraSeatPriceCents: number | null;
     savingsCents: number;
     features: TierFeature[];
 }
@@ -71,51 +85,42 @@ const steps = [
     },
 ];
 
-/** Decorative, static picture of the job board - not live data. */
-function BoardPreview() {
-    const columns = [
-        { name: 'Not started', cards: ['Gate repair', 'Stair rail'] },
-        { name: 'Cutting', cards: ['Trailer hitch'] },
-        { name: 'Welding', cards: ['Planter boxes', 'Fire pit'] },
-        { name: 'Shipped', cards: ['Bracket set'] },
-    ];
+const featureIcons: Record<string, LucideIcon> = {
+    customers: Users,
+    'quote-builder': FileText,
+    'job-board': Hammer,
+    'material-tracking': PackageSearch,
+    'qualification-records': ShieldCheck,
+    'quote-history': History,
+    'quote-emailing': Mail,
+    'ai-assist': Sparkles,
+    'ai-agent': Bot,
+};
 
-    return (
-        <div
-            aria-hidden="true"
-            className="mx-auto mt-14 max-w-4xl rounded-xl border bg-card p-3 shadow-xl ring-1 ring-black/5 sm:p-4"
-        >
-            <div className="mb-3 flex items-center gap-1.5 px-1">
-                <span className="size-2.5 rounded-full bg-red-400" />
-                <span className="size-2.5 rounded-full bg-amber-400" />
-                <span className="size-2.5 rounded-full bg-green-400" />
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {columns.map((column) => (
-                    <div
-                        key={column.name}
-                        className="rounded-lg bg-muted/60 p-2 text-start"
-                    >
-                        <p className="px-1 pb-2 text-xs font-semibold text-muted-foreground">
-                            {column.name}
-                        </p>
-                        <div className="space-y-2">
-                            {column.cards.map((card) => (
-                                <div
-                                    key={card}
-                                    className="rounded-md border bg-background p-2.5 text-xs shadow-xs"
-                                >
-                                    <p className="font-medium">{card}</p>
-                                    <div className="mt-2 h-1.5 w-2/3 rounded-full bg-muted" />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
+// What the app does beyond the plan-gated feature cards. Everything here is
+// built and shipped - keep it that way (see Feature::isShipped()).
+const highlights = [
+    {
+        icon: Sparkles,
+        title: 'Paste an email, get a draft quote',
+        text: 'Drop in a customer message and the AI suggests lines from your own catalog. It picks the items; your prices and markup fill in, so it never invents a number.',
+    },
+    {
+        icon: FileSpreadsheet,
+        title: 'Bring your price lists with you',
+        text: 'Import customers, materials, tooling and supplier price sheets from CSV, with column mapping for whatever your supplier exports.',
+    },
+    {
+        icon: ShieldCheck,
+        title: 'Control who sees what',
+        text: 'Per-person access down to single actions. Keep markup and financials to yourself, and let the crew see only the jobs.',
+    },
+    {
+        icon: Store,
+        title: 'More than one shop? One login',
+        text: 'Switch between shops from the menu. Each keeps its own customers, catalog, team and numbers.',
+    },
+];
 
 function TierFeatureRow({
     feature,
@@ -189,6 +194,11 @@ function TierCard({
                         {formatCents(tier.monthlyPriceCents)}
                     </span>
                     <span className="text-sm text-muted-foreground">/mo</span>
+                    {tier.extraSeatPriceCents !== null && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Extra seats {formatCents(tier.extraSeatPriceCents)}/mo each
+                        </p>
+                    )}
                     {tier.savingsCents > 0 && (
                         <p className="mt-1 text-xs font-medium text-green-700">
                             Save {formatCents(tier.savingsCents)}/mo bundled vs.
@@ -311,6 +321,7 @@ export default function Welcome({
                             aria-hidden="true"
                             className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-linear-to-b from-indigo-100/70 to-transparent dark:from-indigo-950/60"
                         />
+                        <FloatingParts />
                         <div className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center sm:px-6 sm:pt-28 lg:px-8">
                             <Badge variant="secondary" className="mb-6">
                                 For custom, ornamental and mobile fab shops
@@ -324,7 +335,8 @@ export default function Welcome({
                                 QuickBooks-plus-spreadsheets-plus-paper-traveler
                                 routine with one place to quote a job, track it
                                 across the shop floor, and get it invoiced once
-                                it ships.
+                                it ships - with an AI assistant that drafts the
+                                paperwork from your own catalog.
                             </p>
                             <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
                                 {canRegister && (
@@ -346,7 +358,7 @@ export default function Welcome({
                                 No card required.
                             </p>
 
-                            <BoardPreview />
+                            <AnimatedBoard />
                         </div>
                     </section>
 
@@ -357,7 +369,7 @@ export default function Welcome({
                             </h2>
                             <div className="mt-12 grid gap-6 md:grid-cols-3">
                                 {steps.map((step, index) => (
-                                    <div key={step.title} className="text-center">
+                                    <Reveal key={step.title} delay={index * 0.12} className="text-center">
                                         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                                             <step.icon className="size-6" />
                                         </div>
@@ -370,7 +382,7 @@ export default function Welcome({
                                         <p className="mt-2 text-sm text-muted-foreground">
                                             {step.text}
                                         </p>
-                                    </div>
+                                    </Reveal>
                                 ))}
                             </div>
                         </div>
@@ -383,11 +395,15 @@ export default function Welcome({
                                 and get paid
                             </h2>
                             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                                {features.map((feature) => (
-                                    <Card key={feature.key} className="p-6">
+                                {features.map((feature, index) => {
+                                    const Icon = featureIcons[feature.key] ?? ClipboardList;
+
+                                    return (
+                                    <Reveal key={feature.key} delay={(index % 3) * 0.08} className="h-full">
+                                    <Card className="h-full p-6 transition-all hover:-translate-y-1 hover:shadow-lg">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                <ClipboardList className="size-5" />
+                                                <Icon className="size-5" />
                                             </div>
                                             {!feature.shipped && (
                                                 <Badge variant="warning">
@@ -402,6 +418,24 @@ export default function Welcome({
                                             {feature.tagline}
                                         </p>
                                     </Card>
+                                    </Reveal>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mt-16 grid gap-6 sm:grid-cols-2">
+                                {highlights.map((item, index) => (
+                                    <Reveal key={item.title} delay={(index % 2) * 0.1}>
+                                        <div className="flex gap-4 rounded-xl border bg-muted/40 p-5">
+                                            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                                                <item.icon className="size-5" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold">{item.title}</h3>
+                                                <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
+                                            </div>
+                                        </div>
+                                    </Reveal>
                                 ))}
                             </div>
                         </div>
