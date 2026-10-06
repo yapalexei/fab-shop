@@ -275,6 +275,14 @@ export default function Authenticated({
             locked: false,
             visible: auth.isOwner,
         },
+        {
+            label: 'AI assistant',
+            href: route('shop.ai.edit'),
+            active: route().current('shop.ai.*'),
+            enabled: true,
+            locked: false,
+            visible: auth.isOwner,
+        },
     ]
         .filter((item) => item.visible)
         .sort((a, b) => a.label.localeCompare(b.label));
@@ -477,7 +485,7 @@ export default function Authenticated({
                 >
                     {header && (
                         <header className="border-b bg-white">
-                            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                            <div className="mx-auto max-w-7xl px-4 py-4 sm:px-4 lg:px-8 h-18 flex align-items-center">
                                 {header}
                             </div>
                         </header>

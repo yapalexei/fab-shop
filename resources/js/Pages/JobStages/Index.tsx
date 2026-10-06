@@ -247,7 +247,7 @@ export default function Index({ stages }: PageProps<{ stages: StageRow[] }>) {
             <div className="py-12">
                 <div className="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
                     <Card className="overflow-hidden">
-                        <ul className="divide-y divide-gray-100">
+                        <ul className="divide-y">
                             {stages.map((stage) => {
                                 if (stage.is_built_in) {
                                     return (

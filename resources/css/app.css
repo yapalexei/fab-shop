@@ -327,9 +327,13 @@
     }
 
     /* divide-* generates a child combinator, not a plain color rule -
-       target that directly. */
-    .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-    .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+       target that directly. Only -100 is still used (on lists). Tables use
+       a bare `divide-y` and take their line color from the base layer's
+       --border: a `divide-gray-*` class makes Tailwind v4 colour *every*
+       row but the last (`:not(:last-child)`), which this selector - the
+       v3-style sibling form, so it skips the first row - never covered, so
+       the first row's line was a different raw gray than the rest. */
+    .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
         border-color: color-mix(in srgb, var(--ink) 14%, transparent);
     }
 

@@ -13,6 +13,7 @@ import {
     ReceiptPercentIcon,
     ShieldCheckIcon,
     Squares2X2Icon,
+    SparklesIcon,
     TagIcon,
     UserGroupIcon,
     UserIcon,
@@ -82,6 +83,7 @@ const ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
     'Roles & permissions': ShieldCheckIcon,
     QuickBooks: BookOpenIcon,
     'Add-ons': PuzzlePieceIcon,
+    'AI assistant': SparklesIcon,
 };
 
 /** Icon for a menu item, looked up by its label; renders nothing if unknown. */

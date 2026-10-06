@@ -1,7 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
+import FollowUpDraftDialog from '@/Components/FollowUpDraftDialog';
 import { Card } from '@/Components/ui/card';
 import GettingStartedBanner, {
     GettingStartedStep,
@@ -43,6 +44,9 @@ interface AttentionItem {
     subtitle: string | null;
     amount: number | null;
     href: string;
+    /** Set on stale-quote items: the quote a follow-up can be drafted for. */
+    quote_id?: number;
+    customer?: string;
 }
 
 interface ActivityEntry {
@@ -289,6 +293,7 @@ export default function Dashboard({
     attention,
     recentActivity,
     gettingStarted,
+    ai,
 }: PageProps<{
     counts: Counts;
     financials: Financials | null;
@@ -296,7 +301,10 @@ export default function Dashboard({
     attention: AttentionItem[];
     recentActivity: ActivityEntry[];
     gettingStarted: GettingStartedStep[] | null;
+    ai: { available: boolean; configured: boolean };
 }>) {
+    const [followUp, setFollowUp] = useState<AttentionItem | null>(null);
+
     return (
         <AuthenticatedLayout
             header={
@@ -340,7 +348,7 @@ export default function Dashboard({
                                         Nothing waiting on you right now.
                                     </p>
                                 ) : (
-                                    <ul className="-my-2 max-h-56 divide-y divide-gray-100 overflow-y-auto">
+                                    <ul className="-my-2 max-h-56 divide-y overflow-y-auto">
                                         {attention.map((item) => (
                                             <li
                                                 key={`${item.kind}-${item.href}`}
@@ -370,6 +378,20 @@ export default function Dashboard({
                                                         </span>
                                                     )}
                                                 </Link>
+                                                {item.kind === 'stale_quote' &&
+                                                    item.quote_id &&
+                                                    ai.available &&
+                                                    ai.configured && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setFollowUp(item)
+                                                            }
+                                                            className="mb-2 ml-5 text-xs font-medium text-indigo-600 hover:underline"
+                                                        >
+                                                            Draft follow-up
+                                                        </button>
+                                                    )}
                                             </li>
                                         ))}
                                     </ul>
@@ -399,7 +421,7 @@ export default function Dashboard({
                                 to a job to get started.
                             </p>
                         ) : (
-                            <ul className="divide-y divide-gray-100">
+                            <ul className="divide-y">
                                 {recentActivity.map((entry) => (
                                     <li
                                         key={entry.id}
@@ -434,6 +456,14 @@ export default function Dashboard({
                     </Panel>
                 </div>
             </div>
+
+            {followUp?.quote_id && (
+                <FollowUpDraftDialog
+                    quoteId={followUp.quote_id}
+                    customer={followUp.customer ?? 'customer'}
+                    onClose={() => setFollowUp(null)}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }

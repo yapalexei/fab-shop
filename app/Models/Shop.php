@@ -40,7 +40,7 @@ class Shop extends Model
     protected $fillable = [
         'name', 'owner_id', 'plan_id', 'seat_limit_override', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
         'trial_baseline_days', 'subscription_renews_at', 'billing_interval', 'timezone', 'stale_quote_days', 'win_rate_window_days',
-        'job_board_drag_enabled', 'onboarded_at', 'onboarding_step',
+        'job_board_drag_enabled', 'quote_emailing_enabled', 'onboarded_at', 'onboarding_step',
     ];
 
     protected function casts(): array
@@ -56,6 +56,7 @@ class Shop extends Model
             'stale_quote_days' => 'integer',
             'win_rate_window_days' => 'integer',
             'job_board_drag_enabled' => 'boolean',
+            'quote_emailing_enabled' => 'boolean',
         ];
     }
 
@@ -64,11 +65,30 @@ class Shop extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    /**
+     * The shop's people. Deliberately excludes AI agent identities (see
+     * agents()): they aren't team members - no seat, no row on the Team page,
+     * not pickable as an employee or job assignee.
+     */
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class)
             ->using(ShopMember::class)
-            ->withPivot('hourly_rate', 'permission_overrides', 'trial_ended_dismissed_at');
+            ->withPivot('hourly_rate', 'permission_overrides', 'trial_ended_dismissed_at')
+            ->where('users.is_agent', false);
+    }
+
+    /**
+     * The identity the shop's own AI connects as over MCP - a user row that
+     * belongs to this one shop only, with access granted purely through
+     * permission overrides on its membership (no role).
+     */
+    public function agents(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class)
+            ->using(ShopMember::class)
+            ->withPivot('permission_overrides')
+            ->where('users.is_agent', true);
     }
 
     public function plan(): BelongsTo
@@ -79,6 +99,11 @@ class Shop extends Model
     public function quickBooksConnection(): HasOne
     {
         return $this->hasOne(QuickBooksConnection::class);
+    }
+
+    public function aiSetting(): HasOne
+    {
+        return $this->hasOne(ShopAiSetting::class);
     }
 
     public function featureSubscriptions(): HasMany
@@ -138,6 +163,18 @@ class Shop extends Model
     public function jobBoardDragEnabled(): bool
     {
         return $this->job_board_drag_enabled ?? config('shop.defaults.job_board_drag_enabled');
+    }
+
+    /**
+     * Whether quotes can be emailed to customers: the shop turned it on in
+     * its settings (off by default - plenty of shops hand quotes over
+     * themselves) *and* its plan includes Feature::QuoteEmailing. The setting
+     * is kept if the plan lapses, but nothing is sent until it's included
+     * again.
+     */
+    public function quoteEmailingEnabled(): bool
+    {
+        return $this->quote_emailing_enabled && $this->hasFeature(Feature::QuoteEmailing);
     }
 
     /**

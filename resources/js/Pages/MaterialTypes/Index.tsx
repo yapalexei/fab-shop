@@ -216,7 +216,7 @@ export default function Index({
                                 like Chromoly (4130) or Galvanized steel.
                             </p>
                         ) : (
-                            <ul className="divide-y divide-gray-100">
+                            <ul className="divide-y">
                                 {custom.map((type) => (
                                     <CustomTypeRow key={type.id} type={type} />
                                 ))}
@@ -274,7 +274,7 @@ export default function Index({
                                 removed, and don't count toward your limit.
                             </p>
                         </div>
-                        <ul className="divide-y divide-gray-100">
+                        <ul className="divide-y">
                             {builtIn.map((type) => (
                                 <li
                                     key={type.id}

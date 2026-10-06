@@ -44,7 +44,7 @@ export default function PermissionGrid({
     renderCell: (action: ResourceAction) => ReactNode;
 }) {
     return (
-        <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+        <ul className="divide-y rounded-md border border-gray-200">
             {resources.map((resource) => (
                 <li
                     key={resource.value}
