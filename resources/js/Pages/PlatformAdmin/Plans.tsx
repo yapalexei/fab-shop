@@ -7,6 +7,7 @@ import { PageProps } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 import { Card } from '@/Components/ui/card';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Badge } from '@/Components/ui/badge';
 
 interface PlanRow {
@@ -161,19 +162,19 @@ export default function Plans({
                                                     key={plan.id}
                                                     className="px-3 py-3 text-center"
                                                 >
-                                                    <input
-                                                        type="checkbox"
+                                                    <Checkbox
                                                         aria-label={`${plan.name}: ${feature.label}`}
-                                                        className="rounded-sm border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                                         checked={plan.features.includes(
                                                             feature.key,
                                                         )}
-                                                        onChange={(e) =>
+                                                        onCheckedChange={(
+                                                            checked,
+                                                        ) =>
                                                             toggleFeature(
                                                                 index,
                                                                 feature.key,
-                                                                e.target
-                                                                    .checked,
+                                                                checked ===
+                                                                    true,
                                                             )
                                                         }
                                                     />
