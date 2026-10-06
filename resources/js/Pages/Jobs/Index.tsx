@@ -25,7 +25,7 @@ import {
     useSensors,
 } from '@dnd-kit/core';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { motion } from 'framer-motion';
+import { LazyMotion, m } from 'framer-motion';
 import { CSSProperties, useEffect, useRef, useState } from 'react';
 import { Alert } from '@/Components/ui/alert';
 import { Button } from '@/Components/ui/button';
@@ -254,7 +254,7 @@ function JobCard({
     });
 
     return (
-        <motion.div
+        <m.div
             ref={setNodeRef}
             // A stable layoutId - not the React key - is what lets a card
             // glide from one column to another rather than snapping: React
@@ -313,7 +313,7 @@ function JobCard({
                     transitions={job.available_transitions}
                 />
             </div>
-        </motion.div>
+        </m.div>
     );
 }
 
@@ -649,17 +649,30 @@ export default function Index({
     useEffect(() => {
         if (!shopId) return;
 
-        const channel = window.Echo.private(`shop.${shopId}.jobs`).listen(
-            '.JobBoardUpdated',
-            () => {
-                router.reload({ only: ['jobs'] });
-                setUpdatePulse((prev) => prev + 1);
-            },
-        );
+        // Loaded on demand: Echo + pusher-js are only needed on this page.
+        let cancelled = false;
+        let stop: (() => void) | null = null;
+
+        import('@/echo').then(({ default: echo }) => {
+            if (cancelled) return;
+
+            const channel = echo.private(`shop.${shopId}.jobs`).listen(
+                '.JobBoardUpdated',
+                () => {
+                    router.reload({ only: ['jobs'] });
+                    setUpdatePulse((prev) => prev + 1);
+                },
+            );
+
+            stop = () => {
+                channel.stopListening('.JobBoardUpdated');
+                echo.leave(`shop.${shopId}.jobs`);
+            };
+        });
 
         return () => {
-            channel.stopListening('.JobBoardUpdated');
-            window.Echo.leave(`shop.${shopId}.jobs`);
+            cancelled = true;
+            stop?.();
         };
     }, [shopId]);
 
@@ -977,18 +990,26 @@ export default function Index({
         >
             <Head title="Jobs" />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-full space-y-6 px-4 sm:px-6 lg:px-8">
-                    {viewMode === 'calendar' && jobs.length > 0 ? (
-                        <JobCalendar jobs={jobs} today={today} />
-                    ) : (
-                        <>
-                            {boardContent}
-                            {cancelledJobsSection}
-                        </>
-                    )}
+            {/* Card moves glide between columns; the animation code loads
+                after first paint instead of with the page. */}
+            <LazyMotion
+                features={() =>
+                    import('@/lib/motionFeatures').then((mod) => mod.default)
+                }
+            >
+                <div className="py-12">
+                    <div className="mx-auto max-w-full space-y-6 px-4 sm:px-6 lg:px-8">
+                        {viewMode === 'calendar' && jobs.length > 0 ? (
+                            <JobCalendar jobs={jobs} today={today} />
+                        ) : (
+                            <>
+                                {boardContent}
+                                {cancelledJobsSection}
+                            </>
+                        )}
+                    </div>
                 </div>
-            </div>
+            </LazyMotion>
 
             {jobMoveDialog}
         </AuthenticatedLayout>
