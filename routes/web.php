@@ -10,6 +10,7 @@ use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\FeatureSettingController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\JobAssignmentController;
+use App\Http\Controllers\JobAttachmentController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\JobDueDateController;
 use App\Http\Controllers\JobMaterialUsageController;
@@ -29,11 +30,16 @@ use App\Http\Controllers\PlatformAdminController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickBooksConnectionController;
+use App\Http\Controllers\QuoteAiDraftController;
+use App\Http\Controllers\QuoteAttachmentController;
 use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\QuoteFollowUpController;
 use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SampleDataController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\ShopAiAgentController;
+use App\Http\Controllers\ShopAiSettingsController;
 use App\Http\Controllers\ShopFeatureSubscriptionController;
 use App\Http\Controllers\ShopPlanController;
 use App\Http\Controllers\ShopSettingsController;
@@ -108,6 +114,17 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->except('show')
         ->middleware('feature:customers');
 
+    // Strict feature check on purpose (a POST, so hasFeature() not the
+    // read-only canViewFeature()): AI stops the moment the shop isn't
+    // entitled. Declared before the resource so it can't be read as a quote.
+    Route::post('quotes/ai-draft', QuoteAiDraftController::class)
+        ->name('quotes.ai-draft')
+        ->middleware(['feature:quote-builder', 'feature:ai-assist', 'can:quotes.create']);
+
+    Route::post('quotes/{quote}/ai-follow-up', QuoteFollowUpController::class)
+        ->name('quotes.ai-follow-up')
+        ->middleware(['feature:quote-builder', 'feature:ai-assist', 'can:quotes.view']);
+
     Route::resource('quotes', QuoteController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
@@ -122,9 +139,16 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
             Route::post('archive', [QuoteWorkflowController::class, 'archive'])->name('archive');
             Route::post('reopen', [QuoteWorkflowController::class, 'reopen'])->name('reopen');
         });
+        Route::post('attachments', [QuoteAttachmentController::class, 'store'])->name('attachments.store')->middleware('can:quotes.update');
+        Route::delete('attachments/{media}', [QuoteAttachmentController::class, 'destroy'])->name('attachments.destroy')->middleware('can:quotes.update');
+        Route::get('attachments/{media}', [QuoteAttachmentController::class, 'show'])->name('attachments.show')->middleware('can:quotes.view');
         Route::get('pdf', [QuoteWorkflowController::class, 'downloadPdf'])->name('pdf')->middleware('can:quotes.view');
         Route::get('preview', [QuoteWorkflowController::class, 'previewPdf'])->name('preview')->middleware('can:quotes.view');
     });
+
+    Route::post('quotes/{quote}/duplicate', [QuoteWorkflowController::class, 'duplicate'])
+        ->name('quotes.duplicate')
+        ->middleware(['feature:quote-builder', 'can:quotes.create']);
 
     Route::post('quotes/{quote}/convert', [QuoteWorkflowController::class, 'convert'])
         ->name('quotes.convert')
@@ -151,6 +175,10 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::patch('jobs/{job}/due-date', [JobDueDateController::class, 'update'])
         ->name('jobs.due-date.update')
         ->middleware(['feature:job-board', 'can:jobs.update']);
+
+    Route::get('jobs/{job}/attachments/{media}', [JobAttachmentController::class, 'show'])
+        ->name('jobs.attachments.show')
+        ->middleware(['feature:job-board', 'can:jobs.view']);
 
     Route::post('jobs/{job}/photos', [JobPhotoController::class, 'store'])
         ->name('jobs.photos.store')
@@ -246,6 +274,24 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         Route::middleware('can:manage-shop')->group(function () {
             Route::get('/permissions', [RolePermissionController::class, 'edit'])->name('shop.permissions.edit');
             Route::put('/permissions', [RolePermissionController::class, 'update'])->name('shop.permissions.update');
+        });
+
+        // The page is viewable after a trial ends (it explains that AI is
+        // paused); saving needs the feature - see EnsureFeatureEnabled.
+        Route::middleware(['can:manage-shop', 'feature:ai-assist'])->prefix('ai')->name('shop.ai.')->group(function () {
+            Route::get('/', [ShopAiSettingsController::class, 'edit'])->name('edit');
+            Route::put('/', [ShopAiSettingsController::class, 'update'])->name('update');
+            Route::delete('/', [ShopAiSettingsController::class, 'destroy'])->name('destroy');
+
+            // The MCP connection: one AI agent identity per shop, and the
+            // tokens that connect an AI client to it.
+            Route::middleware('feature:ai-agent')->group(function () {
+                Route::post('/agent', [ShopAiAgentController::class, 'store'])->name('agent.store');
+                Route::put('/agent', [ShopAiAgentController::class, 'update'])->name('agent.update');
+                Route::delete('/agent', [ShopAiAgentController::class, 'destroy'])->name('agent.destroy');
+                Route::post('/agent/tokens', [ShopAiAgentController::class, 'storeToken'])->name('agent.tokens.store');
+                Route::delete('/agent/tokens/{token}', [ShopAiAgentController::class, 'destroyToken'])->name('agent.tokens.destroy');
+            });
         });
 
         Route::middleware('can:shop-settings.update')->group(function () {

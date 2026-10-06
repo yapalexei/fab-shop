@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateMcpAgent;
 use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\EnsureShopIsActive;
 use App\Http\Middleware\EnsureShopIsOnboarded;
@@ -34,12 +35,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'feature' => EnsureFeatureEnabled::class,
+            'mcp.agent' => AuthenticateMcpAgent::class,
             'onboarded' => EnsureShopIsOnboarded::class,
             'active' => EnsureShopIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // A shop's AI provider key must never be flashed back into the
+        // session as "old input" when its form fails validation.
+        $exceptions->dontFlash(['api_key']);
+
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+            fn (Request $request) => $request->is('api/*', 'mcp*') || $request->expectsJson(),
         );
     })->create();

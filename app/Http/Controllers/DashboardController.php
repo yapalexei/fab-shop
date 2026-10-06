@@ -50,6 +50,11 @@ class DashboardController extends Controller
             'attention' => $this->attention($shop, $jobs, $openQuotes, $canSeeFinancials),
             'recentActivity' => $this->recentActivity(),
             'gettingStarted' => $this->gettingStarted($shop),
+            // Whether "Draft follow-up" on a stale quote can work right now.
+            'ai' => [
+                'available' => $shop->hasFeature(Feature::AiAssist) && Gate::allows('quotes.view'),
+                'configured' => (bool) $shop->aiSetting?->hasKey(),
+            ],
         ]);
     }
 
@@ -247,6 +252,8 @@ class DashboardController extends Controller
             ->sortBy('sent_at')
             ->map(fn (Quote $quote) => [
                 'kind' => 'stale_quote',
+                'quote_id' => $quote->id,
+                'customer' => $quote->customer->name,
                 'title' => "Quote for {$quote->customer->name} - no reply in ".(int) $quote->sent_at->diffInDays(now()).' days',
                 'subtitle' => 'Sent '.$quote->sent_at->copy()->setTimezone($shop->localTimezone())->format('M j').' - worth a follow-up call',
                 'amount' => $quote->total,

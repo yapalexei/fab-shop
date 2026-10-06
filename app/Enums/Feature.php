@@ -12,6 +12,9 @@ enum Feature: string
     case QualificationRecords = 'qualification-records';
     case MobileApi = 'mobile-api';
     case QuoteHistory = 'quote-history';
+    case QuoteEmailing = 'quote-emailing';
+    case AiAssist = 'ai-assist';
+    case AiAgent = 'ai-agent';
 
     public function label(): string
     {
@@ -24,6 +27,9 @@ enum Feature: string
             self::QualificationRecords => 'Qualification records',
             self::MobileApi => 'Mobile app & API access',
             self::QuoteHistory => 'Quote history',
+            self::QuoteEmailing => 'Emailing quotes to customers',
+            self::AiAssist => 'AI assistant',
+            self::AiAgent => 'AI agent access (MCP)',
         };
     }
 
@@ -43,7 +49,7 @@ enum Feature: string
     {
         return match ($this) {
             self::Customers, self::QuoteBuilder, self::JobBoard,
-            self::MaterialTracking, self::QualificationRecords, self::QuoteHistory => true,
+            self::MaterialTracking, self::QualificationRecords, self::QuoteHistory, self::QuoteEmailing, self::AiAssist, self::AiAgent => true,
             self::QuickbooksSync, self::MobileApi => false,
         };
     }
@@ -63,6 +69,9 @@ enum Feature: string
             self::QualificationRecords => 'Track shop procedures, who is certified for them, and whether the job was actually covered.',
             self::MobileApi => 'Check and update job status from the shop floor or a connected app.',
             self::QuoteHistory => 'See what changed on every quote, when, and who changed it.',
+            self::QuoteEmailing => 'Email the quote PDF straight to your customer from the quote page.',
+            self::AiAssist => 'Draft quotes from a customer email and follow-ups on stale quotes, using your own AI account.',
+            self::AiAgent => 'Let your own AI assistant read and update your shop data - customers, quotes, jobs and catalog.',
         };
     }
 
@@ -73,7 +82,11 @@ enum Feature: string
     public function defaultPriceCents(): int
     {
         return match ($this) {
-            self::QuoteHistory => 1000,
+            self::QuoteHistory, self::QuoteEmailing => 1000,
+            // Priced as the cross-tier escape hatch: well under the gap
+            // between the Shop and Pro plans, so Pro stays the obvious pick
+            // for a shop that wants both.
+            self::MaterialTracking, self::QualificationRecords => 2500,
             default => 2000,
         };
     }
