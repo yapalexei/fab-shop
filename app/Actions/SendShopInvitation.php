@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\ShopInvitationSent;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Creates (or refreshes) an invitation for $email to join $shop as $role,
@@ -20,6 +21,12 @@ class SendShopInvitation
     public function __invoke(Shop $shop, string $email, string $role, ?User $invitedBy = null): Invitation
     {
         $email = Str::lower(trim($email));
+
+        // Seats are only checked here for someone who'd take a new one: a
+        // refreshed invite already holds its seat (hasRoomForSeats ignores it).
+        if (! $shop->hasRoomForSeats(1, $email)) {
+            throw ValidationException::withMessages(['email' => $shop->seatLimitMessage()]);
+        }
 
         // Re-inviting the same address refreshes the one row (new token,
         // new expiry, any prior acceptance cleared) rather than piling up

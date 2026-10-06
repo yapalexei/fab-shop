@@ -36,6 +36,9 @@ return [
     // and may add this many of its own on top.
     'max_custom_material_types' => (int) env('SHOP_MAX_CUSTOM_MATERIAL_TYPES', 20),
 
+    // Most extra seats one shop can buy on top of its plan.
+    'max_extra_seats' => 20,
+
     // Annual billing: a year is charged as this many months of the monthly
     // price (10 = two months free). Placeholder until pricing is decided.
     'annual_months_charged' => (int) env('SHOP_ANNUAL_MONTHS_CHARGED', 10),

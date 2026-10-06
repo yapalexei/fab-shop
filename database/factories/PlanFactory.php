@@ -23,6 +23,7 @@ class PlanFactory extends Factory
             'stripe_price_id' => null,
             'user_limit' => null,
             'monthly_price_cents' => 0,
+            'extra_seat_price_cents' => null,
         ];
     }
 }

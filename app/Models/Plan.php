@@ -23,7 +23,7 @@ class Plan extends Model
      */
     public const TIER_ORDER = ['free', 'solo', 'start-up', 'pro'];
 
-    protected $fillable = ['key', 'name', 'stripe_price_id', 'user_limit', 'monthly_price_cents'];
+    protected $fillable = ['key', 'name', 'stripe_price_id', 'user_limit', 'monthly_price_cents', 'extra_seat_price_cents'];
 
     /**
      * Every plan that exists, in TIER_ORDER - a plan not yet seeded is

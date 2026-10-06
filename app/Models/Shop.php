@@ -38,7 +38,7 @@ class Shop extends Model
     }
 
     protected $fillable = [
-        'name', 'owner_id', 'plan_id', 'seat_limit_override', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
+        'name', 'owner_id', 'plan_id', 'seat_limit_override', 'extra_seats', 'trial_started_at', 'trial_ends_at', 'trial_ended_notified_at',
         'trial_baseline_days', 'subscription_renews_at', 'billing_interval', 'timezone', 'stale_quote_days', 'win_rate_window_days',
         'job_board_drag_enabled', 'quote_emailing_enabled', 'onboarded_at', 'onboarding_step',
     ];
@@ -142,17 +142,82 @@ class Shop extends Model
     }
 
     /**
-     * How many seats this shop actually has - a platform-admin override if
-     * one's set, otherwise whatever the shop's own plan grants. Null means
-     * unlimited (Plan::user_limit's own convention, carried through here).
-     * Nothing currently enforces this against the shop's member count (no
-     * invite path checks it) - it's informational in the platform admin
-     * console for now, same "lever with no functional effect yet" caveat
-     * per-feature trial days had before it was simplified away.
+     * How many seats this shop has paid for - a platform-admin override if
+     * one's set, otherwise the plan's own user_limit plus any extra seats
+     * bought. Null means unlimited (Plan::user_limit's own convention).
      */
     public function seatLimit(): ?int
     {
-        return $this->seat_limit_override ?? $this->plan?->user_limit;
+        if ($this->seat_limit_override !== null) {
+            return $this->seat_limit_override;
+        }
+
+        $included = $this->plan?->user_limit;
+
+        return $included === null ? null : $included + $this->extra_seats;
+    }
+
+    /**
+     * The limit actually enforced when adding people. During the trial a
+     * shop gets the top plan's seats (the trial grants every feature, so a
+     * crew should be able to try the product together); an admin override
+     * still wins.
+     */
+    public function seatCapacity(): ?int
+    {
+        $limit = $this->seatLimit();
+
+        if ($limit === null || $this->seat_limit_override !== null || ! $this->onTrial()) {
+            return $limit;
+        }
+
+        $top = Plan::orderedByTier()->last();
+
+        if ($top === null) {
+            return $limit;
+        }
+
+        return $top->user_limit === null ? null : max($limit, $top->user_limit);
+    }
+
+    /** People who hold a seat today (agents never do - see members()). */
+    public function seatsUsed(): int
+    {
+        return $this->members()->count();
+    }
+
+    /**
+     * Whether $additional more people fit, counting unexpired, unaccepted
+     * invitations as taken (so a shop can't invite past its limit and only
+     * find out when people accept). $exceptEmail is an invite being
+     * refreshed, which already holds its seat.
+     */
+    public function hasRoomForSeats(int $additional = 1, ?string $exceptEmail = null): bool
+    {
+        $capacity = $this->seatCapacity();
+
+        if ($capacity === null) {
+            return true;
+        }
+
+        $pending = Invitation::query()
+            ->where('shop_id', $this->id)
+            ->whereNull('accepted_at')
+            ->where('expires_at', '>', now())
+            ->when($exceptEmail !== null, fn ($query) => $query->where('email', '!=', $exceptEmail))
+            ->count();
+
+        return $this->seatsUsed() + $pending + $additional <= $capacity;
+    }
+
+    /** The message shown when a seat can't be added. */
+    public function seatLimitMessage(): string
+    {
+        $capacity = $this->seatCapacity();
+        $buyable = $this->plan?->extra_seat_price_cents !== null;
+
+        return "This shop's {$capacity} seat".($capacity === 1 ? ' is' : 's are').' all taken.'
+            .($buyable ? ' Add seats on the Plan page.' : ' Upgrade your plan for more seats.');
     }
 
     /**

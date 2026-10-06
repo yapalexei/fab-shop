@@ -72,6 +72,15 @@ class InvitationController extends Controller
         abort_unless($invitation, 404);
         abort_if($invitation->isAccepted() || $invitation->isExpired(), 404);
 
+        // The invite itself holds a seat, so it only fails here if the shop
+        // shrank (a lowered limit) or filled up some other way since.
+        $shopForSeats = $invitation->shop;
+        $alreadyMember = $shopForSeats->members()->where('users.email', $invitation->email)->exists();
+
+        if (! $alreadyMember && ! $shopForSeats->hasRoomForSeats(0)) {
+            return back()->with('error', $shopForSeats->seatLimitMessage());
+        }
+
         $existingUser = User::where('email', $invitation->email)->first();
         $alreadySignedInAsInvitee = Auth::check() && Auth::user()->email === $invitation->email;
 

@@ -59,11 +59,43 @@ class ShopPlanController extends Controller
                     'annual' => Billing::planChangeQuote($shop, $plan, BillingInterval::Annual),
                 ] : null,
             ])->values(),
+            'seats' => $this->seats($shop),
             // Same plan, billed yearly instead (only offered from monthly).
             'annualSwitch' => $current !== null && $current->monthly_price_cents > 0 && $interval === BillingInterval::Monthly
                 ? Billing::planChangeQuote($shop, $current, BillingInterval::Annual)
                 : null,
         ]);
+    }
+
+    /**
+     * The seats card: what's included, what's bought, and what adding 1..N
+     * more would cost today (proration is linear in N, so the page can pick
+     * the right quote without a round trip).
+     *
+     * @return array<string, mixed>
+     */
+    private function seats(Shop $shop): array
+    {
+        $plan = $shop->plan;
+        $price = $plan?->extra_seat_price_cents;
+        $purchasable = $plan !== null && $price !== null && $plan->user_limit !== null;
+        $room = max(0, config('shop.max_extra_seats') - $shop->extra_seats);
+        $canBuy = $purchasable && Billing::periodEnd($shop) !== null;
+
+        return [
+            'used' => $shop->seatsUsed(),
+            'included' => $plan?->user_limit,
+            'extra' => $shop->extra_seats,
+            'limit' => $shop->seatLimit(),
+            'purchasable' => $purchasable,
+            // Seats are billed with the plan's period, so they need one.
+            'can_buy' => $canBuy,
+            'price_cents' => $price,
+            'min_extra' => $purchasable ? max(0, $shop->seatsUsed() - $plan->user_limit) : 0,
+            'quotes' => $canBuy
+                ? collect(range(1, min(10, $room)))->mapWithKeys(fn (int $n) => [$n => Billing::seatQuote($shop, $shop->extra_seats + $n)])->all()
+                : [],
+        ];
     }
 
     public function update(Request $request): RedirectResponse

@@ -116,11 +116,14 @@ final class Billing
 
         $keptAddons = $addons->reject(fn (Feature $f) => $bundled->contains($f));
         $droppedAddons = $addons->filter(fn (Feature $f) => $bundled->contains($f));
-        $newRecurring = self::periodPriceCents($to->monthly_price_cents, $interval) + $addonCost($keptAddons, $interval);
+        $newRecurring = self::periodPriceCents($to->monthly_price_cents + self::seatsMonthlyCents($shop, $to), $interval) + $addonCost($keptAddons, $interval);
 
         if ($sameInterval) {
             // Same period: pay the price difference for the time left.
-            $delta = self::periodPriceCents($to->monthly_price_cents - ($current?->monthly_price_cents ?? 0), $interval);
+            $delta = self::periodPriceCents(
+                ($to->monthly_price_cents + self::seatsMonthlyCents($shop, $to)) - (($current?->monthly_price_cents ?? 0) + ($current ? self::seatsMonthlyCents($shop, $current) : 0)),
+                $interval,
+            );
             $net = (int) round($delta * $remaining['fraction'])
                 - (int) round($addonCost($droppedAddons, $interval) * $remaining['fraction']);
             $renewsAt = self::periodEnd($shop);
@@ -128,7 +131,7 @@ final class Billing
             // A fresh period starts today; whatever was left of the old one is credited.
             $unused = 0;
             if ($remaining !== null) {
-                $paid = self::periodPriceCents($current?->monthly_price_cents ?? 0, $currentInterval) + $addonCost($addons, $currentInterval);
+                $paid = self::periodPriceCents(($current?->monthly_price_cents ?? 0) + ($current ? self::seatsMonthlyCents($shop, $current) : 0), $currentInterval) + $addonCost($addons, $currentInterval);
                 $unused = (int) round($paid * $remaining['fraction']);
             }
             $net = $newRecurring - $unused;
@@ -144,6 +147,29 @@ final class Billing
             credit: max(0, -$net),
             startsNewPeriod: ! $sameInterval,
         );
+    }
+
+    /**
+     * Cost of changing the shop's extra seats to $newExtra right now. Only an
+     * increase charges (prorated for the time left, like an add-on); a
+     * decrease is free and takes effect at once, with no refund - the same
+     * "no refund" rule as cancelling an add-on. Needs a live billing period:
+     * seats ride on the plan's period, they don't start one.
+     *
+     * @return array<string, mixed>
+     */
+    public static function seatQuote(Shop $shop, int $newExtra): array
+    {
+        $price = $shop->plan?->extra_seat_price_cents ?? 0;
+        $added = max(0, $newExtra - $shop->extra_seats);
+
+        return self::addOnQuote($shop, $added * $price);
+    }
+
+    /** What the shop's extra seats add to its monthly bill under $plan's seat price. */
+    private static function seatsMonthlyCents(Shop $shop, Plan $plan): int
+    {
+        return $shop->extra_seats * ($plan->extra_seat_price_cents ?? 0);
     }
 
     /**

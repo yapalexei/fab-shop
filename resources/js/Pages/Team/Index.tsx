@@ -167,6 +167,7 @@ export default function Index({
     canInvite,
     invitableRoles,
     pendingInvitations,
+    seats,
 }: PageProps<{
     members: Member[];
     canManageTeam: boolean;
@@ -174,6 +175,7 @@ export default function Index({
     canInvite: boolean;
     invitableRoles: string[];
     pendingInvitations: PendingInvitation[];
+    seats: { used: number; limit: number | null; can_manage: boolean };
 }>) {
     return (
         <AuthenticatedLayout
@@ -201,6 +203,22 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+                    {seats.limit !== null && (
+                        <p className="px-4 text-sm text-gray-600 sm:px-0">
+                            {seats.used} of {seats.limit} seats used.
+                            {seats.can_manage && seats.used >= seats.limit && (
+                                <>
+                                    {' '}
+                                    <Link
+                                        href={route('shop.plan.index')}
+                                        className="font-medium text-indigo-600 underline"
+                                    >
+                                        Add seats
+                                    </Link>
+                                </>
+                            )}
+                        </p>
+                    )}
                     {canInvite && <InviteForm roles={invitableRoles} />}
                     {canInvite && (
                         <PendingInvitations invitations={pendingInvitations} />

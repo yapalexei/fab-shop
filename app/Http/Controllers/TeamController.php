@@ -46,6 +46,7 @@ class TeamController extends Controller
             // just an editable setting, so it stays off the delegable
             // team.manage-access permission on purpose.
             'canInvite' => $isOwner,
+            'seats' => ['used' => $shop->seatsUsed(), 'limit' => $shop->seatCapacity(), 'can_manage' => $isOwner],
             'invitableRoles' => ShopPermissions::EDITABLE_ROLES,
             'pendingInvitations' => $isOwner
                 ? Invitation::where('shop_id', $shop->id)->whereNull('accepted_at')->latest()->get(['email', 'role', 'expires_at'])

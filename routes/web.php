@@ -44,6 +44,7 @@ use App\Http\Controllers\ShopAiAgentController;
 use App\Http\Controllers\ShopAiSettingsController;
 use App\Http\Controllers\ShopFeatureSubscriptionController;
 use App\Http\Controllers\ShopPlanController;
+use App\Http\Controllers\ShopSeatController;
 use App\Http\Controllers\ShopSettingsController;
 use App\Http\Controllers\ShopSuspendedController;
 use App\Http\Controllers\ShopSwitchController;
@@ -51,8 +52,8 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeamMemberAccessController;
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\TrialEndedNoticeController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserAvatarController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', MarketingController::class)->name('marketing');
 
@@ -109,14 +110,13 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
     Route::post('/profile/avatar', [UserAvatarController::class, 'store'])->name('profile.avatar.store');
     Route::delete('/profile/avatar', [UserAvatarController::class, 'destroy'])->name('profile.avatar.destroy');
     Route::get('/users/{user}/avatar', [UserAvatarController::class, 'show'])->name('users.avatar');
+
     Route::post('/trial-ended-notice/dismiss', TrialEndedNoticeController::class)->name('trial-ended-notice.dismiss');
     Route::post('/current-shop/{shop}', [ShopSwitchController::class, 'update'])->name('current-shop.update');
 
-    Route::resource('customers', CustomerController::class)
     Route::get('customers/{customer}/logo', [EntityImageController::class, 'customerLogo'])->name('customers.logo');
     Route::get('business-partners/{business_partner}/logo', [EntityImageController::class, 'businessPartnerLogo'])->name('business-partners.logo');
 
@@ -252,13 +252,13 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->except('show')
         ->middleware('feature:qualification-records');
 
-    // "Load sample ..." dialog on the catalog pages. Permission is per
     Route::middleware('feature:qualification-records')->prefix('certifications/{certification}/documents')->name('certifications.documents.')->group(function () {
         Route::post('/', [CertificationDocumentController::class, 'store'])->name('store')->middleware('can:certifications.update');
         Route::get('{media}', [CertificationDocumentController::class, 'show'])->name('show')->middleware('can:certifications.view');
         Route::delete('{media}', [CertificationDocumentController::class, 'destroy'])->name('destroy')->middleware('can:certifications.update');
     });
 
+    // "Load sample ..." dialog on the catalog pages. Permission is per
     // resource (create) and checked in the controller.
     Route::get('sample-data/{resource}', [SampleDataController::class, 'index'])
         ->name('sample-data.index')
@@ -320,6 +320,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         Route::middleware('can:manage-shop')->group(function () {
             Route::get('/plan', [ShopPlanController::class, 'index'])->name('shop.plan.index');
             Route::post('/plan', [ShopPlanController::class, 'update'])->name('shop.plan.update');
+            Route::put('/seats', [ShopSeatController::class, 'update'])->name('shop.seats.update');
             Route::get('/addons', [ShopFeatureSubscriptionController::class, 'index'])->name('shop.addons.index');
             Route::post('/addons/{feature}', [ShopFeatureSubscriptionController::class, 'store'])->name('shop.addons.store');
             Route::delete('/addons/{feature}', [ShopFeatureSubscriptionController::class, 'destroy'])->name('shop.addons.destroy');

@@ -46,6 +46,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Shop',
                 'user_limit' => 4,
                 'monthly_price_cents' => 5900,
+                'extra_seat_price_cents' => 900,
                 'features' => [
                     Feature::Customers, Feature::QuoteBuilder, Feature::QuoteEmailing,
                     Feature::JobBoard, Feature::QuoteHistory, Feature::AiAssist,
@@ -57,6 +58,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Pro',
                 'user_limit' => 10,
                 'monthly_price_cents' => 11900,
+                'extra_seat_price_cents' => 900,
                 'features' => Feature::cases(),
             ],
         ];
@@ -68,6 +70,7 @@ class PlanSeeder extends Seeder
                     'name' => $attributes['name'],
                     'user_limit' => $attributes['user_limit'],
                     'monthly_price_cents' => $attributes['monthly_price_cents'],
+                    'extra_seat_price_cents' => $attributes['extra_seat_price_cents'] ?? null,
                 ],
             );
 

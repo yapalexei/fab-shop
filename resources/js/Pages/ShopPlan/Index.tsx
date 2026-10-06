@@ -25,6 +25,18 @@ interface PlanRow {
     quotes: Record<Interval, BillingQuote> | null;
 }
 
+interface Seats {
+    used: number;
+    included: number | null;
+    extra: number;
+    limit: number | null;
+    purchasable: boolean;
+    can_buy: boolean;
+    price_cents: number | null;
+    min_extra: number;
+    quotes: Record<string, BillingQuote>;
+}
+
 interface Pending {
     plan: PlanRow;
     interval: Interval;
@@ -40,6 +52,7 @@ export default function Index({
     renewsAt,
     annualMonthsCharged,
     annualSwitch,
+    seats,
 }: PageProps<{
     plans: PlanRow[];
     currentPlanKey: string | null;
@@ -47,11 +60,29 @@ export default function Index({
     renewsAt: string | null;
     annualMonthsCharged: number;
     annualSwitch: BillingQuote | null;
+    seats: Seats;
 }>) {
     const formatDate = useShopDateTime({ dateStyle: 'medium' });
     const [interval, setInterval] = useState<Interval>(billingInterval);
     const [pending, setPending] = useState<Pending | null>(null);
     const current = plans.find((plan) => plan.key === currentPlanKey);
+    const [addSeats, setAddSeats] = useState(1);
+    const [seatsPending, setSeatsPending] = useState(false);
+    const maxAdd = Object.keys(seats.quotes).length;
+    const seatQuote = seats.quotes[String(addSeats)];
+
+    const setExtraSeats = (extra: number) =>
+        router.put(
+            route('shop.seats.update'),
+            { extra_seats: extra },
+            { preserveScroll: true },
+        );
+
+    const confirmSeats = () => {
+        setExtraSeats(seats.extra + addSeats);
+        setSeatsPending(false);
+        setAddSeats(1);
+    };
 
     const confirm = () => {
         if (!pending) return;
@@ -96,7 +127,7 @@ export default function Index({
                     </div>
 
                     {annualSwitch && current && (
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-indigo-400 bg-indigo-50 p-4 shadow-sm sm:rounded-lg">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-indigo-400 bg-indigo-50 p-4 shadow-sm sm:rounded-lg dark:bg-indigo-900">
                             <p className="text-sm text-indigo-900">
                                 Switch your {current.name} plan to annual
                                 billing and pay{' '}
@@ -176,8 +207,113 @@ export default function Index({
                             </div>
                         ))}
                     </div>
+
+                    <div className="space-y-3 bg-white p-6 shadow sm:rounded-lg">
+                        <div className="text-lg font-semibold text-gray-900">
+                            Seats
+                        </div>
+                        <p className="text-sm text-gray-700">
+                            <strong>{seats.used}</strong> of{' '}
+                            <strong>{seats.limit ?? 'unlimited'}</strong> seats
+                            used
+                            {seats.included !== null &&
+                                ` (${seats.included} included${seats.extra > 0 ? ` + ${seats.extra} extra` : ''})`}
+                            . Pending invitations count toward the limit.
+                        </p>
+                        {!seats.purchasable ? (
+                            <p className="text-sm text-gray-500">
+                                Your plan doesn't offer extra seats - upgrade
+                                to add more people.
+                            </p>
+                        ) : !seats.can_buy && seats.extra === 0 ? (
+                            <p className="text-sm text-gray-500">
+                                Extra seats are{' '}
+                                {formatMoney(seats.price_cents ?? 0)}/month
+                                each and are billed with your plan - choose a
+                                plan above first.
+                            </p>
+                        ) : (
+                            <div className="flex flex-wrap items-center gap-3">
+                                {seats.can_buy && maxAdd > 0 && (
+                                    <>
+                                        <select
+                                            className="rounded-md border border-gray-300 text-sm"
+                                            value={addSeats}
+                                            onChange={(e) =>
+                                                setAddSeats(
+                                                    Number(e.target.value),
+                                                )
+                                            }
+                                        >
+                                            {Object.keys(seats.quotes).map(
+                                                (n) => (
+                                                    <option key={n} value={n}>
+                                                        {n}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                        <PrimaryButton
+                                            onClick={() => setSeatsPending(true)}
+                                        >
+                                            Add seat
+                                            {addSeats === 1 ? '' : 's'} (
+                                            {formatMoney(
+                                                (seats.price_cents ?? 0) *
+                                                    addSeats,
+                                            )}
+                                            /mo)
+                                        </PrimaryButton>
+                                    </>
+                                )}
+                                {seats.extra > seats.min_extra && (
+                                    <SecondaryButton
+                                        onClick={() =>
+                                            setExtraSeats(seats.extra - 1)
+                                        }
+                                    >
+                                        Remove a seat
+                                    </SecondaryButton>
+                                )}
+                            </div>
+                        )}
+                        {seats.purchasable && (
+                            <p className="text-xs text-gray-500">
+                                {formatMoney(seats.price_cents ?? 0)}/month per
+                                extra seat. Removing a seat takes effect now; we
+                                don't refund the current period.
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
+
+            <Modal
+                show={seatsPending && !!seatQuote}
+                maxWidth="lg"
+                onClose={() => setSeatsPending(false)}
+            >
+                {seatQuote && (
+                    <div className="space-y-4 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                            Add {addSeats} seat{addSeats === 1 ? '' : 's'}
+                        </h3>
+                        <BillingDisclosure quote={seatQuote} />
+                        <div className="flex justify-end gap-3">
+                            <SecondaryButton
+                                onClick={() => setSeatsPending(false)}
+                            >
+                                Not now
+                            </SecondaryButton>
+                            <PrimaryButton onClick={confirmSeats}>
+                                Confirm
+                                {seatQuote.charge_cents > 0 &&
+                                    ` - ${formatMoney(seatQuote.charge_cents)} today`}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             <Modal
                 show={pending !== null}
