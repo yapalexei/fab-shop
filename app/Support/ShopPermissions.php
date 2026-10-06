@@ -38,8 +38,9 @@ final class ShopPermissions
      * What a role gets in a brand-new shop. Staff: day-to-day quoting and
      * moving jobs through the shop, read-only catalog, no deletes, no money.
      * Admin: runs the catalog and quotes end to end and can adjust Staff
-     * access, but financials, shop settings, disconnecting QuickBooks and
-     * the role defaults themselves stay with the owner until granted.
+     * access, but financials, shop settings, disconnecting QuickBooks, the
+     * role defaults themselves and markup (what the shop adds on top of its
+     * costs) stay with the owner until granted.
      *
      * @return array<int, string>
      */
@@ -59,7 +60,6 @@ final class ShopPermissions
                 ...self::allActions(ShopResource::MaterialTypes),
                 ...self::allActions(ShopResource::Procedures),
                 ...self::allActions(ShopResource::Certifications),
-                ...self::allActions(ShopResource::Markup),
                 'quickbooks.view', 'quickbooks.update',
                 ...self::allActions(ShopResource::Team),
             ],
@@ -70,7 +70,6 @@ final class ShopPermissions
                 'job-stages.view',
                 'materials.view', 'services.view', 'business-partners.view', 'equipment.view', 'tooling.view', 'material-types.view',
                 'procedures.view', 'certifications.view',
-                'markup.view',
                 'team.view',
             ],
             default => [],

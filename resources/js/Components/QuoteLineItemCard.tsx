@@ -12,6 +12,7 @@ import {
     ServiceOption,
     ToolOption,
 } from '@/Components/QuoteForm';
+import { useCan } from '@/lib/permissions';
 import { useState } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Alert } from '@/Components/ui/alert';
@@ -70,6 +71,8 @@ export default function QuoteLineItemCard({
     const [isEditing, setIsEditing] = useState(
         () => item.description.trim() === '',
     );
+
+    const can = useCan();
 
     const errorClass = (field: keyof LineItem) =>
         getError(field) ? 'border-red-400' : '';
@@ -537,20 +540,28 @@ export default function QuoteLineItemCard({
                         required
                     />
                 </div>
-                <div>
-                    <InputLabel value="Markup %" />
-                    <TextInput
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className={`mt-1 block w-full ${errorClass('markup_percent')}`}
-                        value={item.markup_percent}
-                        onChange={(e) =>
-                            onChange(index, { markup_percent: e.target.value })
-                        }
-                        required
-                    />
-                </div>
+                {/* Markup is the owner's call: hidden without markup.view,
+                    read-only without markup.update (the server ignores it
+                    either way). */}
+                {can('markup.view') && (
+                    <div>
+                        <InputLabel value="Markup %" />
+                        <TextInput
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className={`mt-1 block w-full ${errorClass('markup_percent')}`}
+                            value={item.markup_percent}
+                            onChange={(e) =>
+                                onChange(index, {
+                                    markup_percent: e.target.value,
+                                })
+                            }
+                            disabled={!can('markup.update')}
+                            required
+                        />
+                    </div>
+                )}
                 <div>
                     <InputLabel value="Override total" />
                     <TextInput

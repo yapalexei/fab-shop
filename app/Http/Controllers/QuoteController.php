@@ -24,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -137,6 +138,7 @@ class QuoteController extends Controller implements HasMiddleware
     {
         $shop = Auth::user()->currentShop;
         $entitled = $shop->hasFeature(Feature::QuoteHistory);
+        $canSeeMarkup = Gate::allows('markup.view');
 
         $entries = ($entitled || $shop->canViewFeature(Feature::QuoteHistory))
             ? $quote->historyEntries()->with('user:id,name')->get()
@@ -150,7 +152,7 @@ class QuoteController extends Controller implements HasMiddleware
             'entries' => $entries->map(fn (QuoteHistoryEntry $entry) => [
                 'id' => $entry->id,
                 'summary' => $entry->summary,
-                'changes' => $entry->changes ?? [],
+                'changes' => $canSeeMarkup ? ($entry->changes ?? []) : QuoteHistory::withoutMarkup($entry->changes ?? []),
                 'user' => $entry->user?->name,
                 'created_at' => $entry->created_at->toIso8601String(),
             ])->values(),
@@ -275,12 +277,26 @@ class QuoteController extends Controller implements HasMiddleware
      */
     private function syncLineItems(Quote $quote, array $lineItems): void
     {
+        // Markup is the owner's call (markup.update). Anyone else can add and
+        // edit lines, but whatever markup their request carries is ignored: a
+        // line that already existed keeps its markup, and a new (or retyped)
+        // one starts at the shop's default for its type.
+        $canSetMarkup = Gate::allows('markup.update');
+        $existing = $canSetMarkup ? collect() : $quote->lineItems()->get()->keyBy('id');
+
         $quote->lineItems()->delete();
 
-        $quote->lineItems()->createMany(array_map(
-            fn (array $item, int $index): array => [...$item, 'sort_order' => $index],
-            $lineItems,
-            array_keys($lineItems),
-        ));
+        $quote->lineItems()->createMany(array_map(function (array $item, int $index) use ($canSetMarkup, $existing): array {
+            $previous = $existing->get($item['id'] ?? null);
+            unset($item['id']);
+
+            if (! $canSetMarkup) {
+                $item['markup_percent'] = $previous !== null && $previous->type->value === $item['type']
+                    ? $previous->markup_percent
+                    : MarkupDefault::forType(LineItemType::from($item['type']));
+            }
+
+            return [...$item, 'sort_order' => $index];
+        }, $lineItems, array_keys($lineItems)));
     }
 }

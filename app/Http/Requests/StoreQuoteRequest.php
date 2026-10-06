@@ -7,6 +7,7 @@ use App\Support\Attachments;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class StoreQuoteRequest extends FormRequest
@@ -36,7 +37,12 @@ class StoreQuoteRequest extends FormRequest
             'line_items.*.description' => ['required', 'string', 'max:255'],
             'line_items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'line_items.*.unit_cost' => ['required', 'numeric', 'min:0'],
-            'line_items.*.markup_percent' => ['required', 'numeric', 'min:0'],
+            'line_items.*.id' => ['nullable', 'integer'],
+            // Only someone allowed to change markup supplies it; for anyone
+            // else the value is ignored (see QuoteController::syncLineItems).
+            'line_items.*.markup_percent' => Gate::allows('markup.update')
+                ? ['required', 'numeric', 'min:0']
+                : ['nullable', 'numeric'],
             'line_items.*.override_total' => ['nullable', 'numeric', 'min:0'],
             'line_items.*.material_id' => [
                 'nullable',

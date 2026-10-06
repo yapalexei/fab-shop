@@ -15,6 +15,8 @@ import AiQuoteDraftPanel, { AiStatus } from '@/Components/AiQuoteDraftPanel';
 import { AiDraftResult, lineItemFromSuggestion } from '@/lib/aiQuoteDraft';
 
 export interface LineItem {
+    /** Set on a saved line; lets the server keep its markup for someone who can't change it. */
+    id?: number;
     type: 'material' | 'labor' | 'equipment' | 'tooling';
     description: string;
     quantity: number | string;

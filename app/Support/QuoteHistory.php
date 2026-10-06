@@ -150,6 +150,29 @@ final class QuoteHistory
     }
 
     /**
+     * The same change list with every mention of markup taken out, for a
+     * viewer who isn't allowed to see it: markup edits are dropped and the
+     * "+ N% markup" tail of an added/removed line's summary is cut.
+     *
+     * @param  array<int, array<string, mixed>>  $changes
+     * @return array<int, array<string, mixed>>
+     */
+    public static function withoutMarkup(array $changes): array
+    {
+        $strip = fn (mixed $text) => is_string($text) ? preg_replace('/ \+ [\d.]+% markup/', '', $text) : $text;
+
+        return collect($changes)
+            ->reject(fn (array $change) => str_ends_with((string) ($change['subject'] ?? ''), ' - '.self::LINE_FIELDS['markup_percent']))
+            ->map(fn (array $change) => [
+                ...$change,
+                ...(array_key_exists('from', $change) ? ['from' => $strip($change['from'])] : []),
+                ...(array_key_exists('to', $change) ? ['to' => $strip($change['to'])] : []),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>|null  $changes
      */
     private static function write(Quote $quote, string $event, string $summary, ?array $changes): void

@@ -117,8 +117,8 @@ enum ShopResource: string
                 'delete' => 'Delete certifications',
             ],
             self::Markup => [
-                'view' => 'See default markups',
-                'update' => 'Change default markups for new quote lines',
+                'view' => 'See default markups and the markup % on quote lines',
+                'update' => 'Change default markups and the markup % on quote lines',
             ],
             self::QuickBooks => [
                 'view' => 'See the QuickBooks connection',
