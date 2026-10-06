@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import InputError from '@/Components/InputError';
+import PriceChecked from '@/Components/PriceChecked';
 import SearchableSelect from '@/Components/SearchableSelect';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
@@ -9,6 +10,12 @@ export interface CapabilityRow {
     price: number | string;
     /** Only for tables with `withDimension`: the size this price is for. */
     dimension?: string;
+    /** Only for tables with `withSource`: where the price came from. */
+    part_number?: string;
+    source_url?: string;
+    price_checked_at?: string | null;
+    /** Confirms the price is still current although it didn't change. */
+    mark_checked?: boolean;
 }
 
 export default function CapabilityPriceTable({
@@ -21,6 +28,7 @@ export default function CapabilityPriceTable({
     getError,
     emptyState,
     withDimension = false,
+    withSource = false,
 }: {
     title: string;
     itemLabel: string;
@@ -30,17 +38,26 @@ export default function CapabilityPriceTable({
     onChange: (rows: CapabilityRow[]) => void;
     getError: (
         index: number,
-        field: 'itemId' | 'price' | 'dimension',
+        field: 'itemId' | 'price' | 'dimension' | 'part_number' | 'source_url',
     ) => string | undefined;
     /**
      * Adds an optional size column, so the same item can be listed more
      * than once at different sizes (4 ft vs 4 in of bar stock).
      */
     withDimension?: boolean;
+    /**
+     * Adds a part number and product link per row, and shows when the price
+     * was last checked, so it can be looked up and refreshed later.
+     */
+    withSource?: boolean;
     /** Shown under the picker when `options` is empty - say what to create and link to it. */
     emptyState?: ReactNode;
 }) {
-    const update = (index: number, field: keyof CapabilityRow, value: string) => {
+    const update = (
+        index: number,
+        field: keyof CapabilityRow,
+        value: string | boolean,
+    ) => {
         const next = [...rows];
         next[index] = { ...next[index], [field]: value };
         onChange(next);
@@ -50,7 +67,12 @@ export default function CapabilityPriceTable({
         onChange([
             ...rows,
             withDimension
-                ? { itemId: '', price: '', dimension: '' }
+                ? {
+                      itemId: '',
+                      price: '',
+                      dimension: '',
+                      ...(withSource ? { part_number: '', source_url: '' } : {}),
+                  }
                 : { itemId: '', price: '' },
         ]);
     };
@@ -79,6 +101,16 @@ export default function CapabilityPriceTable({
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
                                     Price
                                 </th>
+                                {withSource && (
+                                    <>
+                                        <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                                            Part # (optional)
+                                        </th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
+                                            Product link (optional)
+                                        </th>
+                                    </>
+                                )}
                                 <th />
                             </tr>
                         </thead>
@@ -145,6 +177,60 @@ export default function CapabilityPriceTable({
                                             className="mt-1"
                                         />
                                     </td>
+                                    {withSource && (
+                                        <>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    className="block w-36"
+                                                    maxLength={100}
+                                                    value={row.part_number ?? ''}
+                                                    onChange={(e) =>
+                                                        update(
+                                                            index,
+                                                            'part_number',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={getError(index, 'part_number')}
+                                                    className="mt-1"
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <TextInput
+                                                    type="url"
+                                                    className="block w-56"
+                                                    placeholder="https://"
+                                                    maxLength={2048}
+                                                    value={row.source_url ?? ''}
+                                                    onChange={(e) =>
+                                                        update(
+                                                            index,
+                                                            'source_url',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={getError(index, 'source_url')}
+                                                    className="mt-1"
+                                                />
+                                                {row.itemId !== '' && (
+                                                    <div className="mt-1">
+                                                        <PriceChecked
+                                                            checkedAt={row.price_checked_at}
+                                                            marked={!!row.mark_checked}
+                                                            onMark={() =>
+                                                                update(index, 'mark_checked', true)
+                                                            }
+                                                            url={row.source_url}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </>
+                                    )}
                                     <td className="px-3 py-2">
                                         <button
                                             type="button"

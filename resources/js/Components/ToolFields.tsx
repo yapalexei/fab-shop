@@ -3,6 +3,7 @@ import { SquareImage } from '@/Components/Avatar';
 import ImageField, { MAX_IMAGE_MB } from '@/Components/ImageField';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import PriceChecked from '@/Components/PriceChecked';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import { Checkbox } from '@/Components/ui/checkbox';
@@ -20,6 +21,10 @@ export interface ToolFormData {
     cost: string;
     unit: string;
     notes: string;
+    part_number: string;
+    source_url: string;
+    /** Confirms the price is still current even though it didn't change. */
+    mark_price_checked: boolean;
     /** A newly chosen photo, or null to keep the current one. */
     image: File | null;
     remove_image: boolean;
@@ -48,6 +53,7 @@ export default function ToolFields({
     materialOptions,
     currentImage,
     currentModel,
+    priceCheckedAt,
 }: {
     data: ToolFormData;
     setData: <K extends keyof ToolFormData>(
@@ -60,6 +66,8 @@ export default function ToolFields({
     currentImage?: string | null;
     /** The 3D file already saved for this tool (edit page). */
     currentModel?: ToolModelFile | null;
+    /** When the saved cost was last confirmed (edit page). */
+    priceCheckedAt?: string | null;
 }) {
     const modelInput = useRef<HTMLInputElement>(null);
     const savedModel = data.remove_model ? null : (currentModel ?? null);
@@ -235,6 +243,44 @@ export default function ToolFields({
                         hole, per foot of cut...
                     </p>
                     <InputError message={errors.unit} className="mt-2" />
+                </div>
+            </div>
+
+            {priceCheckedAt !== undefined && (
+                <div className="mt-2">
+                    <PriceChecked
+                        checkedAt={priceCheckedAt}
+                        marked={data.mark_price_checked}
+                        onMark={() => setData('mark_price_checked', true)}
+                        url={data.source_url}
+                    />
+                </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <InputLabel htmlFor="part_number" value="Supplier part number" />
+                    <TextInput
+                        id="part_number"
+                        className="mt-1 block w-full"
+                        maxLength={100}
+                        value={data.part_number}
+                        onChange={(e) => setData('part_number', e.target.value)}
+                    />
+                    <InputError message={errors.part_number} className="mt-2" />
+                </div>
+                <div>
+                    <InputLabel htmlFor="source_url" value="Supplier link" />
+                    <TextInput
+                        id="source_url"
+                        type="url"
+                        className="mt-1 block w-full"
+                        placeholder="https://"
+                        maxLength={2048}
+                        value={data.source_url}
+                        onChange={(e) => setData('source_url', e.target.value)}
+                    />
+                    <InputError message={errors.source_url} className="mt-2" />
                 </div>
             </div>
 

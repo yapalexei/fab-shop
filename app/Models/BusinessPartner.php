@@ -52,7 +52,7 @@ class BusinessPartner extends Model implements HasMedia
     public function materials(): BelongsToMany
     {
         return $this->belongsToMany(Material::class, 'material_business_partner')
-            ->withPivot('price', 'dimension')
+            ->withPivot('price', 'dimension', 'part_number', 'source_url', 'price_checked_at')
             ->withTimestamps();
     }
 

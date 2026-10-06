@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Models\Material;
 use App\Models\Service;
 use App\Support\Images;
+use App\Support\SupplierPrices;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\DB;
@@ -87,6 +88,9 @@ class BusinessPartnerController extends Controller implements HasMiddleware
                     'name' => $material->name,
                     'dimension' => $material->pivot->dimension,
                     'price' => (float) $material->pivot->price,
+                    'part_number' => $material->pivot->part_number,
+                    'source_url' => $material->pivot->source_url,
+                    'price_checked_at' => SupplierPrices::iso($material->pivot->price_checked_at),
                 ]),
                 'services' => $businessPartner->services->map(fn (Service $service) => [
                     'service_id' => $service->id,
@@ -165,15 +169,7 @@ class BusinessPartnerController extends Controller implements HasMiddleware
      */
     private function syncCapabilities(BusinessPartner $partner, array $materials, array $services): void
     {
-        // A material can appear several times (one row per size), which
-        // sync() can't express - replace the whole set instead.
-        $partner->materials()->detach();
-        foreach ($materials as $row) {
-            $partner->materials()->attach($row['material_id'], [
-                'price' => $row['price'],
-                'dimension' => filled($row['dimension'] ?? null) ? trim($row['dimension']) : null,
-            ]);
-        }
+        SupplierPrices::syncMaterials($partner, $materials);
 
         $partner->services()->sync(collect($services)->mapWithKeys(
             fn (array $row) => [$row['service_id'] => ['price' => $row['price']]],

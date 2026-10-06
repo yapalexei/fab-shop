@@ -5,6 +5,7 @@ namespace App\Mcp\Tools\Catalog;
 use App\Enums\BusinessPartnerType;
 use App\Models\BusinessPartner;
 use App\Models\Shop;
+use App\Support\SupplierPrices;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
@@ -54,6 +55,8 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
                 'material_id' => $schema->integer()->description('A catalog material id.')->required(),
                 'price' => $schema->number()->description('Their price for it, in dollars.')->required(),
                 'dimension' => $schema->string()->description('The size this price is for, if they price sizes separately.'),
+                'part_number' => $schema->string()->description('Their part number for it. Left as it was if not sent.'),
+                'source_url' => $schema->string()->description('Link to the product page (http/https), for rechecking the price. Left as it was if not sent.'),
             ]))->description('Materials they supply, with prices. When sent on an update this REPLACES their whole list.'),
             'services' => $schema->array()->items($schema->object([
                 'service_id' => $schema->integer()->description('A catalog service id.')->required(),
@@ -75,6 +78,8 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
             'materials.*.material_id' => ['required', Rule::exists('materials', 'id')->where('shop_id', $shop->id)],
             'materials.*.dimension' => ['nullable', 'string', 'max:100'],
             'materials.*.price' => ['required', 'numeric', 'min:0', 'max:10000000'],
+            'materials.*.part_number' => SupplierPrices::LINK_RULES['part_number'],
+            'materials.*.source_url' => SupplierPrices::LINK_RULES['source_url'],
             'services' => ['nullable', 'array'],
             'services.*.service_id' => ['required', Rule::exists('services', 'id')->where('shop_id', $shop->id)],
             'services.*.price' => ['required', 'numeric', 'min:0', 'max:10000000'],
@@ -86,7 +91,7 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
         return [
             ...$record->only(['id', 'name', 'email', 'phone', 'address', 'notes']),
             'type' => $record->type->value,
-            'materials' => $record->materials()->get()->map(fn ($m) => ['material_id' => $m->id, 'name' => $m->name, 'dimension' => $m->pivot->dimension, 'price' => (float) $m->pivot->price])->all(),
+            'materials' => $record->materials()->get()->map(fn ($m) => ['material_id' => $m->id, 'name' => $m->name, 'dimension' => $m->pivot->dimension, 'price' => (float) $m->pivot->price, 'part_number' => $m->pivot->part_number, 'source_url' => $m->pivot->source_url])->all(),
             'services' => $record->services()->get()->map(fn ($s) => ['service_id' => $s->id, 'name' => $s->name, 'price' => (float) $s->pivot->price])->all(),
         ];
     }
@@ -96,7 +101,7 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
         $changed = [];
 
         if (in_array('materials', $sent, true)) {
-            $this->syncMaterials($record, $data['materials'] ?? []);
+            SupplierPrices::syncMaterials($record, $data['materials'] ?? []);
             $changed[] = 'materials';
         }
 
@@ -106,24 +111,6 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
         }
 
         return $changed;
-    }
-
-    /**
-     * Same as the web form: a material can appear several times (one row per
-     * size), which sync() can't express, so the whole set is replaced.
-     *
-     * @param  array<int, array<string, mixed>>  $materials
-     */
-    private function syncMaterials(Model $partner, array $materials): void
-    {
-        $partner->materials()->detach();
-
-        foreach ($materials as $row) {
-            $partner->materials()->attach($row['material_id'], [
-                'price' => $row['price'],
-                'dimension' => filled($row['dimension'] ?? null) ? trim($row['dimension']) : null,
-            ]);
-        }
     }
 
     /**

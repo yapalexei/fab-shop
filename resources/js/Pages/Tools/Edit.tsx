@@ -20,6 +20,9 @@ interface Tool {
     cost: number;
     unit: string;
     notes: string | null;
+    part_number: string | null;
+    source_url: string | null;
+    price_checked_at: string | null;
     image_url: string | null;
     model: ToolModelFile | null;
 }
@@ -40,6 +43,9 @@ export default function Edit({
         cost: tool.cost.toString(),
         unit: tool.unit,
         notes: tool.notes ?? '',
+        part_number: tool.part_number ?? '',
+        source_url: tool.source_url ?? '',
+        mark_price_checked: false,
         image: null,
         remove_image: false,
         model: null,
@@ -78,6 +84,7 @@ export default function Edit({
                                     setData={setData}
                                     errors={errors}
                                     materialOptions={materialOptions}
+                                    priceCheckedAt={tool.price_checked_at}
                                     currentImage={tool.image_url}
                                     currentModel={tool.model}
                                 />

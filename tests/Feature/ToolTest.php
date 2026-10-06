@@ -253,3 +253,39 @@ test('tool files are validated and never served across shops', function () {
     $other = actingAsShopMember(Shop::factory()->create());
     $this->actingAs($other)->get(route('tools.model', $tool))->assertNotFound();
 });
+
+test('a tool keeps a supplier link and part number, and the price check date follows the cost', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+    $cuts = typeIds($shop, 'Carbon steel');
+
+    $this->actingAs($user)->post(route('tools.store'), [
+        'name' => 'Cobalt bit', 'cuts' => $cuts, 'cost' => 6.5, 'unit' => 'each',
+        'part_number' => '2985A21', 'source_url' => 'https://www.mcmaster.com/2985A21/',
+    ])->assertSessionHasNoErrors();
+
+    $tool = Tool::sole();
+    expect($tool->part_number)->toBe('2985A21')->and($tool->price_checked_at)->not->toBeNull();
+
+    $update = fn (array $extra = []) => $this->actingAs($user)->put(route('tools.update', $tool), [
+        'name' => 'Cobalt bit', 'cuts' => $cuts, 'cost' => 6.5, 'unit' => 'each', ...$extra,
+    ])->assertSessionHasNoErrors();
+
+    $this->travel(5)->days();
+    $stamped = $tool->fresh()->price_checked_at;
+    $update();
+    expect($tool->fresh()->price_checked_at->equalTo($stamped))->toBeTrue();
+
+    $update(['cost' => 7]);
+    expect($tool->fresh()->price_checked_at->greaterThan($stamped))->toBeTrue();
+});
+
+test('a tool link must be an http or https address', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('tools.store'), [
+        'name' => 'Bit', 'cuts' => typeIds($shop, 'Carbon steel'), 'cost' => 1, 'unit' => 'each',
+        'source_url' => 'javascript:alert(1)',
+    ])->assertSessionHasErrors('source_url');
+});

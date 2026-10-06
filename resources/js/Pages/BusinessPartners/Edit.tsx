@@ -21,6 +21,9 @@ interface BusinessPartnerDetail {
         name: string;
         dimension: string | null;
         price: number;
+        part_number: string | null;
+        source_url: string | null;
+        price_checked_at: string | null;
     }[];
     services: { service_id: number; name: string; price: number }[];
 }
@@ -127,6 +130,9 @@ export default function Edit({
                                         itemId: m.material_id,
                                         dimension: m.dimension ?? '',
                                         price: m.price,
+                                        part_number: m.part_number ?? '',
+                                        source_url: m.source_url ?? '',
+                                        price_checked_at: m.price_checked_at,
                                     }),
                                 ),
                                 services: businessPartner.services.map(

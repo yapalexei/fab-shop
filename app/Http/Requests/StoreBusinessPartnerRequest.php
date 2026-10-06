@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\BusinessPartnerType;
 use App\Support\Images;
+use App\Support\SupplierPrices;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -37,6 +38,9 @@ class StoreBusinessPartnerRequest extends FormRequest
             ],
             'materials.*.dimension' => ['nullable', 'string', 'max:100'],
             'materials.*.price' => ['required', 'numeric', 'min:0'],
+            'materials.*.part_number' => SupplierPrices::LINK_RULES['part_number'],
+            'materials.*.source_url' => SupplierPrices::LINK_RULES['source_url'],
+            'materials.*.mark_checked' => ['nullable', 'boolean'],
             'services' => ['nullable', 'array'],
             'services.*.service_id' => [
                 'required',
@@ -76,6 +80,8 @@ class StoreBusinessPartnerRequest extends FormRequest
             'materials.*.material_id' => 'material',
             'materials.*.dimension' => 'size',
             'materials.*.price' => 'price',
+            'materials.*.part_number' => 'part number',
+            'materials.*.source_url' => 'link',
             'services.*.service_id' => 'service',
             'services.*.price' => 'price',
         ];

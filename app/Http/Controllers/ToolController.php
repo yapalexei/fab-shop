@@ -10,6 +10,7 @@ use App\Models\MaterialType;
 use App\Models\Tool;
 use App\Support\Attachments;
 use App\Support\Images;
+use App\Support\SupplierPrices;
 use App\Support\ToolModels;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,7 @@ class ToolController extends Controller implements HasMiddleware
     use AuthorizesShopResource;
 
     /** Request fields that aren't columns on `tools`. */
-    private const NON_COLUMNS = ['cuts', 'image', 'remove_image', 'model', 'remove_model'];
+    private const NON_COLUMNS = ['cuts', 'image', 'remove_image', 'model', 'remove_model', 'mark_price_checked'];
 
     protected static function shopResource(): ShopResource
     {
@@ -60,6 +61,7 @@ class ToolController extends Controller implements HasMiddleware
     public function store(StoreToolRequest $request): RedirectResponse
     {
         $tool = Tool::create($request->safe()->except(self::NON_COLUMNS));
+        $tool->forceFill(['price_checked_at' => now()])->save();
         $tool->materialTypes()->sync($request->validated('cuts'));
         $this->syncFiles($tool, $request);
 
@@ -76,6 +78,9 @@ class ToolController extends Controller implements HasMiddleware
                 'cost' => (float) $tool->cost,
                 'unit' => $tool->unit,
                 'notes' => $tool->notes,
+                'part_number' => $tool->part_number,
+                'source_url' => $tool->source_url,
+                'price_checked_at' => SupplierPrices::iso($tool->price_checked_at),
                 'image_url' => $tool->imageUrl(),
                 'model' => ToolModels::props($tool),
             ],
@@ -86,6 +91,12 @@ class ToolController extends Controller implements HasMiddleware
     public function update(UpdateToolRequest $request, Tool $tool): RedirectResponse
     {
         $tool->update($request->safe()->except(self::NON_COLUMNS));
+
+        // The price counts as checked when it changed or the owner says so.
+        if ($tool->wasChanged('cost') || $request->boolean('mark_price_checked')) {
+            $tool->forceFill(['price_checked_at' => now()])->save();
+        }
+
         $tool->materialTypes()->sync($request->validated('cuts'));
         $this->syncFiles($tool, $request);
 

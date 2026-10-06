@@ -23,12 +23,13 @@ class Tool extends Model implements HasMedia
     /** @use HasFactory<ToolFactory> */
     use BelongsToShop, HasFactory, InteractsWithMedia;
 
-    protected $fillable = ['name', 'cost', 'unit', 'notes'];
+    protected $fillable = ['name', 'cost', 'unit', 'notes', 'part_number', 'source_url'];
 
     protected function casts(): array
     {
         return [
             'cost' => 'decimal:2',
+            'price_checked_at' => 'datetime',
         ];
     }
 

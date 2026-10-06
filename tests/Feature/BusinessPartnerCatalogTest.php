@@ -7,6 +7,7 @@ use App\Models\Material;
 use App\Models\Plan;
 use App\Models\Service;
 use App\Models\Shop;
+use App\Support\SupplierPrices;
 use Illuminate\Support\Facades\Storage;
 
 test('a material can be created and is scoped to the current shop', function () {
@@ -217,4 +218,63 @@ test('another shop\'s partner cannot be made a customer', function () {
 
     $this->actingAs($user)->post(route('business-partners.make-customer', $foreign))->assertNotFound();
     expect(Customer::withoutGlobalScopes()->count())->toBe(0);
+});
+
+test('a supplier price keeps its part number and link, and a price change restamps the check date', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+    $material = Material::factory()->for($shop)->create();
+    $partner = BusinessPartner::factory()->for($shop)->create();
+
+    $row = fn (array $extra = []) => ['materials' => [[
+        'material_id' => $material->id, 'dimension' => '4 ft', 'price' => 20,
+        'part_number' => '8910K12', 'source_url' => 'https://www.mcmaster.com/8910K12/', ...$extra,
+    ]]];
+    $payload = fn (array $extra = []) => ['name' => $partner->name, ...$row($extra)];
+
+    $this->actingAs($user)->put(route('business-partners.update', $partner), $payload())->assertSessionHasNoErrors();
+    $pivot = fn () => $partner->fresh()->materials()->first()->pivot;
+
+    expect($pivot()->part_number)->toBe('8910K12')
+        ->and($pivot()->source_url)->toBe('https://www.mcmaster.com/8910K12/')
+        ->and($pivot()->price_checked_at)->not->toBeNull();
+
+    // An unchanged price keeps its old date; a changed one or an explicit "mark checked" restamps it.
+    $this->travel(5)->days();
+    $stamped = $pivot()->price_checked_at;
+    $this->actingAs($user)->put(route('business-partners.update', $partner), $payload())->assertSessionHasNoErrors();
+    expect($pivot()->price_checked_at)->toBe($stamped);
+
+    $this->actingAs($user)->put(route('business-partners.update', $partner), $payload(['price' => 22]))->assertSessionHasNoErrors();
+    expect($pivot()->price_checked_at)->not->toBe($stamped);
+
+    $this->travel(5)->days();
+    $stamped = $pivot()->price_checked_at;
+    $this->actingAs($user)->put(route('business-partners.update', $partner), $payload(['price' => 22, 'mark_checked' => true]))->assertSessionHasNoErrors();
+    expect($pivot()->price_checked_at)->not->toBe($stamped);
+});
+
+test('a price row that does not send a link (like an AI edit) leaves the saved one alone', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+    $material = Material::factory()->for($shop)->create();
+    $partner = BusinessPartner::factory()->for($shop)->create();
+    $partner->materials()->attach($material->id, ['price' => 20, 'part_number' => 'A1', 'source_url' => 'https://example.com/a1']);
+
+    SupplierPrices::syncMaterials($partner, [['material_id' => $material->id, 'price' => 20]]);
+
+    $pivot = $partner->fresh()->materials()->first()->pivot;
+    expect($pivot->part_number)->toBe('A1')->and($pivot->source_url)->toBe('https://example.com/a1');
+});
+
+test('a supplier link must be a real http or https address', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+    $material = Material::factory()->for($shop)->create();
+    $partner = BusinessPartner::factory()->for($shop)->create();
+
+    $this->actingAs($user)->put(route('business-partners.update', $partner), [
+        'name' => $partner->name,
+        'materials' => [['material_id' => $material->id, 'price' => 5, 'source_url' => 'javascript:alert(1)']],
+    ])->assertSessionHasErrors('materials.0.source_url');
 });

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Support\Images;
+use App\Support\SupplierPrices;
 use App\Support\ToolModels;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -32,6 +33,9 @@ class StoreToolRequest extends FormRequest
             'cost' => ['required', 'numeric', 'min:0'],
             'unit' => ['required', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'part_number' => SupplierPrices::LINK_RULES['part_number'],
+            'source_url' => SupplierPrices::LINK_RULES['source_url'],
+            'mark_price_checked' => ['nullable', 'boolean'],
             'image' => Images::rules(),
             'remove_image' => ['nullable', 'boolean'],
             'model' => ToolModels::rules(),
@@ -45,6 +49,7 @@ class StoreToolRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'source_url.url' => 'The link must be a full web address starting with http:// or https://.',
             'cuts.required' => 'Pick at least one material this tool can cut.',
             'cuts.min' => 'Pick at least one material this tool can cut.',
             'model.extensions' => 'The 3D file must be STEP, STL, 3MF, OBJ, DXF or DWG.',

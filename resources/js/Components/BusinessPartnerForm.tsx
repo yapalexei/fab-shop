@@ -68,6 +68,9 @@ export default function BusinessPartnerForm({
             material_id: row.itemId,
             dimension: row.dimension ?? '',
             price: row.price,
+            part_number: row.part_number ?? '',
+            source_url: row.source_url ?? '',
+            mark_checked: row.mark_checked ?? false,
         })),
         services: form.services.map((row) => ({
             service_id: row.itemId,
@@ -181,6 +184,7 @@ export default function BusinessPartnerForm({
                     }
                     rows={data.materials}
                     withDimension
+                    withSource
                     onChange={(rows) => setData('materials', rows)}
                     getError={(index, field) =>
                         errorMap[
