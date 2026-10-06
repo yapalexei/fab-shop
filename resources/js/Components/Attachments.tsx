@@ -1,7 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import { router } from '@inertiajs/react';
-import { Box, File, FileText, Image as ImageIcon, Ruler } from 'lucide-react';
+import { Box, File, Loader2, FileText, Image as ImageIcon, Ruler } from 'lucide-react';
 import { Suspense, lazy, useRef, useState } from 'react';
 import {
     Dialog,
@@ -12,7 +12,8 @@ import {
 } from '@/Components/ui/dialog';
 
 // three.js is large and only needed once someone opens a model.
-const ModelViewer = lazy(() => import('@/Components/ModelViewer'));
+const loadModelViewer = () => import('@/Components/ModelViewer');
+const ModelViewer = lazy(loadModelViewer);
 const VIEWABLE_3D = ['stl', 'obj', '3mf'];
 
 export interface Attachment {
@@ -98,8 +99,15 @@ function ModelDialog({
                 </DialogHeader>
                 <Suspense
                     fallback={
-                        <div className="flex h-[60vh] items-center justify-center text-sm text-muted-foreground">
-                            Loading viewer…
+                        <div
+                            role="status"
+                            className="flex h-[60vh] items-center justify-center gap-2 text-sm text-muted-foreground"
+                        >
+                            <Loader2
+                                className="size-4 animate-spin"
+                                aria-hidden
+                            />
+                            Loading 3D viewer…
                         </div>
                     }
                 >
@@ -135,6 +143,11 @@ export function Row({
                 {viewable ? (
                     <button
                         type="button"
+                        // Start downloading the viewer as soon as someone
+                        // shows intent, so it's usually ready by the click.
+                        // The dialog shows a loading state if it isn't.
+                        onPointerEnter={loadModelViewer}
+                        onFocus={loadModelViewer}
                         onClick={() => setViewing(true)}
                         className="font-medium underline"
                     >
