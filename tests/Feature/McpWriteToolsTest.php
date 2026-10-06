@@ -369,6 +369,21 @@ test('update-job sets the due date and assigns by name, logging each change as t
     expect($job->fresh()->due_date)->toBeNull()->and($job->fresh()->assigned_to)->toBeNull();
 });
 
+test('update-job unassigns when the client sends an empty string, and advertises assignee as nullable', function () {
+    [$shop, , $agent] = writeShop(ALL_WRITES);
+    $job = jobForShop($shop);
+    $person = User::factory()->create(['name' => 'Jamie Chen', 'current_shop_id' => $shop->id]);
+    $shop->members()->attach($person);
+    $job->forceFill(['assigned_to' => $person->id])->save();
+
+    ShopServer::actingAs($agent)->tool(UpdateJobTool::class, ['id' => $job->id, 'assignee' => ''])
+        ->assertOk()->assertSee('Unassigned from Jamie Chen');
+    expect($job->fresh()->assigned_to)->toBeNull();
+
+    $schema = (new UpdateJobTool)->schema(new Illuminate\JsonSchema\JsonSchemaTypeFactory)['assignee']->toArray();
+    expect(json_encode($schema))->toContain('null');
+});
+
 test('update-job refuses an unknown assignee (listing the team), an agent as assignee, and cancelled jobs', function () {
     [$shop, , $agent] = writeShop(ALL_WRITES);
     $job = jobForShop($shop);

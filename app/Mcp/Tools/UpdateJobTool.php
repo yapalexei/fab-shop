@@ -16,7 +16,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('update-job')]
-#[Description('Change a job\'s due date and/or who it is assigned to. Send only what you want to change; send null to clear the due date or unassign. The assignee is a team member\'s name. Does not move the job between stages (use move-job) and cannot touch cancelled jobs.')]
+#[Description('Change a job\'s due date and/or who it is assigned to. Send only what you want to change. To unassign, send assignee as null (or an empty string); to clear the due date, send due_date as null (or an empty string). The assignee is a team member\'s name. Does not move the job between stages (use move-job) and cannot touch cancelled jobs.')]
 #[IsReadOnly(false)]
 #[IsDestructive(false)]
 #[IsIdempotent]
@@ -31,14 +31,17 @@ class UpdateJobTool extends McpTool
     {
         return [
             'id' => $schema->integer()->description('The job id (from list-jobs).')->required(),
-            'due_date' => $schema->string()->description('Due date as YYYY-MM-DD, or null to clear it.'),
-            'assignee' => $schema->string()->description('The name of the team member to assign, or null to unassign.'),
+            'due_date' => $schema->string()->description('Due date as YYYY-MM-DD, or null to clear it.')->nullable(),
+            'assignee' => $schema->string()->description('The name of the team member to assign, or null to unassign.')->nullable(),
         ];
     }
 
     protected function run(Request $request, User $agent, Shop $shop): array
     {
-        $args = $request->all();
+        // Some clients send an empty string instead of null to mean "clear
+        // it" - treat both the same, so unassigning always works.
+        $args = array_map(fn ($value) => is_string($value) && trim($value) === '' ? null : $value, $request->all());
+        $request->merge($args);
         $data = $request->validate([
             'id' => ['required', 'integer'],
             'due_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
