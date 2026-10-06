@@ -89,7 +89,7 @@ test('workflow events are logged', function () {
 });
 
 test('a shop without the feature neither writes nor sees history', function () {
-    $shop = historyShop('start-up');
+    $shop = historyShop('solo');
     $quote = quoteFor($shop);
     $user = actingAsShopMember($shop);
 
@@ -104,7 +104,7 @@ test('a shop without the feature neither writes nor sees history', function () {
 });
 
 test('the add-on subscription turns history on', function () {
-    $shop = historyShop('start-up');
+    $shop = historyShop('solo');
     ShopFeatureSubscription::query()->forceCreate(['shop_id' => $shop->id, 'feature' => Feature::QuoteHistory->value, 'started_at' => now()]);
     $quote = quoteFor($shop);
     $user = actingAsShopMember($shop);
@@ -116,7 +116,7 @@ test('the add-on subscription turns history on', function () {
 });
 
 test('a shop that lost the feature still sees what was recorded, read-only', function () {
-    $shop = historyShop('start-up');
+    $shop = historyShop('solo');
     $quote = quoteFor($shop);
     $user = actingAsShopMember($shop);
     QuoteHistoryEntry::query()->forceCreate(['shop_id' => $shop->id, 'quote_id' => $quote->id, 'user_id' => $user->id, 'event' => 'updated', 'summary' => 'Saved changes', 'changes' => []]);
@@ -136,10 +136,11 @@ test('quote history is isolated per shop', function () {
     expect(QuoteHistoryEntry::query()->count())->toBe(0);
 });
 
-test('Pro includes quote history and its add-on price defaults to $10', function () {
+test('Shop and Pro include quote history; Solo does not; add-on price defaults to $10', function () {
     $this->seed(PlanSeeder::class);
 
     expect(Plan::where('key', 'pro')->first()->hasFeature(Feature::QuoteHistory))->toBeTrue()
-        ->and(Plan::where('key', 'start-up')->first()->hasFeature(Feature::QuoteHistory))->toBeFalse()
+        ->and(Plan::where('key', 'start-up')->first()->hasFeature(Feature::QuoteHistory))->toBeTrue()
+        ->and(Plan::where('key', 'solo')->first()->hasFeature(Feature::QuoteHistory))->toBeFalse()
         ->and(Feature::QuoteHistory->defaultPriceCents())->toBe(1000);
 });

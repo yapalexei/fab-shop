@@ -6,18 +6,18 @@ use Illuminate\Support\Facades\DB;
 test('defaultTrialDays lazily creates the one row with the historical default', function () {
     expect(DB::table('platform_settings')->count())->toBe(0);
 
-    expect(PlatformSetting::defaultTrialDays())->toBe(14);
+    expect(PlatformSetting::defaultTrialDays())->toBe(30);
     expect(DB::table('platform_settings')->count())->toBe(1);
 });
 
 test('defaultTrialDays is cached - a write that bypasses the cache does not change it until forgetCache is called', function () {
-    expect(PlatformSetting::defaultTrialDays())->toBe(14); // warms the cache
+    expect(PlatformSetting::defaultTrialDays())->toBe(30); // warms the cache
 
     // Bypasses PlatformSetting::forgetCache() on purpose, to prove the
     // cached value really is stale until something invalidates it.
     DB::table('platform_settings')->update(['default_trial_days' => 30]);
 
-    expect(PlatformSetting::defaultTrialDays())->toBe(14);
+    expect(PlatformSetting::defaultTrialDays())->toBe(30);
 
     PlatformSetting::forgetCache();
 

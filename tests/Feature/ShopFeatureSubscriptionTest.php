@@ -151,13 +151,13 @@ test('the add-ons page carries per-add-on advice and a banner for existing add-o
 
 test('a plan that costs the same but includes more still triggers the warning', function () {
     seededTiers();
-    FeatureSetting::query()->where('feature', Feature::QuoteBuilder->value)->update(['price_cents' => 2900]);
+    FeatureSetting::query()->where('feature', Feature::QuoteBuilder->value)->update(['price_cents' => 3900]);
     Plan::where('key', 'solo')->update(['monthly_price_cents' => 9900]); // take Solo out of the running
     $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => Plan::where('key', 'free')->value('id')]);
     $owner = actingAsShopMember($shop, 'Owner');
     ShopFeatureSubscription::query()->forceCreate(['shop_id' => $shop->id, 'feature' => Feature::Customers->value, 'started_at' => now()]);
 
-    // 20 + 29 = $49 as add-ons; Start-up is $49 and adds the Job board.
+    // 20 + 39 = $59 as add-ons; Shop is $59 and adds the Job board.
     $this->actingAs($owner)->post(route('shop.addons.store', Feature::QuoteBuilder->value))
         ->assertSessionHas('error');
     $advice = PlanAdvisor::forNewAddon($shop->fresh(), Feature::QuoteBuilder);

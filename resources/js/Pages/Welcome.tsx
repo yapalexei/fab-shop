@@ -199,7 +199,7 @@ function TierCard({
             )}
 
             {tier.isTrialOnly ? (
-                <p className="mt-4 flex-1 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
+                <p className="mt-4 flex-1 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-50">
                     Every shipped feature, free for {trialDays} days.
                 </p>
             ) : (
@@ -419,7 +419,7 @@ export default function Welcome({
                             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
                                 Every plan starts with a full-access,{' '}
                                 {trialDays}-day free trial - no card required.
-                                Pick Solo, Start-up or Pro when the trial ends,
+                                Pick Solo, Shop or Pro when the trial ends,
                                 or keep exploring on the free trial until you're
                                 ready.
                             </p>

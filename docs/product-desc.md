@@ -46,14 +46,17 @@ Starting proposal, mapped to the pricing in the Product & Launch Plan tab - adju
 
 ### Tier x feature matrix
 
-| Feature | Free (trial) | Start-up | Pro |
-| --- | --- | --- | --- |
-| Customers, Quote builder, Quote-to-job, Job/traveler board | Full access for 14 days, then locked | Included | Included |
-| QuickBooks Online sync | Locked | Not included | Included |
-| Material/scrap tracking | Locked | Not included | Included |
-| Qualification records | Locked | Not included | Included |
-| Mobile/PWA + API access | Locked | Not included | Included |
-| User seats | 1 (trial) | Up to 5 | Up to 20 |
+| Feature | Trial (30 days) | Solo $29 | Shop $59 (key `start-up`) | Pro $119 |
+| --- | --- | --- | --- | --- |
+| Customers, Quote builder, Quote emailing | Full access | Included | Included | Included |
+| Job/traveler board, Quote history | Full access | Not included | Included | Included |
+| AI quote drafting + follow-ups (bring your own key) | Full access | Not included | Included | Included |
+| QuickBooks Online sync (not shipped) | Locked | Not included | Planned | Included |
+| Material/scrap tracking | Full access | Not included | Add-on $25 | Included |
+| Qualification records | Full access | Not included | Add-on $25 | Included |
+| AI agent access (MCP) | Full access | Not included | Not included | Included |
+| Mobile/PWA + API access (not shipped) | Locked | Not included | Not included | Included |
+| User seats | 1 | 1 | Up to 4 | Up to 10 |
 
 "Locked" means: the trial shop can use it during the 14 days like a Pro shop would, so they feel the full product before deciding; once the trial ends without a paid plan, those routes/UI become disabled (read-only where there's existing data, not deleted).
 

@@ -62,17 +62,20 @@ test('the marketing page never leaks another shop\'s data - it renders no shop-s
 test('a paid tier shows how much it saves vs. buying its bundled features as add-ons', function () {
     $this->seed(PlanSeeder::class);
 
-    // Every feature falls back to the same $20 placeholder price with no
-    // feature_settings rows seeded - Solo bundles 2 features ($40
-    // standalone) for $29, Start-up bundles 3 ($60 standalone) for $49,
-    // Pro bundles all 8 ($150 standalone: seven at $20, Quote history at $10) for $99.
+    // No feature_settings rows seeded, so each feature falls back to its
+    // default add-on price: Customers/Quote builder/Job board/AI assist/AI
+    // agent $20, Quote history/emailing $10, Material tracking/Qualification
+    // records $25. Solo bundles Customers + Quote builder + Emailing = $50
+    // for $29; Shop adds Job board, History, AI assist = $100 for $59; Pro
+    // bundles all 11 = $210 for $119 (adds Quickbooks/Mobile at $20 each, and
+    // Material tracking/Qualification records at $25).
     $this->get('/')->assertInertia(fn ($page) => $page
         ->where('tiers.1.monthlyPriceCents', 2900)
-        ->where('tiers.1.savingsCents', 1100)
-        ->where('tiers.2.monthlyPriceCents', 4900)
-        ->where('tiers.2.savingsCents', 1100)
-        ->where('tiers.3.monthlyPriceCents', 9900)
-        ->where('tiers.3.savingsCents', 5100));
+        ->where('tiers.1.savingsCents', 2100)
+        ->where('tiers.2.monthlyPriceCents', 5900)
+        ->where('tiers.2.savingsCents', 4100)
+        ->where('tiers.3.monthlyPriceCents', 11900)
+        ->where('tiers.3.savingsCents', 9100));
 });
 
 test('bundle savings reflect admin-edited feature prices, not the placeholder default', function () {
@@ -80,14 +83,15 @@ test('bundle savings reflect admin-edited feature prices, not the placeholder de
     FeatureSetting::ensureDefaults();
     FeatureSetting::query()->where('feature', Feature::JobBoard->value)->update(['price_cents' => 5000]);
 
-    // Start-up bundles Customers + QuoteBuilder + JobBoard: 2000 + 2000 +
-    // 5000 = 9000 standalone, vs. its 4900 price.
+    // Shop bundles Customers + QuoteBuilder + QuoteEmailing + JobBoard +
+    // QuoteHistory + AiAssist: 2000 + 2000 + 1000 + 5000 + 1000 + 2000 =
+    // 13000 standalone, vs. its 5900 price.
     $this->get('/')->assertInertia(fn ($page) => $page
-        ->where('tiers.2.savingsCents', 4100));
+        ->where('tiers.2.savingsCents', 7100));
 });
 
-test('the advertised trial length defaults to 14 days with no platform setting seeded', function () {
-    $this->get('/')->assertInertia(fn ($page) => $page->where('trialDays', 14));
+test('the advertised trial length defaults to 30 days with no platform setting seeded', function () {
+    $this->get('/')->assertInertia(fn ($page) => $page->where('trialDays', 30));
 });
 
 test('the advertised trial length reflects the admin-edited platform default, not a hardcoded number', function () {

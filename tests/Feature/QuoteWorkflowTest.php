@@ -9,12 +9,17 @@ use App\Models\Customer;
 use App\Models\Job;
 use App\Models\Quote;
 use App\Models\Shop;
+use Database\Seeders\PlanSeeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 
 function draftQuoteWithLineItem(Shop $shop, ?string $customerEmail = 'customer@example.com'): Quote
 {
+    // Emailing is off by default; most workflow tests exercise it.
+    $shop->update(['quote_emailing_enabled' => true]);
     $customer = Customer::factory()->for($shop)->create(['email' => $customerEmail]);
     $quote = Quote::factory()->for($shop)->create(['customer_id' => $customer->id]);
     $quote->lineItems()->create([
@@ -287,4 +292,124 @@ test('previewing a quote needs view access and stays within the shop', function 
     $user = actingAsShopMember($shop);
 
     $this->actingAs($user)->get(route('quotes.preview', $foreign))->assertNotFound();
+});
+
+test('the customer cannot be changed once the quote has been emailed', function () {
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now(), 'emailed_at' => now()]);
+    $other = Customer::factory()->for($shop)->create();
+    $user = actingAsShopMember($shop);
+
+    $payload = fn (int $customerId) => [
+        'customer_id' => $customerId,
+        'line_items' => [['type' => 'material', 'description' => 'Item', 'quantity' => 1, 'unit_cost' => 10, 'markup_percent' => 0, 'override_total' => null]],
+    ];
+
+    $this->actingAs($user)->put(route('quotes.update', $quote), $payload($other->id))->assertSessionHasErrors('customer_id');
+    expect($quote->fresh()->customer_id)->not->toBe($other->id);
+
+    // Saving with the same customer is still fine.
+    $this->actingAs($user)->put(route('quotes.update', $quote), $payload($quote->customer_id))->assertSessionHasNoErrors();
+});
+
+test('the customer can be changed, and the log says why, after the email failed to deliver', function () {
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now()]);
+    $other = Customer::factory()->for($shop)->create();
+    $user = actingAsShopMember($shop);
+    $user->currentShop->update(['trial_ends_at' => now()->addDays(5)]);
+
+    (new GenerateAndSendQuotePdf($quote))->failed(new RuntimeException('Mailbox does not exist'));
+
+    $quote->refresh();
+    expect($quote->email_failed_at)->not->toBeNull()
+        ->and($quote->customer_locked)->toBeFalse();
+
+    $this->actingAs($user)->put(route('quotes.update', $quote), [
+        'customer_id' => $other->id,
+        'line_items' => [['type' => 'material', 'description' => 'Item', 'quantity' => 1, 'unit_cost' => 10, 'markup_percent' => 0, 'override_total' => null]],
+    ])->assertSessionHasNoErrors();
+
+    expect($quote->fresh()->customer_id)->toBe($other->id);
+
+    $summaries = $quote->historyEntries()->pluck('summary')->all();
+    expect($summaries)->toContain('Saved changes - customer corrected after the email failed to deliver')
+        ->and(collect($summaries)->contains(fn ($s) => str_contains($s, 'failed to deliver - Mailbox does not exist')))->toBeTrue();
+});
+
+test('a quote marked sent without emailing can still change customer', function () {
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $quote->update(['status' => QuoteStatus::Sent, 'send_skipped_reason' => 'Agreed verbally']);
+
+    expect($quote->customer_locked)->toBeFalse();
+});
+
+test('a quote can be duplicated as a fresh draft without attachments', function () {
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $quote->update(['status' => QuoteStatus::Won, 'notes' => 'Rush', 'due_date' => '2026-12-01', 'sent_at' => now(), 'emailed_at' => now()]);
+    $quote->addMedia(UploadedFile::fake()->create('plan.pdf', 10))->toMediaCollection('attachments');
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.duplicate', $quote))->assertRedirect();
+
+    $copy = Quote::query()->whereKeyNot($quote->id)->sole();
+
+    expect($copy->status)->toBe(QuoteStatus::Draft)
+        ->and($copy->customer_id)->toBe($quote->customer_id)
+        ->and($copy->notes)->toBe('Rush')
+        ->and($copy->due_date->toDateString())->toBe('2026-12-01')
+        ->and($copy->sent_at)->toBeNull()
+        ->and($copy->emailed_at)->toBeNull()
+        ->and($copy->lineItems)->toHaveCount(1)
+        ->and($copy->lineItems->first()->description)->toBe('Item')
+        ->and($copy->attachments())->toHaveCount(0)
+        ->and($quote->fresh()->lineItems)->toHaveCount(1);
+});
+
+test('a user cannot duplicate another shop\'s quote', function () {
+    $quote = draftQuoteWithLineItem(Shop::factory()->create());
+    $user = actingAsShopMember(Shop::factory()->create());
+
+    $this->actingAs($user)->post(route('quotes.duplicate', $quote))->assertNotFound();
+});
+
+test('with emailing off, a quote cannot be emailed but can be marked sent without a reason', function () {
+    Bus::fake();
+
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $shop->update(['quote_emailing_enabled' => false]);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.send', $quote))->assertSessionHasErrors('status');
+    expect($quote->refresh()->status)->toBe(QuoteStatus::Draft);
+
+    $this->actingAs($user)->post(route('quotes.skip-send', $quote))->assertSessionHasNoErrors();
+    expect($quote->refresh()->status)->toBe(QuoteStatus::Sent)
+        ->and($quote->send_skipped_reason)->toBe('Quote emailing is turned off for this shop');
+
+    $this->actingAs($user)->post(route('quotes.resend', $quote))->assertSessionHasErrors('status');
+
+    Bus::assertNotDispatched(GenerateAndSendQuotePdf::class);
+});
+
+test('emailing needs the plan feature even when the setting is on', function () {
+    Bus::fake();
+
+    $shop = Shop::factory()->create();
+    $quote = draftQuoteWithLineItem($shop);
+    $this->seed(PlanSeeder::class);
+    $shop->update(['trial_ends_at' => now()->subDay(), 'plan_id' => DB::table('plans')->where('key', 'solo')->value('id')]);
+    // A plan with quoting but no emailing (Solo includes it by default).
+    DB::table('plan_feature')->where('plan_id', $shop->fresh()->plan_id)->where('feature', 'quote-emailing')->delete();
+    $user = actingAsShopMember($shop);
+
+    expect($shop->fresh()->quoteEmailingEnabled())->toBeFalse();
+
+    $this->actingAs($user)->post(route('quotes.send', $quote))->assertSessionHasErrors('status');
+    Bus::assertNotDispatched(GenerateAndSendQuotePdf::class);
 });

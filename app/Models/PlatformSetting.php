@@ -14,6 +14,11 @@ use Illuminate\Support\Facades\Cache;
  */
 class PlatformSetting extends Model
 {
+    // What a brand-new install advertises and grants. 30 days, not the
+    // historical Shop::TRIAL_DAYS (14): a fab shop's quote-to-job-to-invoice
+    // cycle takes weeks, so a shorter trial ends before a job finishes.
+    public const DEFAULT_TRIAL_DAYS = 30;
+
     private const CACHE_KEY = 'platform-setting.default-trial-days';
 
     protected $fillable = ['default_trial_days'];
@@ -31,7 +36,7 @@ class PlatformSetting extends Model
      */
     public static function current(): self
     {
-        return static::query()->firstOrCreate([], ['default_trial_days' => Shop::TRIAL_DAYS]);
+        return static::query()->firstOrCreate([], ['default_trial_days' => self::DEFAULT_TRIAL_DAYS]);
     }
 
     /**

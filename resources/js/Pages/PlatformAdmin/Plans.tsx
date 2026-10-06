@@ -118,7 +118,7 @@ export default function Plans({
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                <tbody className="divide-y">
                                     <tr>
                                         <td className="whitespace-nowrap px-3 py-3 text-sm font-medium text-gray-700">
                                             Default seats

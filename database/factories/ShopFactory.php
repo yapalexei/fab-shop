@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\PlatformSetting;
 use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,11 +19,16 @@ class ShopFactory extends Factory
      */
     public function definition(): array
     {
+        // Same as a real signup: the trial runs the platform default and the
+        // shop records it as its baseline (see Shop::trialBaselineDays()).
+        $trialDays = PlatformSetting::defaultTrialDays();
+
         return [
             'owner_id' => User::factory(),
             'name' => fake()->company(),
             'trial_started_at' => now(),
-            'trial_ends_at' => now()->addDays(14),
+            'trial_ends_at' => now()->addDays($trialDays),
+            'trial_baseline_days' => $trialDays,
             // Factory shops are already fully set up - only the real
             // onboarding wizard (and tests of it) deal with onboarded_at
             // being null.

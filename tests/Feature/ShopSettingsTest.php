@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\Feature;
+use App\Models\Plan;
 use App\Models\Shop;
+use Database\Seeders\PlanSeeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -101,4 +104,38 @@ test('job board drag-and-drop is off by default and only offered to people who c
         ->assertInertia(fn ($page) => $page->where('dragEnabled', true));
     $this->actingAs($viewer->fresh())->get(route('jobs.index'))
         ->assertInertia(fn ($page) => $page->where('dragEnabled', false));
+});
+
+test('quote emailing is off by default and can be turned on when the plan includes it', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+
+    expect($shop->fresh()->quote_emailing_enabled)->toBeFalse();
+
+    $this->actingAs($user)->patch(route('shop.settings.update'), ['name' => $shop->name, 'quote_emailing_enabled' => true])
+        ->assertSessionHasNoErrors();
+
+    expect($shop->fresh()->quote_emailing_enabled)->toBeTrue()
+        ->and($shop->fresh()->quoteEmailingEnabled())->toBeTrue();
+});
+
+test('a shop whose plan lacks quote emailing cannot turn it on', function () {
+    $shop = Shop::factory()->create(['trial_ends_at' => now()->subDay(), 'plan_id' => null]);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->get(route('shop.settings.edit'))
+        ->assertInertia(fn ($page) => $page->where('quoteEmailingAvailable', false));
+
+    $this->actingAs($user)->patch(route('shop.settings.update'), ['name' => $shop->name, 'quote_emailing_enabled' => true]);
+
+    expect($shop->fresh()->quote_emailing_enabled)->toBeFalse();
+});
+
+test('solo, shop and pro all include quote emailing; free does not', function () {
+    $this->seed(PlanSeeder::class);
+
+    expect(Plan::where('key', 'start-up')->first()->hasFeature(Feature::QuoteEmailing))->toBeTrue()
+        ->and(Plan::where('key', 'pro')->first()->hasFeature(Feature::QuoteEmailing))->toBeTrue()
+        ->and(Plan::where('key', 'solo')->first()->hasFeature(Feature::QuoteEmailing))->toBeTrue()
+        ->and(Plan::where('key', 'free')->first()->hasFeature(Feature::QuoteEmailing))->toBeFalse();
 });

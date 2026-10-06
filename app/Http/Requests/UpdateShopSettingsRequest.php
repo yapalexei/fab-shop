@@ -26,6 +26,7 @@ class UpdateShopSettingsRequest extends FormRequest
             'stale_quote_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'win_rate_window_days' => ['nullable', 'integer', 'min:7', 'max:730'],
             'job_board_drag_enabled' => ['nullable', 'boolean'],
+            'quote_emailing_enabled' => ['nullable', 'boolean'],
         ];
     }
 }

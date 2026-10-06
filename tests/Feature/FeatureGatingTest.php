@@ -123,6 +123,8 @@ test('hasFeature checks the shop passed in, not the authenticated user\'s curren
 });
 
 test('a feature with a longer admin-set trial stays free after the shop\'s default trial ends', function () {
+    PlatformSetting::current()->update(['default_trial_days' => 14]);
+    PlatformSetting::forgetCache();
     FeatureSetting::ensureDefaults();
     FeatureSetting::query()->where('feature', Feature::MaterialTracking->value)->update(['trial_days' => 30]);
 
@@ -132,6 +134,7 @@ test('a feature with a longer admin-set trial stays free after the shop\'s defau
     $shop = Shop::factory()->create([
         'trial_started_at' => now()->subDays(20),
         'trial_ends_at' => now()->subDays(6),
+        'trial_baseline_days' => 14,
         'plan_id' => null,
     ]);
 
@@ -156,12 +159,15 @@ test('a feature with a shorter admin-set trial locks before the shop\'s default 
 });
 
 test('enabledFeatures reflects a per-feature trial extension past the default trial window', function () {
+    PlatformSetting::current()->update(['default_trial_days' => 14]);
+    PlatformSetting::forgetCache();
     FeatureSetting::ensureDefaults();
     FeatureSetting::query()->where('feature', Feature::MaterialTracking->value)->update(['trial_days' => 30]);
 
     $shop = Shop::factory()->create([
         'trial_started_at' => now()->subDays(20),
         'trial_ends_at' => now()->subDays(6),
+        'trial_baseline_days' => 14,
         'plan_id' => null,
     ]);
 
@@ -183,6 +189,7 @@ test('changing the platform default trial length does not retroactively change a
     // features (Customers, at 14 days, matching that default) should stay
     // exactly aligned with the shop's own overall trial_ends_at.
     PlatformSetting::current()->update(['default_trial_days' => 14]);
+    PlatformSetting::forgetCache();
     FeatureSetting::ensureDefaults();
 
     $shop = Shop::factory()->create([

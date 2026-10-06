@@ -201,7 +201,7 @@ export default function Index({
                             </PrimaryButton>
                         </div>
                     )}
-                    <Card className="divide-y divide-gray-200">
+                    <Card className="divide-y">
                         {addons.map((addon) => (
                             <div
                                 key={addon.feature}

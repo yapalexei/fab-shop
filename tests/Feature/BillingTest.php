@@ -112,9 +112,9 @@ test('an upgrade mid-period charges the price difference for the days left', fun
 
     $quote = Billing::planChangeQuote($shop, Plan::where('key', 'pro')->first(), BillingInterval::Monthly);
 
-    // $99 - $49 = $50, 15/31 of it.
-    expect($quote['charge_cents'])->toBe(2419)
-        ->and($quote['period_price_cents'])->toBe(9900)
+    // $119 - $59 = $60, 15/31 of it.
+    expect($quote['charge_cents'])->toBe(2903)
+        ->and($quote['period_price_cents'])->toBe(11900)
         ->and($quote['starts_new_period'])->toBeFalse();
 });
 
@@ -124,8 +124,8 @@ test('an upgrade credits an add-on the new plan now bundles', function () {
 
     $quote = Billing::planChangeQuote($shop->fresh(), Plan::where('key', 'pro')->first(), BillingInterval::Monthly);
 
-    // 2419 for the plan difference less 484 for the dropped $10 add-on.
-    expect($quote['charge_cents'])->toBe(1935);
+    // 2903 for the plan difference less 484 for the dropped $10 add-on.
+    expect($quote['charge_cents'])->toBe(2419);
 });
 
 test('switching the same plan from monthly to annual credits the unused month', function () {
@@ -133,8 +133,8 @@ test('switching the same plan from monthly to annual credits the unused month', 
 
     $quote = Billing::planChangeQuote($shop, Plan::where('key', 'start-up')->first(), BillingInterval::Annual);
 
-    // $490 for the year, less 15/31 of the $49 already paid for this month.
-    expect($quote['charge_cents'])->toBe(49_000 - 2371)
+    // $590 for the year, less 15/31 of the $59 already paid for this month.
+    expect($quote['charge_cents'])->toBe(59_000 - 2855)
         ->and($quote['starts_new_period'])->toBeTrue()
         ->and(Carbon::parse($quote['renews_at'])->toDateString())->toBe('2027-09-10');
 });
@@ -176,5 +176,5 @@ test('the add-ons and plan pages carry the quotes the dialogs show', function ()
     $this->actingAs($owner)->get(route('shop.plan.index'))->assertInertia(fn ($page) => $page
         ->where('billingInterval', 'monthly')
         ->where('annualSwitch.starts_new_period', true)
-        ->where('plans', fn ($plans) => collect($plans)->firstWhere('key', 'pro')['quotes']['monthly']['charge_cents'] === 2419));
+        ->where('plans', fn ($plans) => collect($plans)->firstWhere('key', 'pro')['quotes']['monthly']['charge_cents'] === 2903));
 });

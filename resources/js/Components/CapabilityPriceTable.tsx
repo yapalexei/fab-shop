@@ -65,7 +65,7 @@ export default function CapabilityPriceTable({
 
             {rows.length > 0 && (
                 <div className="mt-2 overflow-x-auto rounded-md border border-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200">
+                    <table className="min-w-full divide-y">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">
@@ -82,7 +82,7 @@ export default function CapabilityPriceTable({
                                 <th />
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
+                        <tbody className="divide-y bg-white">
                             {rows.map((row, index) => (
                                 <tr key={index}>
                                     <td className="px-3 py-2">

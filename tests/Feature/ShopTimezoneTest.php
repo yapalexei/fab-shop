@@ -10,7 +10,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
-test('onboarding records the browser\'s timezone and a fixed 14-day UTC trial window', function () {
+test('onboarding records the browser\'s timezone and a fixed 30-day UTC trial window', function () {
     $this->seed(PlanSeeder::class);
     Carbon::setTestNow('2026-09-24 22:00:00');
     $user = User::factory()->create();
@@ -23,7 +23,7 @@ test('onboarding records the browser\'s timezone and a fixed 14-day UTC trial wi
 
     expect($shop->timezone)->toBe('America/Los_Angeles')
         ->and($shop->trial_started_at->toIso8601String())->toBe('2026-09-24T22:00:00+00:00')
-        ->and($shop->trial_ends_at->toIso8601String())->toBe('2026-10-08T22:00:00+00:00');
+        ->and($shop->trial_ends_at->toIso8601String())->toBe('2026-10-24T22:00:00+00:00');
 });
 
 test('changing the shop\'s timezone does not move the trial window', function () {

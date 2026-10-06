@@ -15,6 +15,7 @@ interface Settings {
     stale_quote_days: number | null;
     win_rate_window_days: number | null;
     job_board_drag_enabled: boolean;
+    quote_emailing_enabled: boolean;
 }
 
 interface Defaults {
@@ -47,7 +48,13 @@ export default function Edit({
     settings,
     defaults,
     timezones,
-}: PageProps<{ settings: Settings; defaults: Defaults; timezones: string[] }>) {
+    quoteEmailingAvailable,
+}: PageProps<{
+    settings: Settings;
+    defaults: Defaults;
+    timezones: string[];
+    quoteEmailingAvailable: boolean;
+}>) {
     // Blank inputs are sent as null, which means "use the default" - the
     // placeholder shows what that default currently is.
     const { data, setData, patch, processing, errors, isDirty } = useForm({
@@ -56,6 +63,7 @@ export default function Edit({
         stale_quote_days: settings.stale_quote_days?.toString() ?? '',
         win_rate_window_days: settings.win_rate_window_days?.toString() ?? '',
         job_board_drag_enabled: settings.job_board_drag_enabled,
+        quote_emailing_enabled: settings.quote_emailing_enabled,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -215,6 +223,55 @@ export default function Edit({
                                     className="mt-2"
                                 />
                             </div>
+                        </Section>
+
+                        <Section
+                            title="Quotes"
+                            description="How quotes reach your customers."
+                        >
+                            <label className="flex items-start gap-3">
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={
+                                        quoteEmailingAvailable &&
+                                        data.quote_emailing_enabled
+                                    }
+                                    aria-labelledby="emailing-label"
+                                    disabled={!quoteEmailingAvailable}
+                                    onClick={() =>
+                                        setData(
+                                            'quote_emailing_enabled',
+                                            !data.quote_emailing_enabled,
+                                        )
+                                    }
+                                    className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${quoteEmailingAvailable && data.quote_emailing_enabled ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-200 hover:bg-gray-300'}`}
+                                >
+                                    <span
+                                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition ${quoteEmailingAvailable && data.quote_emailing_enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                    />
+                                </button>
+                                <span>
+                                    <span
+                                        id="emailing-label"
+                                        className="block text-sm font-medium text-gray-900"
+                                    >
+                                        Email quotes to customers
+                                    </span>
+                                    <span className="block text-sm text-gray-500">
+                                        Adds a “Send to customer” button that
+                                        emails the quote PDF. Off by default -
+                                        you can still mark a quote as sent
+                                        after handing it over yourself.
+                                    </span>
+                                    {!quoteEmailingAvailable && (
+                                        <span className="mt-1 block text-xs text-amber-700">
+                                            Emailing quotes is available on the
+                                            Solo plan and above.
+                                        </span>
+                                    )}
+                                </span>
+                            </label>
                         </Section>
 
                         <Section
