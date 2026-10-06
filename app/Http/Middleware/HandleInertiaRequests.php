@@ -35,7 +35,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user()
+                    ? [...$request->user()->toArray(), 'avatar_url' => $request->user()->avatarUrl()]
+                    : null,
                 // Effective shop permissions ("quotes.delete", ...) so the UI
                 // can hide what the server would refuse anyway.
                 'permissions' => $request->user()?->shopPermissions() ?? [],

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ShopResource;
+use App\Support\Images;
 use App\Support\ShopPermissions;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -15,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Permission\Traits\HasRoles;
 
 // current_shop_id is deliberately not fillable - mass-assigning it would let
@@ -27,10 +31,10 @@ use Spatie\Permission\Traits\HasRoles;
 // EmailVerificationPromptController actually check for.
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, InteractsWithMedia, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -45,6 +49,25 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_platform_admin' => 'boolean',
             'is_agent' => 'boolean',
         ];
+    }
+
+    public function registerMediaCollections(): void
+    {
+        Images::collection($this, 'avatar');
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        Images::conversion($this, 'avatar');
+    }
+
+    /**
+     * The profile picture's URL, or null when none is set (the UI then shows
+     * the person's initials). Eager-load `media` when listing many users.
+     */
+    public function avatarUrl(): ?string
+    {
+        return Images::url($this, 'avatar', 'users.avatar');
     }
 
     /**

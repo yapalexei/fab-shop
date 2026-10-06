@@ -23,9 +23,10 @@ class TeamController extends Controller
         $isOwner = Gate::allows('manage-shop');
 
         return Inertia::render('Team/Index', [
-            'members' => $shop->members()->get()->map(fn (User $member) => [
+            'members' => $shop->members()->with('media')->get()->map(fn (User $member) => [
                 'id' => $member->id,
                 'name' => $member->name,
+                'avatar_url' => $member->avatarUrl(),
                 'email' => $member->email,
                 'role' => $member->getRoleNames()->first(),
                 'is_owner' => $member->id === $shop->owner_id,

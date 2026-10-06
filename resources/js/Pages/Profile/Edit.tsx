@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
+import ProfilePictureForm from './Partials/ProfilePictureForm';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
@@ -28,6 +29,10 @@ export default function Edit({
                             status={status}
                             className="max-w-xl"
                         />
+                    </Card>
+
+                    <Card className="p-4 sm:p-8">
+                        <ProfilePictureForm className="max-w-xl" />
                     </Card>
 
                     <Card className="p-4 sm:p-8">

@@ -1,3 +1,4 @@
+import { UserAvatar } from '@/Components/Avatar';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -12,6 +13,7 @@ import { Card } from '@/Components/ui/card';
 interface Member {
     id: number;
     name: string;
+    avatar_url: string | null;
     email: string;
     role: string | null;
     is_owner: boolean;
@@ -229,7 +231,13 @@ export default function Index({
                                 {members.map((member) => (
                                     <tr key={member.id}>
                                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                                            {member.name}
+                                            <span className="flex items-center gap-3">
+                                                <UserAvatar
+                                                    name={member.name}
+                                                    src={member.avatar_url}
+                                                />
+                                                {member.name}
+                                            </span>
                                         </td>
                                         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                             {member.email}

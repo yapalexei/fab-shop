@@ -50,6 +50,7 @@ use App\Http\Controllers\TeamMemberAccessController;
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\TrialEndedNoticeController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\UserAvatarController;
 
 Route::get('/', MarketingController::class)->name('marketing');
 
@@ -107,6 +108,9 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::post('/profile/avatar', [UserAvatarController::class, 'store'])->name('profile.avatar.store');
+    Route::delete('/profile/avatar', [UserAvatarController::class, 'destroy'])->name('profile.avatar.destroy');
+    Route::get('/users/{user}/avatar', [UserAvatarController::class, 'show'])->name('users.avatar');
     Route::post('/trial-ended-notice/dismiss', TrialEndedNoticeController::class)->name('trial-ended-notice.dismiss');
     Route::post('/current-shop/{shop}', [ShopSwitchController::class, 'update'])->name('current-shop.update');
 

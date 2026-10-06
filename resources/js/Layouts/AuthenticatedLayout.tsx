@@ -1,3 +1,4 @@
+import { UserAvatar } from '@/Components/Avatar';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import FlashToast from '@/Components/FlashToast';
 import LegalLinks from '@/Components/LegalLinks';
@@ -403,9 +404,11 @@ export default function Authenticated({
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <SidebarMenuButton size="lg" tooltip={user.name}>
-                                        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent">
-                                            <User className="size-4" />
-                                        </div>
+                                        <UserAvatar
+                                            name={user.name}
+                                            src={user.avatar_url}
+                                            className="bg-sidebar-accent"
+                                        />
                                         <div className="grid flex-1 text-start text-sm leading-tight">
                                             <span className="truncate font-medium">
                                                 {user.name}
