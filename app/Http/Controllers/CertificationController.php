@@ -8,6 +8,8 @@ use App\Http\Requests\StoreCertificationRequest;
 use App\Http\Requests\UpdateCertificationRequest;
 use App\Models\Certification;
 use App\Models\Procedure;
+use App\Support\Attachments;
+use App\Support\CertificationDocuments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +30,7 @@ class CertificationController extends Controller implements HasMiddleware
         return Inertia::render('Certifications/Index', [
             'certifications' => Certification::query()
                 ->with(['user:id,name', 'procedure:id,name'])
+                ->withCount('media')
                 ->orderBy('expires_at')
                 ->get()
                 ->map(fn (Certification $certification) => [
@@ -39,6 +42,7 @@ class CertificationController extends Controller implements HasMiddleware
                     'issued_at' => $certification->issued_at?->toDateString(),
                     'expires_at' => $certification->expires_at?->toDateString(),
                     'is_expired' => $certification->isExpired(),
+                    'documents_count' => $certification->media_count,
                 ]),
             ...$this->options(),
         ]);
@@ -51,7 +55,11 @@ class CertificationController extends Controller implements HasMiddleware
 
     public function store(StoreCertificationRequest $request): RedirectResponse
     {
-        Certification::create($request->validated());
+        $certification = Certification::create($request->safe()->except('documents'));
+
+        foreach ($request->file('documents', []) as $document) {
+            $certification->addMedia($document)->toMediaCollection(CertificationDocuments::COLLECTION);
+        }
 
         return redirect()->route('certifications.index');
     }
@@ -68,6 +76,7 @@ class CertificationController extends Controller implements HasMiddleware
                 'issued_at' => $certification->issued_at?->toDateString(),
                 'expires_at' => $certification->expires_at?->toDateString(),
                 'notes' => $certification->notes,
+                'documents' => Attachments::props($certification->documents(), 'certifications.documents.show', $certification),
             ],
             ...$this->options(),
         ]);
@@ -75,7 +84,7 @@ class CertificationController extends Controller implements HasMiddleware
 
     public function update(UpdateCertificationRequest $request, Certification $certification): RedirectResponse
     {
-        $certification->update($request->validated());
+        $certification->update($request->safe()->except('documents'));
 
         return redirect()->route('certifications.index');
     }

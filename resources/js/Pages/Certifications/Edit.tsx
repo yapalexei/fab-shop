@@ -4,6 +4,8 @@ import CertificationFields, {
     ProcedureOption,
 } from '@/Components/CertificationFields';
 import Breadcrumbs from '@/Components/Breadcrumbs';
+import CertificationDocuments from '@/Components/CertificationDocuments';
+import { Attachment } from '@/Components/Attachments';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -22,6 +24,7 @@ interface CertificationDetail {
     issued_at: string | null;
     expires_at: string | null;
     notes: string | null;
+    documents: Attachment[];
 }
 
 export default function Edit({
@@ -45,6 +48,7 @@ export default function Edit({
             issued_at: certification.issued_at ?? '',
             expires_at: certification.expires_at ?? '',
             notes: certification.notes ?? '',
+            documents: [],
         });
 
     const submit: FormEventHandler = (e) => {
@@ -80,6 +84,13 @@ export default function Edit({
                                     procedures={procedures}
                                 />
                             </fieldset>
+
+                            <CertificationDocuments
+                                certificationId={certification.id}
+                                documents={certification.documents}
+                                readOnly={readOnly}
+                                error={errors.documents}
+                            />
 
                             {!readOnly && (
                                 <div className="mt-6 flex justify-end">

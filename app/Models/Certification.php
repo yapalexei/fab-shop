@@ -3,22 +3,28 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToShop;
+use App\Support\Attachments;
+use App\Support\CertificationDocuments;
 use Carbon\CarbonInterface;
 use Database\Factories\CertificationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * A person's qualification - optionally tied to one of the shop's own
  * procedures. Not tied to one on purpose: plenty of real certs (OSHA 10, a
  * forklift card) aren't about a specific shop-defined procedure at all.
  */
-class Certification extends Model
+class Certification extends Model implements HasMedia
 {
     /** @use HasFactory<CertificationFactory> */
-    use BelongsToShop, HasFactory;
+    use BelongsToShop, HasFactory, InteractsWithMedia;
 
     protected $fillable = ['user_id', 'procedure_id', 'cert_number', 'issuing_body', 'issued_at', 'expires_at', 'notes'];
 
@@ -28,6 +34,26 @@ class Certification extends Model
             'issued_at' => 'date',
             'expires_at' => 'date',
         ];
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection(CertificationDocuments::COLLECTION);
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        Attachments::registerThumbnail($this, $media, CertificationDocuments::COLLECTION);
+    }
+
+    /**
+     * The uploaded scans/photos of the certificate, oldest first.
+     *
+     * @return Collection<int, Media>
+     */
+    public function documents(): Collection
+    {
+        return $this->getMedia(CertificationDocuments::COLLECTION)->sortBy('created_at')->values();
     }
 
     public function user(): BelongsTo

@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { Paperclip } from 'lucide-react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 
@@ -16,6 +17,7 @@ interface CertificationRow {
     issued_at: string | null;
     expires_at: string | null;
     is_expired: boolean;
+    documents_count: number;
 }
 
 export default function Index({
@@ -110,6 +112,24 @@ export default function Index({
                                         <tr key={certification.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                                                 {certification.user}
+                                                {certification.documents_count >
+                                                    0 && (
+                                                    <span
+                                                        className="ms-2 inline-flex items-center gap-1 text-xs font-normal text-muted-foreground"
+                                                        title={`${certification.documents_count} document${certification.documents_count === 1 ? '' : 's'} attached`}
+                                                    >
+                                                        <Paperclip
+                                                            className="size-3.5"
+                                                            aria-hidden
+                                                        />
+                                                        <span className="sr-only">
+                                                            Documents attached:
+                                                        </span>
+                                                        {
+                                                            certification.documents_count
+                                                        }
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                                 {certification.procedure ?? '—'}

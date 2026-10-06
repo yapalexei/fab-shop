@@ -62,7 +62,7 @@ final class Attachments
      * are skipped (they scale on their own and need Imagick to rasterize),
      * as is everything else that isn't a bitmap.
      */
-    public static function registerThumbnail(HasMedia $model, ?Media $media): void
+    public static function registerThumbnail(HasMedia $model, ?Media $media, string $collection = 'attachments'): void
     {
         if ($media !== null && ! in_array($media->mime_type, self::RASTER_TYPES, true)) {
             return;
@@ -73,7 +73,7 @@ final class Attachments
         $model->addMediaConversion(self::THUMBNAIL)
             ->fit(Fit::Crop, 400, 400)
             ->nonQueued()
-            ->performOnCollections('attachments');
+            ->performOnCollections($collection);
     }
 
     /**

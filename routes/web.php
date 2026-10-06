@@ -3,6 +3,7 @@
 use App\Enums\Feature;
 use App\Http\Controllers\BusinessPartnerController;
 use App\Http\Controllers\CertificationController;
+use App\Http\Controllers\CertificationDocumentController;
 use App\Http\Controllers\CsvImportController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -249,6 +250,12 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->middleware('feature:qualification-records');
 
     // "Load sample ..." dialog on the catalog pages. Permission is per
+    Route::middleware('feature:qualification-records')->prefix('certifications/{certification}/documents')->name('certifications.documents.')->group(function () {
+        Route::post('/', [CertificationDocumentController::class, 'store'])->name('store')->middleware('can:certifications.update');
+        Route::get('{media}', [CertificationDocumentController::class, 'show'])->name('show')->middleware('can:certifications.view');
+        Route::delete('{media}', [CertificationDocumentController::class, 'destroy'])->name('destroy')->middleware('can:certifications.update');
+    });
+
     // resource (create) and checked in the controller.
     Route::get('sample-data/{resource}', [SampleDataController::class, 'index'])
         ->name('sample-data.index')

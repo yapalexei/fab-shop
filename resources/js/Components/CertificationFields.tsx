@@ -12,7 +12,9 @@ export interface CertificationFormData {
     issued_at: string;
     expires_at: string;
     notes: string;
-    [key: string]: string;
+    /** Files chosen on the new-certification form (saved ones are managed live). */
+    documents: File[];
+    [key: string]: string | File[];
 }
 
 export interface MemberOption {

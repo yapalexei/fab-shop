@@ -4,6 +4,7 @@ import CertificationFields, {
     ProcedureOption,
 } from '@/Components/CertificationFields';
 import Breadcrumbs from '@/Components/Breadcrumbs';
+import CertificationDocuments from '@/Components/CertificationDocuments';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -25,11 +26,12 @@ export default function Create({
             issued_at: '',
             expires_at: '',
             notes: '',
+            documents: [],
         });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('certifications.store'));
+        post(route('certifications.store'), { forceFormData: true });
     };
 
     return (
@@ -57,6 +59,17 @@ export default function Create({
                                 errors={errors}
                                 members={members}
                                 procedures={procedures}
+                            />
+
+                            <CertificationDocuments
+                                staged={data.documents}
+                                onStage={(files) => setData('documents', files)}
+                                error={
+                                    errors.documents ??
+                                    Object.entries(errors).find(([key]) =>
+                                        key.startsWith('documents.'),
+                                    )?.[1]
+                                }
                             />
 
                             <div className="mt-6 flex justify-end">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\CertificationDocuments;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -32,6 +33,7 @@ class StoreCertificationRequest extends FormRequest
             'issued_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:issued_at'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            ...CertificationDocuments::rules(),
         ];
     }
 }
