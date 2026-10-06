@@ -390,10 +390,10 @@ export default function Authenticated({
                 </SidebarHeader>
 
                 <SidebarContent>
-                    <SidebarNavGroup items={mainNavItems} />
-                    <SidebarNavGroup label="Setup" items={setupNavItems} />
+                    {/* <SidebarNavGroup items={mainNavItems} /> */}
+                    <SidebarNavGroup items={mainNavItems.concat(setupNavItems)} />
+                    <hr />
                     <SidebarNavGroup
-                        label={currentShop?.name ?? 'Shop'}
                         items={shopNavItems}
                     />
                 </SidebarContent>
@@ -488,7 +488,7 @@ export default function Authenticated({
                 >
                     {header && (
                         <header className="border-b bg-white">
-                            <div className="mx-auto max-w-7xl px-4 py-4 sm:px-4 lg:px-8 h-18 flex align-items-center">
+                            <div className="mx-auto max-w-7xl px-4 py-4 sm:px-4 lg:px-8 flex align-items-center">
                                 {header}
                             </div>
                         </header>

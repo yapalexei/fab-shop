@@ -16,7 +16,7 @@ import {
     SparklesIcon,
     TagIcon,
     UserGroupIcon,
-    UserIcon,
+    UsersIcon,
     ViewColumnsIcon,
     WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
@@ -67,7 +67,7 @@ const ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
     Quotes: DocumentTextIcon,
     Jobs: ViewColumnsIcon,
     Reports: ChartBarSquareIcon,
-    Customers: UserIcon,
+    Customers: UsersIcon,
     Materials: CubeIcon,
     Services: WrenchScrewdriverIcon,
     'Business partners': BuildingOffice2Icon,
