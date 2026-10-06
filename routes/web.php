@@ -279,6 +279,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     // App\Support\CsvImport\ImporterRegistry). Owner-only for now.
     Route::middleware('can:manage-shop')->prefix('imports')->name('imports.')->group(function () {
         Route::get('/{resource}/template', [CsvImportController::class, 'template'])->name('template');
+        Route::post('/{resource}/preview', [CsvImportController::class, 'preview'])->name('preview');
         Route::post('/{resource}', [CsvImportController::class, 'store'])->name('store');
         Route::get('/status/{import}', [CsvImportController::class, 'show'])->name('show');
     });

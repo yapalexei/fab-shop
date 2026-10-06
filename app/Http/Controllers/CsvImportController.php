@@ -6,6 +6,9 @@ use App\Enums\ImportStatus;
 use App\Http\Requests\StoreImportRequest;
 use App\Jobs\ProcessCsvImport;
 use App\Models\Import;
+use App\Support\CsvImport\ColumnMapper;
+use App\Support\CsvImport\CsvFormatException;
+use App\Support\CsvImport\CsvReader;
 use App\Support\CsvImport\ImporterRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response as HttpResponse;
@@ -36,6 +39,34 @@ class CsvImportController extends Controller
     }
 
     /**
+     * The mapping step's data: the file's headers and a few rows, which of
+     * our columns each header looks like, and which of ours are required.
+     * Nothing is stored - the dialog still holds the file and sends it again
+     * with the finished mapping.
+     */
+    public function preview(StoreImportRequest $request, string $resource): JsonResponse
+    {
+        $importer = ImporterRegistry::for($resource);
+
+        abort_unless(Auth::user()->currentShop->hasFeature($importer->feature()), 403);
+
+        try {
+            $preview = CsvReader::preview($request->file('file')->getRealPath());
+        } catch (CsvFormatException $e) {
+            return response()->json(['errors' => ['file' => [$e->getMessage()]]], 422);
+        }
+
+        return response()->json([
+            ...$preview,
+            'columns' => array_map(fn (string $column) => [
+                'name' => $column,
+                'required' => in_array($column, $importer->requiredColumns(), true),
+            ], $importer->templateColumns()),
+            'suggested' => ColumnMapper::suggest($preview['headers'], $importer->templateColumns()),
+        ]);
+    }
+
+    /**
      * Returns plain JSON (not an Inertia redirect) so the upload dialog -
      * itself already inside a loaded page, not navigating anywhere - gets
      * the new import's id back immediately to start polling `show()` with.
@@ -57,7 +88,13 @@ class CsvImportController extends Controller
             'imported_by' => Auth::id(),
         ]);
 
-        ProcessCsvImport::dispatch($import->id, $storedPath);
+        $mapping = $request->has('mapping')
+            ? collect($importer->templateColumns())->mapWithKeys(
+                fn (string $column) => [$column => ($request->input("mapping.{$column}") === null ? null : (int) $request->input("mapping.{$column}"))],
+            )->all()
+            : null;
+
+        ProcessCsvImport::dispatch($import->id, $storedPath, $mapping);
 
         return response()->json(['id' => $import->id]);
     }

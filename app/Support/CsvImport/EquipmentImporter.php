@@ -35,6 +35,11 @@ class EquipmentImporter extends ResourceImporter
         return ['name', 'billing_method', 'rate', 'notes'];
     }
 
+    public function requiredColumns(): array
+    {
+        return ['name', 'billing_method', 'rate'];
+    }
+
     public function resolveRow(array $row, Shop $shop): array
     {
         $billingMethod = BillingMethod::tryFrom(mb_strtolower($row['billing_method']));

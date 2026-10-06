@@ -37,6 +37,8 @@ class ProcessCsvImport implements ShouldQueue
     public function __construct(
         public int $importId,
         public string $storedPath,
+        /** @var array<string, int|null>|null template column => file column, when the owner mapped them by hand */
+        public ?array $mapping = null,
     ) {}
 
     public function handle(): void
@@ -53,7 +55,7 @@ class ProcessCsvImport implements ShouldQueue
         $importer = ImporterRegistry::for($import->resource);
 
         try {
-            $rows = $this->parseStoredFile($importer->templateColumns());
+            $rows = $this->parseStoredFile($importer->templateColumns(), $this->mapping);
         } catch (CsvFormatException $e) {
             $import->update([
                 'status' => ImportStatus::Failed,
@@ -153,14 +155,14 @@ class ProcessCsvImport implements ShouldQueue
      * queue containers see the same file) - copy it to a local temp file for
      * the parser, which needs a real path.
      */
-    private function parseStoredFile(array $templateColumns): array
+    private function parseStoredFile(array $templateColumns, ?array $mapping): array
     {
         $tmp = tempnam(sys_get_temp_dir(), 'import');
 
         try {
             file_put_contents($tmp, Storage::get($this->storedPath));
 
-            return CsvReader::parse($tmp, $templateColumns);
+            return CsvReader::parse($tmp, $templateColumns, $mapping);
         } finally {
             @unlink($tmp);
         }

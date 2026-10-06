@@ -29,6 +29,18 @@ abstract class ResourceImporter
     abstract public function templateColumns(): array;
 
     /**
+     * Template columns that must be mapped to a file column (the row can't
+     * be valid without them). Everything else may be left unmapped, which
+     * reads as blank. Defaults to just the name every row is matched on.
+     *
+     * @return array<int, string>
+     */
+    public function requiredColumns(): array
+    {
+        return ['name'];
+    }
+
+    /**
      * Turn one raw CSV row (trimmed strings, keyed by template column name)
      * into model attributes for $shop, resolving any name-based relational
      * column to an id. An unresolvable reference is reported in `errors`

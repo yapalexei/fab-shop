@@ -308,3 +308,89 @@ test('processing is actually queued, not run inline in the request', function ()
 
     Queue::assertPushed(ProcessCsvImport::class);
 });
+
+test('the preview step returns headers, sample rows and a best-guess mapping without storing anything', function () {
+    Queue::fake();
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+
+    $csv = "Part Number,Description,UOM,Price\n8910K12,Steel bar,ft,20\n8910K13,Steel tube,ft,25\n";
+
+    $this->actingAs($owner)->post(route('imports.preview', 'materials'), [
+        'file' => UploadedFile::fake()->createWithContent('mcmaster.csv', $csv),
+    ])->assertOk()
+        ->assertJsonPath('headers', ['Part Number', 'Description', 'UOM', 'Price'])
+        ->assertJsonPath('sample.0', ['8910K12', 'Steel bar', 'ft', '20'])
+        ->assertJsonPath('suggested.name', 1)
+        ->assertJsonPath('suggested.unit', 2)
+        ->assertJsonPath('suggested.notes', null)
+        ->assertJsonPath('columns.0', ['name' => 'name', 'required' => true]);
+
+    Queue::assertNothingPushed();
+    expect(Import::count())->toBe(0);
+});
+
+test('an exact synonym never steals a column that another field matches by name', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+
+    $this->actingAs($owner)->post(route('imports.preview', 'tools'), [
+        'file' => UploadedFile::fake()->createWithContent('t.csv', "Price,Cost,Name\n1,2,Bit\n"),
+    ])->assertJsonPath('suggested.cost', 1)->assertJsonPath('suggested.name', 2);
+});
+
+test('a file with its own headers imports once its columns are mapped, leaving unmapped ones blank', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+
+    $response = $this->actingAs($owner)->post(route('imports.store', 'materials'), [
+        'file' => UploadedFile::fake()->createWithContent('mcmaster.csv', "Part Number,Description,UOM\n8910K12,Steel bar,ft\n"),
+        'mapping' => ['name' => 1, 'unit' => 2, 'material_type' => '', 'notes' => ''],
+    ])->assertOk();
+
+    $import = Import::find($response->json('id'));
+    $material = Material::sole();
+
+    expect($import->status)->toBe(ImportStatus::Completed)
+        ->and($material->name)->toBe('Steel bar')
+        ->and($material->unit)->toBe('ft')
+        ->and($material->notes)->toBeNull();
+});
+
+test('a mapping must cover every required column and use each file column once', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+    $file = fn () => UploadedFile::fake()->createWithContent('t.csv', "a,b,c\nBit,1,each\n");
+
+    $this->actingAs($owner)->post(route('imports.store', 'tools'), [
+        'file' => $file(), 'mapping' => ['name' => 0, 'cuts' => '', 'cost' => 1, 'unit' => 2],
+    ])->assertSessionHasErrors('mapping.cuts');
+
+    $this->actingAs($owner)->post(route('imports.store', 'tools'), [
+        'file' => $file(), 'mapping' => ['name' => 0, 'cuts' => 0, 'cost' => 1, 'unit' => 2],
+    ])->assertSessionHasErrors('mapping');
+
+    expect(Import::count())->toBe(0);
+});
+
+test('a mapping pointing past the end of the file fails the import with a clear reason', function () {
+    $shop = Shop::factory()->create();
+    $owner = actingAsShopMember($shop, 'Owner');
+
+    $response = $this->actingAs($owner)->post(route('imports.store', 'customers'), [
+        'file' => UploadedFile::fake()->createWithContent('t.csv', "a,b\nX,y\n"),
+        'mapping' => ['name' => 9],
+    ]);
+
+    expect(Import::find($response->json('id'))->status)->toBe(ImportStatus::Failed)
+        ->and(Customer::count())->toBe(0);
+});
+
+test('only an owner can preview a file, and only for a feature the shop has', function () {
+    $shop = Shop::factory()->create();
+    $admin = actingAsShopMember($shop, 'Admin');
+
+    $this->actingAs($admin)->post(route('imports.preview', 'customers'), [
+        'file' => UploadedFile::fake()->createWithContent('x.csv', "name\nX\n"),
+    ])->assertForbidden();
+});

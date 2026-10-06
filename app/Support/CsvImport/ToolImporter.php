@@ -35,6 +35,11 @@ class ToolImporter extends ResourceImporter
         return ['name', 'cuts', 'cost', 'unit', 'notes'];
     }
 
+    public function requiredColumns(): array
+    {
+        return ['name', 'cuts', 'cost', 'unit'];
+    }
+
     public function resolveRow(array $row, Shop $shop): array
     {
         $errors = [];
