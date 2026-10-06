@@ -5,6 +5,7 @@ use App\Models\PlatformSetting;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -16,8 +17,10 @@ return new class extends Migration
         // the one place the plan definitions live. Nobody is billed yet (no
         // payment processor is integrated), so there is no one to grandfather.
         // Skipped on a database that was never seeded - `db:seed` will
-        // create the plans with these definitions anyway.
-        if (DB::table('plans')->exists()) {
+        // create the plans with these definitions anyway. Also skipped until
+        // plans.extra_seat_price_cents exists (the seeder writes it): the
+        // add_extra_seats migration runs right after and re-runs the seeder.
+        if (DB::table('plans')->exists() && Schema::hasColumn('plans', 'extra_seat_price_cents')) {
             (new PlanSeeder)->run();
         }
 

@@ -1,5 +1,6 @@
 <?php
 
+use Database\Seeders\PlanSeeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,12 @@ return new class extends Migration
             $table->unsignedInteger('extra_seats')->default(0)->after('seat_limit_override');
         });
 
-        DB::table('plans')->whereIn('key', ['start-up', 'pro'])->update(['extra_seat_price_cents' => 900]);
+        // Applies the reorganized plans (the previous migration defers to
+        // this one on a database that already had plans) including the
+        // extra-seat prices. Idempotent, and skipped on an unseeded database.
+        if (DB::table('plans')->exists()) {
+            (new PlanSeeder)->run();
+        }
     }
 
     public function down(): void
