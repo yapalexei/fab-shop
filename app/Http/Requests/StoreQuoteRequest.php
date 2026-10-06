@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\LineItemType;
+use App\Support\Attachments;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,6 +29,8 @@ class StoreQuoteRequest extends FormRequest
             ],
             'notes' => ['nullable', 'string', 'max:5000'],
             'due_date' => ['nullable', 'date_format:Y-m-d'],
+            'attachments' => ['nullable', 'array', 'max:20'],
+            'attachments.*' => ['file', 'max:'.Attachments::MAX_KILOBYTES],
             'line_items' => ['required', 'array', 'min:1'],
             'line_items.*.type' => ['required', Rule::enum(LineItemType::class)],
             'line_items.*.description' => ['required', 'string', 'max:255'],

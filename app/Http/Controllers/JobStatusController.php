@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Feature;
-use App\Enums\JobStageRole;
+use App\Actions\MoveJobToStage;
 use App\Events\JobBoardUpdated;
-use App\Jobs\PushJobInvoiceToQuickBooks;
 use App\Models\Job;
 use App\Models\JobStage;
 use Illuminate\Http\RedirectResponse;
@@ -27,10 +25,10 @@ class JobStatusController extends Controller
 
         return ($validated['cancel'] ?? false)
             ? $this->cancel($job, $validated['reason'] ?? null)
-            : $this->move($job, (int) $validated['job_stage_id']);
+            : $this->move($job, (int) $validated['job_stage_id'], app(MoveJobToStage::class));
     }
 
-    private function move(Job $job, int $targetStageId): RedirectResponse
+    private function move(Job $job, int $targetStageId, MoveJobToStage $mover): RedirectResponse
     {
         abort_unless(Gate::allows('jobs.update'), 403);
 
@@ -42,48 +40,9 @@ class JobStatusController extends Controller
             ]);
         }
 
-        $from = $job->jobStage;
-        $job->job_stage_id = $target->id;
-
-        $this->recordPeriod($job, $target);
-
-        if ($target->role === JobStageRole::Invoiced) {
-            $job->invoiced_at = now();
-        }
-
-        $job->save();
-
-        $description = "Status changed from {$from->name} to {$target->name}";
-
-        $this->logAndBroadcast($job, $description);
-
-        if ($target->role === JobStageRole::Invoiced && Feature::QuickbooksSync->isShipped()) {
-            PushJobInvoiceToQuickBooks::dispatch($job);
-        }
+        $description = $mover($job, $target, Auth::user());
 
         return back()->with('status', $description.'.');
-    }
-
-    /**
-     * Maintains the job's period for the calendar/timeline: started_at is set
-     * the first time it leaves Not Started (and cleared if it's moved back
-     * there), finished_at the first time it reaches Shipped. Keyed off stage
-     * roles, never names. Skipping straight to Shipped/Invoiced starts and
-     * finishes the job in the same moment.
-     */
-    private function recordPeriod(Job $job, JobStage $target): void
-    {
-        if ($target->role === JobStageRole::NotStarted) {
-            $job->started_at = null;
-
-            return;
-        }
-
-        $job->started_at ??= now();
-
-        if (in_array($target->role, [JobStageRole::Shipped, JobStageRole::Invoiced], true)) {
-            $job->finished_at ??= now();
-        }
     }
 
     private function cancel(Job $job, ?string $reason): RedirectResponse

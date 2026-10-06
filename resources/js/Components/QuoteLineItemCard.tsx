@@ -258,6 +258,15 @@ export default function QuoteLineItemCard({
                     <span className="truncate text-sm text-gray-900">
                         {item.description || 'Untitled line item'}
                     </span>
+                    {item.ai_note && (
+                        <Badge
+                            variant="warning"
+                            className="shrink-0"
+                            title={item.ai_note}
+                        >
+                            AI: check
+                        </Badge>
+                    )}
                     <span className="hidden shrink-0 text-xs text-gray-400 sm:inline">
                         {item.quantity} ×{' '}
                         {currency.format(Number(item.unit_cost) || 0)}

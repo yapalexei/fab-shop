@@ -2,12 +2,19 @@ import PageHelp from '@/Components/PageHelp';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { Button } from '@/Components/ui/button';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { addMonths, dayOfMonth, fromDay, shortDate, toDay } from '@/lib/dates';
+import {
+    addMonths,
+    dayOfMonth,
+    fromDay,
+    monthStart,
+    shortDate,
+    toDay,
+} from '@/lib/dates';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { CSSProperties } from 'react';
 
-type Range = 'week' | 'month';
+type Range = 'week' | 'month' | 'year';
 
 interface Filters {
     range: Range;
@@ -25,7 +32,27 @@ interface TimelineJob {
     started_on: string;
     ended_on: string | null;
     due_date: string | null;
+    /** Only present for members who may see financials. */
+    amount?: number;
+    profit?: number;
 }
+
+interface Financials {
+    jobs: number;
+    amount: number;
+    cost: number;
+    profit: number;
+    margin_percent: number | null;
+}
+
+const currency = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+});
+
+const profitClass = (profit: number) =>
+    profit < 0 ? 'text-red-600' : 'text-foreground';
 
 // Same hue vocabulary as the board's cards and the jobs calendar.
 const DONE_HUE = 140;
@@ -38,12 +65,15 @@ export default function JobTimeline({
     today,
     stages,
     jobs,
+    financials,
 }: PageProps<{
     filters: Filters;
     period: { start: string; end: string };
     today: string;
     stages: { value: string; label: string }[];
     jobs: TimelineJob[];
+    /** Null without the financials permission - the money is never sent. */
+    financials: Financials | null;
 }>) {
     const start = toDay(period.start);
     const end = toDay(period.end);
@@ -65,7 +95,10 @@ export default function JobTimeline({
             date: fromDay(
                 filters.range === 'week'
                     ? anchor + 7 * direction
-                    : addMonths(anchor, direction),
+                    : addMonths(
+                          anchor,
+                          filters.range === 'year' ? 12 * direction : direction,
+                      ),
             ),
         });
     };
@@ -77,7 +110,27 @@ export default function JobTimeline({
                 : [...filters.stages, value],
         });
 
-    const periodLabel = `${shortDate(start)} - ${shortDate(end)}, ${new Date(end * 86_400_000).getUTCFullYear()}`;
+    const endYear = new Date(end * 86_400_000).getUTCFullYear();
+    const periodLabel =
+        filters.range === 'year'
+            ? String(endYear)
+            : `${shortDate(start)} - ${shortDate(end)}, ${endYear}`;
+
+    // A year is too many columns to label by day: the header shows months
+    // instead (each spanning its days), while bars stay at day precision.
+    const months =
+        filters.range === 'year'
+            ? Array.from({ length: 12 }, (_, i) => {
+                  const first = monthStart(addMonths(start, i));
+                  const next = monthStart(addMonths(start, i + 1));
+                  return { first, length: next - first };
+              })
+            : [];
+
+    // With financials there is one extra fixed column (amount / profit)
+    // between the job and the chart.
+    const moneyRem = 8;
+    const chartStart = financials ? 3 : 2;
 
     return (
         <AuthenticatedLayout
@@ -133,7 +186,7 @@ export default function JobTimeline({
                             aria-label="Time range"
                             className="inline-flex rounded-md border p-0.5"
                         >
-                            {(['week', 'month'] as const).map((range) => (
+                            {(['week', 'month', 'year'] as const).map((range) => (
                                 <Button
                                     key={range}
                                     type="button"
@@ -146,7 +199,11 @@ export default function JobTimeline({
                                     aria-pressed={filters.range === range}
                                     onClick={() => visit({ range })}
                                 >
-                                    {range === 'week' ? 'Week' : 'Month'}
+                                    {range === 'week'
+                                        ? 'Week'
+                                        : range === 'month'
+                                          ? 'Month'
+                                          : 'Year'}
                                 </Button>
                             ))}
                         </div>
@@ -200,6 +257,65 @@ export default function JobTimeline({
                         )}
                     </div>
 
+                    {financials && (
+                        <section
+                            aria-label="Totals for the jobs shown"
+                            className="space-y-2"
+                        >
+                            <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                                <div className="rounded-lg border bg-card p-4">
+                                    <dt className="text-xs text-muted-foreground">
+                                        Jobs
+                                    </dt>
+                                    <dd className="mt-1 text-xl font-semibold tabular-nums">
+                                        {financials.jobs}
+                                    </dd>
+                                </div>
+                                <div className="rounded-lg border bg-card p-4">
+                                    <dt className="text-xs text-muted-foreground">
+                                        Amount
+                                    </dt>
+                                    <dd className="mt-1 text-xl font-semibold tabular-nums">
+                                        {currency.format(financials.amount)}
+                                    </dd>
+                                </div>
+                                <div className="rounded-lg border bg-card p-4">
+                                    <dt className="text-xs text-muted-foreground">
+                                        Cost
+                                    </dt>
+                                    <dd className="mt-1 text-xl font-semibold tabular-nums">
+                                        {currency.format(financials.cost)}
+                                    </dd>
+                                </div>
+                                <div className="rounded-lg border bg-card p-4">
+                                    <dt className="text-xs text-muted-foreground">
+                                        Profit
+                                    </dt>
+                                    <dd
+                                        className={`mt-1 text-xl font-semibold tabular-nums ${profitClass(financials.profit)}`}
+                                    >
+                                        {currency.format(financials.profit)}
+                                        {financials.margin_percent !== null && (
+                                            <span className="ms-2 text-sm font-normal text-muted-foreground">
+                                                {financials.margin_percent.toFixed(
+                                                    1,
+                                                )}
+                                                %
+                                            </span>
+                                        )}
+                                    </dd>
+                                </div>
+                            </dl>
+                            <p className="text-xs text-muted-foreground">
+                                Totals for the jobs listed below, each counted
+                                in full even if only part of it falls in this
+                                period. Amount is the quoted price; profit is
+                                that price minus the quoted cost, so it is an
+                                estimate, not what the job actually cost.
+                            </p>
+                        </section>
+                    )}
+
                     {jobs.length === 0 ? (
                         <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
                             No jobs were being worked in this period.
@@ -207,24 +323,58 @@ export default function JobTimeline({
                     ) : (
                         <div className="overflow-x-auto rounded-lg border bg-card">
                             <div
-                                className="grid min-w-[48rem]"
+                                className="grid min-w-[36rem]"
                                 style={{
-                                    gridTemplateColumns: `14rem repeat(${days.length}, minmax(${filters.range === 'week' ? '4rem' : '1.5rem'}, 1fr))`,
+                                    // Day columns share whatever width is
+                                    // left (minmax(0, 1fr)), so the chart
+                                    // always fits the page - a year just
+                                    // gets thin columns. Only a phone-width
+                                    // screen scrolls.
+                                    gridTemplateColumns: `13rem ${financials ? `${moneyRem}rem ` : ''}repeat(${days.length}, minmax(0, 1fr))`,
                                 }}
                             >
                                 <div className="border-b px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                                     Job
                                 </div>
-                                {days.map((day) => (
+                                {financials && (
+                                    <div className="border-b px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Amount / profit
+                                    </div>
+                                )}
+                                {filters.range === 'year' &&
+                                    months.map((month) => {
+                                        const current =
+                                            todayDay >= month.first &&
+                                            todayDay < month.first + month.length;
+
+                                        return (
+                                            <div
+                                                key={month.first}
+                                                style={{
+                                                    gridColumn: `span ${month.length}`,
+                                                }}
+                                                className={`truncate border-b border-s px-1 py-2 text-center text-xs ${current ? 'bg-primary/10 font-bold text-primary' : 'text-muted-foreground'}`}
+                                            >
+                                                {new Date(
+                                                    month.first * 86_400_000,
+                                                ).toLocaleDateString('en-US', {
+                                                    month: 'short',
+                                                    timeZone: 'UTC',
+                                                })}
+                                            </div>
+                                        );
+                                    })}
+                                {filters.range !== 'year' &&
+                                    days.map((day) => (
                                     <div
                                         key={day}
-                                        className={`border-b border-s px-1 py-2 text-center text-xs ${day === todayDay ? 'bg-primary/10 font-bold text-primary' : 'text-muted-foreground'}`}
+                                        className={`truncate border-b border-s px-1 py-2 text-center text-xs ${day === todayDay ? 'bg-primary/10 font-bold text-primary' : 'text-muted-foreground'}`}
                                     >
                                         {filters.range === 'week'
                                             ? shortDate(day)
                                             : dayOfMonth(day)}
                                     </div>
-                                ))}
+                                    ))}
 
                                 {jobs.map((job) => {
                                     const jobStart = toDay(job.started_on);
@@ -281,10 +431,27 @@ export default function JobTimeline({
                                                     )}
                                                 </div>
                                             </div>
+                                            {financials && (
+                                                <div className="border-b px-3 py-2 text-right text-sm tabular-nums">
+                                                    <div>
+                                                        {currency.format(
+                                                            job.amount ?? 0,
+                                                        )}
+                                                    </div>
+                                                    <div
+                                                        className={`text-xs ${profitClass(job.profit ?? 0)}`}
+                                                    >
+                                                        {currency.format(
+                                                            job.profit ?? 0,
+                                                        )}{' '}
+                                                        profit
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div
                                                 className="grid items-center border-b"
                                                 style={{
-                                                    gridColumn: `2 / span ${days.length}`,
+                                                    gridColumn: `${chartStart} / span ${days.length}`,
                                                     gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
                                                 }}
                                             >

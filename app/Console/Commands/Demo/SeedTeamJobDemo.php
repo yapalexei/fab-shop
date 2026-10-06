@@ -22,6 +22,7 @@ use App\Models\Tool;
 use App\Models\User;
 use App\Support\ShopPermissions;
 use Database\Seeders\PlanSeeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -101,6 +102,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
             'onboarded_at' => now(),
             'timezone' => 'America/Los_Angeles',
             'job_board_drag_enabled' => true,
+            'quote_emailing_enabled' => true,
         ]);
 
         $owner->current_shop_id = $shop->id;
@@ -288,6 +290,10 @@ class SeedTeamJobDemo extends DemoSeedCommand
             'customer_id' => $customer->id,
             'job_number' => $jobNumber,
             'job_stage_id' => $setup->id,
+            // A real move out of Not started sets this (JobStatusController::
+            // recordPeriod); seeding bypasses that, so set it here or the
+            // job has no period and never appears on the timeline/calendar.
+            'started_at' => now()->subDays(3),
         ])->save();
 
         activity()->performedOn($job)->causedBy($shop->owner)->log("Status changed to {$setup->name}");
@@ -360,6 +366,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
                 'job_stage_id' => $stage->id,
                 'invoiced_at' => $stage->role === JobStageRole::Invoiced ? now()->subDays($daysAgo) : null,
                 'cancelled_at' => $cancelled ? now()->subDays($daysAgo) : null,
+                ...$this->period($stage, $daysAgo),
             ])->save();
 
             $description = $cancelled ? 'Job cancelled' : "Status changed to {$stage->name}";
@@ -374,6 +381,32 @@ class SeedTeamJobDemo extends DemoSeedCommand
         $this->pricedQuote($shop, $customers[1], $material, QuoteStatus::Sent, 2200, now()->subDays(12));
         $this->pricedQuote($shop, $customers[0], $material, QuoteStatus::Lost, 3100, now()->subDays(30));
         $this->pricedQuote($shop, $customers[2], $material, QuoteStatus::Lost, 1400, now()->subDays(50));
+    }
+
+    /**
+     * started_at / finished_at for a seeded job, the way real moves would
+     * have left them: a job that left Not started has a start, one that
+     * reached Shipped (or Invoiced, which comes after) has a finish. Jobs
+     * were worked for roughly one to two weeks - varied by $daysAgo so the
+     * timeline's bars aren't all the same length. A job still in progress
+     * started $daysAgo ago.
+     *
+     * @return array{started_at: ?Carbon, finished_at: ?Carbon}
+     */
+    private function period(JobStage $stage, int $daysAgo): array
+    {
+        if ($stage->role === JobStageRole::NotStarted) {
+            return ['started_at' => null, 'finished_at' => null];
+        }
+
+        if ($stage->role === null) {
+            return ['started_at' => now()->subDays($daysAgo), 'finished_at' => null];
+        }
+
+        // Invoiced happens a couple of days after shipping.
+        $finished = now()->subDays($daysAgo + ($stage->role === JobStageRole::Invoiced ? 2 : 0));
+
+        return ['started_at' => $finished->copy()->subDays(7 + $daysAgo % 8), 'finished_at' => $finished];
     }
 
     private function pricedQuote(Shop $shop, Customer $customer, Material $material, QuoteStatus $status, float $price, \DateTimeInterface $sentAt): Quote

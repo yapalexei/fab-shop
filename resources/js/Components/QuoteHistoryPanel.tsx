@@ -120,7 +120,7 @@ export default function QuoteHistoryPanel({
                                     {entry.summary}
                                 </span>
                                 <span className="text-gray-500">
-                                    {entry.user ?? 'Someone'} &middot;{' '}
+                                    {entry.user ?? 'System'} &middot;{' '}
                                     {formatDateTime(entry.created_at)}
                                 </span>
                             </div>

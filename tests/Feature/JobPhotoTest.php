@@ -65,3 +65,29 @@ test('a user cannot delete a photo from another shop\'s job', function () {
 
     expect($job->fresh()->photos())->toHaveCount(1);
 });
+
+test('uploading photos is recorded in the job history', function () {
+    $shop = Shop::factory()->create();
+    $job = jobForShop($shop);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('jobs.photos.store', $job), [
+        'photos' => [UploadedFile::fake()->image('a.jpg'), UploadedFile::fake()->image('b.jpg')],
+    ])->assertRedirect();
+
+    $activity = $job->activitiesAsSubject()->latest('id')->first();
+    expect($activity->description)->toBe('Uploaded 2 photos (a.jpg, b.jpg)')
+        ->and($activity->causer_id)->toBe($user->id);
+});
+
+test('svg and other non-raster images are rejected as job photos', function () {
+    $shop = Shop::factory()->create();
+    $job = jobForShop($shop);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('jobs.photos.store', $job), [
+        'photos' => [UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>')],
+    ])->assertSessionHasErrors('photos.0');
+
+    expect($job->fresh()->photos())->toHaveCount(0);
+});

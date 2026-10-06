@@ -25,6 +25,9 @@ interface Props {
     jobId: number | null;
     customerEmail: string | null;
     emailedAt: string | null;
+    emailFailedAt?: string | null;
+    /** Shop setting (and plan) allow emailing quotes to customers. */
+    emailingEnabled: boolean;
     sendSkippedReason: string | null;
 }
 
@@ -46,6 +49,8 @@ export default function QuoteWorkflowPanel({
     jobId,
     customerEmail,
     emailedAt,
+    emailFailedAt,
+    emailingEnabled,
     sendSkippedReason,
 }: Props) {
     const formatDateTime = useShopDateTime();
@@ -91,7 +96,7 @@ export default function QuoteWorkflowPanel({
         skipSend(reason);
     };
 
-    const canEmail = !!customerEmail;
+    const canEmail = emailingEnabled && !!customerEmail;
 
     return (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md bg-gray-50 p-4">
@@ -108,12 +113,20 @@ export default function QuoteWorkflowPanel({
                 </>
             ) : status === 'draft' ? (
                 <>
-                    <SecondaryButton
-                        onClick={() => setConfirmEmail('send')}
-                        disabled={!canEmail}
-                    >
-                        Send to customer
-                    </SecondaryButton>
+                    {emailingEnabled ? (
+                        <SecondaryButton
+                            onClick={() => setConfirmEmail('send')}
+                            disabled={!canEmail}
+                        >
+                            Send to customer
+                        </SecondaryButton>
+                    ) : (
+                        <SecondaryButton
+                            onClick={() => post('quotes.skip-send')}
+                        >
+                            Mark as sent
+                        </SecondaryButton>
+                    )}
                     <a
                         href={route('quotes.preview', quoteId)}
                         className="text-sm text-indigo-600 hover:underline"
@@ -122,7 +135,7 @@ export default function QuoteWorkflowPanel({
                     >
                         Preview PDF
                     </a>
-                    {!skipping && (
+                    {emailingEnabled && !skipping && (
                         <button
                             type="button"
                             onClick={() => setSkipping(true)}
@@ -131,13 +144,13 @@ export default function QuoteWorkflowPanel({
                             Skip sending
                         </button>
                     )}
-                    {!canEmail && (
+                    {emailingEnabled && !canEmail && (
                         <p className="w-full text-sm text-gray-500">
                             This customer has no email address on file - add
                             one to email the quote, or skip sending.
                         </p>
                     )}
-                    {skipping && (
+                    {emailingEnabled && skipping && (
                         <form
                             onSubmit={submitSkip}
                             className="w-full space-y-2 border-t border-gray-200 pt-3"
@@ -188,13 +201,15 @@ export default function QuoteWorkflowPanel({
             ) : status === 'sent' ? (
                 <>
                     <p className="w-full text-sm text-gray-600">
-                        {emailedAt
+                        {emailFailedAt
+                            ? `The email to ${customerEmail ?? 'the customer'} failed to deliver (${formatDateTime(emailFailedAt)}). You can correct the customer and resend it.`
+                            : emailedAt
                             ? `Emailed to ${customerEmail ?? 'the customer'} on ${formatDateTime(emailedAt)}.`
                             : sendSkippedReason
                               ? `Not emailed - ${sendSkippedReason}.`
                               : 'Email queued - it should arrive shortly.'}
                     </p>
-                    {canEmail && (
+                    {emailingEnabled && canEmail && (
                         <SecondaryButton onClick={() => setConfirmEmail('resend')}>
                             {emailedAt || !sendSkippedReason
                                 ? 'Resend email'
@@ -248,6 +263,16 @@ export default function QuoteWorkflowPanel({
                     Archive
                 </SecondaryButton>
             ) : null}
+
+            {can('quotes.create') && !quoteBuilderLocked && (
+                <button
+                    type="button"
+                    onClick={() => post('quotes.duplicate')}
+                    className="ml-auto text-sm text-indigo-600 hover:underline"
+                >
+                    Duplicate
+                </button>
+            )}
 
             <Modal
                 show={confirmEmail !== null}

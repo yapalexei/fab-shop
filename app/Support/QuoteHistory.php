@@ -23,9 +23,15 @@ final class QuoteHistory
         'override_total' => 'price override',
     ];
 
-    public static function enabled(): bool
+    /**
+     * Pass the quote when there may be no signed-in user (a queued job): the
+     * quote's own shop is checked instead.
+     */
+    public static function enabled(?Quote $quote = null): bool
     {
-        return Auth::user()?->currentShop?->hasFeature(Feature::QuoteHistory) ?? false;
+        $shop = Auth::user()?->currentShop ?? $quote?->shop;
+
+        return $shop?->hasFeature(Feature::QuoteHistory) ?? false;
     }
 
     /**
@@ -58,12 +64,12 @@ final class QuoteHistory
      *
      * @param  array<string, mixed>  $before
      */
-    public static function recordSave(Quote $quote, array $before): void
+    public static function recordSave(Quote $quote, array $before, string $summary = 'Saved changes'): void
     {
         $changes = self::diff($before, self::snapshot($quote));
 
         if ($changes !== []) {
-            self::write($quote, 'updated', 'Saved changes', $changes);
+            self::write($quote, 'updated', $summary, $changes);
         }
     }
 
@@ -72,7 +78,7 @@ final class QuoteHistory
      */
     public static function log(Quote $quote, string $event, string $summary, ?array $changes = null): void
     {
-        if (self::enabled()) {
+        if (self::enabled($quote)) {
             self::write($quote, $event, $summary, $changes);
         }
     }
@@ -148,13 +154,16 @@ final class QuoteHistory
      */
     private static function write(Quote $quote, string $event, string $summary, ?array $changes): void
     {
-        QuoteHistoryEntry::query()->create([
+        // shop_id set explicitly: a queued job has no signed-in user for the
+        // tenant trait to take it from.
+        (new QuoteHistoryEntry)->forceFill([
+            'shop_id' => $quote->shop_id,
             'quote_id' => $quote->id,
             'user_id' => Auth::id(),
             'event' => $event,
             'summary' => $summary,
             'changes' => $changes,
-        ]);
+        ])->save();
     }
 
     /** @param  array<string, mixed>  $line */

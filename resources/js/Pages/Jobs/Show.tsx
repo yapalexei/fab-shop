@@ -1,3 +1,4 @@
+import { Attachment, JobAttachments } from '@/Components/Attachments';
 import Breadcrumbs from '@/Components/Breadcrumbs';
 import JobMaterialTracking, {
     MaterialCostSummary,
@@ -16,7 +17,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useShopDateTime } from '@/lib/datetime';
 import { PageProps } from '@/types';
 import { shortDate, toDay } from '@/lib/dates';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 
@@ -46,10 +47,13 @@ interface JobDetail {
     can_edit: boolean;
     available_transitions: JobTransition[];
     total: number;
+    quote_id: number;
+    can_view_quote: boolean;
     customer: { name: string; email: string | null };
     line_items: JobLineItem[];
     history: HistoryEntry[];
     photos: JobPhoto[];
+    attachments: Attachment[];
 }
 
 interface MaterialTracking {
@@ -105,6 +109,21 @@ export default function Show({
                                 </dt>
                                 <dd className="text-sm font-medium text-gray-900">
                                     {job.customer.name}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-gray-500">Quote</dt>
+                                <dd className="text-sm font-medium text-gray-900">
+                                    {job.can_view_quote ? (
+                                        <Link
+                                            href={route('quotes.edit', job.quote_id)}
+                                            className="text-indigo-600 hover:underline"
+                                        >
+                                            Quote #{job.quote_id}
+                                        </Link>
+                                    ) : (
+                                        `Quote #${job.quote_id}`
+                                    )}
                                 </dd>
                             </div>
                             <div>
@@ -178,7 +197,7 @@ export default function Show({
                     </Card>
 
                     <Card className="overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
+                        <table className="min-w-full divide-y">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -195,7 +214,7 @@ export default function Show({
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white">
+                            <tbody className="divide-y bg-white">
                                 {job.line_items.map((item) => (
                                     <tr key={item.id}>
                                         <td className="px-6 py-4 text-sm text-gray-900">
@@ -215,6 +234,8 @@ export default function Show({
                             </tbody>
                         </table>
                     </Card>
+
+                    <JobAttachments attachments={job.attachments} />
 
                     <JobPhotos jobId={job.id} photos={job.photos} />
 

@@ -18,6 +18,7 @@ use App\Models\Quote;
 use App\Models\QuoteHistoryEntry;
 use App\Models\Service;
 use App\Models\Tool;
+use App\Support\Attachments;
 use App\Support\QuoteHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -69,6 +70,10 @@ class QuoteController extends Controller implements HasMiddleware
 
             $this->syncLineItems($quote, $request->validated('line_items'));
 
+            foreach ($request->file('attachments', []) as $file) {
+                $quote->addMedia($file)->toMediaCollection('attachments');
+            }
+
             return $quote;
         });
 
@@ -88,9 +93,13 @@ class QuoteController extends Controller implements HasMiddleware
                 'job_id' => $quote->job?->id,
                 'customer_email' => $quote->customer->email,
                 'emailed_at' => $quote->emailed_at?->toIso8601String(),
+                'email_failed_at' => $quote->email_failed_at?->toIso8601String(),
+                'customer_locked' => $quote->customer_locked,
+                'emailing_enabled' => Auth::user()->currentShop->quoteEmailingEnabled(),
                 'send_skipped_reason' => $quote->send_skipped_reason,
                 'notes' => $quote->notes,
                 'due_date' => $quote->due_date?->toDateString(),
+                'attachments' => Attachments::props($quote->attachments(), 'quotes.attachments.show', $quote),
                 'line_items' => $quote->lineItems->map(fn ($item) => [
                     'id' => $item->id,
                     'type' => $item->type->value,
@@ -151,6 +160,8 @@ class QuoteController extends Controller implements HasMiddleware
 
     public function update(UpdateQuoteRequest $request, Quote $quote): RedirectResponse
     {
+        $customerWas = $quote->customer_id;
+
         // Entitled shops only: snapshot first so the save can be diffed.
         $before = QuoteHistory::enabled() ? QuoteHistory::snapshot($quote) : null;
 
@@ -161,7 +172,13 @@ class QuoteController extends Controller implements HasMiddleware
         });
 
         if ($before !== null) {
-            QuoteHistory::recordSave($quote, $before);
+            QuoteHistory::recordSave(
+                $quote,
+                $before,
+                $customerWas !== $quote->customer_id && $quote->email_failed_at !== null
+                    ? 'Saved changes - customer corrected after the email failed to deliver'
+                    : 'Saved changes',
+            );
         }
 
         return redirect()->route('quotes.edit', $quote);
@@ -239,6 +256,13 @@ class QuoteController extends Controller implements HasMiddleware
             'markupDefaults' => collect(LineItemType::cases())->mapWithKeys(
                 fn (LineItemType $type) => [$type->value => MarkupDefault::forType($type)],
             ),
+            // Whether "Draft from a customer email" can work right now:
+            // entitled (trial/plan) and a key saved. Two flags so the form
+            // can say which one is missing.
+            'ai' => [
+                'available' => $shop->hasFeature(Feature::AiAssist),
+                'configured' => (bool) $shop->aiSetting?->hasKey(),
+            ],
         ];
     }
 

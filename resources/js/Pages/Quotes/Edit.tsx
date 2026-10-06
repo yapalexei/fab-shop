@@ -7,6 +7,8 @@ import QuoteForm, {
     ServiceOption,
     ToolOption,
 } from '@/Components/QuoteForm';
+import { AiStatus } from '@/Components/AiQuoteDraftPanel';
+import { Attachment } from '@/Components/Attachments';
 import Breadcrumbs from '@/Components/Breadcrumbs';
 import QuoteHistoryPanel, { QuoteHistory } from '@/Components/QuoteHistoryPanel';
 import QuoteWorkflowPanel from '@/Components/QuoteWorkflowPanel';
@@ -24,10 +26,14 @@ interface QuoteDetail {
     job_id: number | null;
     customer_email: string | null;
     emailed_at: string | null;
+    email_failed_at: string | null;
+    customer_locked: boolean;
+    emailing_enabled: boolean;
     send_skipped_reason: string | null;
     notes: string | null;
     due_date: string | null;
     line_items: LineItem[];
+    attachments: Attachment[];
 }
 
 export default function Edit({
@@ -39,6 +45,7 @@ export default function Edit({
     tools,
     employees,
     markupDefaults,
+    ai,
     history,
 }: PageProps<{
     quote: QuoteDetail;
@@ -49,6 +56,7 @@ export default function Edit({
     tools: ToolOption[];
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
+    ai: AiStatus;
     history: QuoteHistory;
 }>) {
     const can = useCan();
@@ -76,6 +84,8 @@ export default function Edit({
                             jobId={quote.job_id}
                             customerEmail={quote.customer_email}
                             emailedAt={quote.emailed_at}
+                            emailFailedAt={quote.email_failed_at}
+                            emailingEnabled={quote.emailing_enabled}
                             sendSkippedReason={quote.send_skipped_reason}
                         />
 
@@ -87,8 +97,12 @@ export default function Edit({
                             tools={tools}
                             employees={employees}
                             markupDefaults={markupDefaults}
+                            ai={ai}
                             submitUrl={route('quotes.update', quote.id)}
                             method="put"
+                            quoteId={quote.id}
+                            customerLocked={quote.customer_locked}
+                            attachments={quote.attachments}
                             readOnly={!can('quotes.update')}
                             initialData={{
                                 customer_id: quote.customer_id,

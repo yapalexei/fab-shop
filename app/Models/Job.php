@@ -6,6 +6,7 @@ use App\Enums\JobStageRole;
 use App\Enums\LineItemType;
 use App\Enums\MaterialUsageType;
 use App\Models\Concerns\BelongsToShop;
+use App\Support\Attachments;
 use Carbon\CarbonInterface;
 use Database\Factories\JobFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -168,6 +169,17 @@ class Job extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('photos');
+        $this->addMediaCollection('attachments');
+    }
+
+    /**
+     * Files carried over from the quote when it was converted.
+     *
+     * @return Collection<int, Media>
+     */
+    public function attachments(): Collection
+    {
+        return $this->getMedia('attachments')->sortBy('created_at')->values();
     }
 
     public function registerMediaConversions(?Media $media = null): void
@@ -181,6 +193,8 @@ class Job extends Model implements HasMedia
             ->height(400)
             ->nonQueued()
             ->performOnCollections('photos');
+
+        Attachments::registerThumbnail($this, $media);
     }
 
     public function photos(): Collection

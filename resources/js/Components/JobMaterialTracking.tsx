@@ -296,7 +296,7 @@ export default function JobMaterialTracking({
                         Nothing logged yet.
                     </p>
                 ) : (
-                    <ul className="divide-y divide-gray-100">
+                    <ul className="divide-y">
                         {usages.map((usage) => (
                             <li
                                 key={usage.id}

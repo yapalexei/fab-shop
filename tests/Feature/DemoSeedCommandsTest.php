@@ -84,3 +84,41 @@ test('demo:seed-multi-shop --fresh keeps the roamer intact across a reseed', fun
     expect($roamer->shops)->toHaveCount(2)
         ->and(User::where('email', 'roamer@demo.test')->count())->toBe(1);
 });
+
+// Seeding writes jobs directly, bypassing JobStatusController::recordPeriod,
+// so the seeder has to set the period itself - a job with no started_at is
+// invisible on the job timeline and calendar.
+test('demo:seed-team gives every started job a period, so the job timeline has something to show', function () {
+    $this->artisan('demo:seed-team')->assertExitCode(0);
+
+    $shop = Shop::where('name', 'Ironclad Fabrication (Demo)')->firstOrFail();
+    $jobs = Job::where('shop_id', $shop->id)->with('jobStage')->get();
+
+    foreach ($jobs as $job) {
+        $role = $job->jobStage->role?->value;
+
+        if ($role === 'not_started') {
+            expect($job->started_at)->toBeNull()->and($job->finished_at)->toBeNull();
+
+            continue;
+        }
+
+        expect($job->started_at)->not->toBeNull("{$job->job_number} left Not started but has no started_at");
+
+        if (in_array($role, ['shipped', 'invoiced'], true)) {
+            expect($job->finished_at)->not->toBeNull()
+                ->and($job->finished_at->gte($job->started_at))->toBeTrue();
+        } else {
+            expect($job->finished_at)->toBeNull();
+        }
+    }
+
+    // And the report actually lists them (cancelled jobs are left out).
+    $owner = User::where('email', 'owner@ironclad.demo')->firstOrFail();
+    $listed = $this->actingAs($owner)
+        ->get(route('reports.job-timeline', ['range' => 'month', 'date' => now()->subDays(20)->toDateString()]))
+        ->assertOk()
+        ->viewData('page')['props']['jobs'];
+
+    expect($listed)->not->toBeEmpty();
+});

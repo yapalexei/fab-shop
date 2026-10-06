@@ -7,6 +7,7 @@ import QuoteForm, {
     ServiceOption,
     ToolOption,
 } from '@/Components/QuoteForm';
+import { AiStatus } from '@/Components/AiQuoteDraftPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import Breadcrumbs from '@/Components/Breadcrumbs';
@@ -21,6 +22,7 @@ export default function Create({
     tools,
     employees,
     markupDefaults,
+    ai,
 }: PageProps<{
     customers: { id: number; name: string }[];
     materials: MaterialOption[];
@@ -29,6 +31,7 @@ export default function Create({
     tools: ToolOption[];
     employees: EmployeeOption[];
     markupDefaults: MarkupDefaults;
+    ai: AiStatus;
 }>) {
     const { auth, shop } = usePage<PageProps>().props;
 
@@ -56,6 +59,7 @@ export default function Create({
                             tools={tools}
                             employees={employees}
                             markupDefaults={markupDefaults}
+                            ai={ai}
                             submitUrl={route('quotes.store')}
                             method="post"
                             draftKey={`quote-draft:${shop?.id}:${auth.user.id}`}

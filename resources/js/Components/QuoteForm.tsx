@@ -10,6 +10,9 @@ import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { Link, useForm } from '@inertiajs/react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 import { Alert } from '@/Components/ui/alert';
+import { Attachment, QuoteAttachments } from '@/Components/Attachments';
+import AiQuoteDraftPanel, { AiStatus } from '@/Components/AiQuoteDraftPanel';
+import { AiDraftResult, lineItemFromSuggestion } from '@/lib/aiQuoteDraft';
 
 export interface LineItem {
     type: 'material' | 'labor' | 'equipment' | 'tooling';
@@ -26,6 +29,12 @@ export interface LineItem {
     user_id: number | string | null;
     equipment_id: number | string | null;
     tool_id: number | string | null;
+    /**
+     * Client-only: set on a line the AI suggested that the owner should
+     * double-check. Not a form field - the server ignores it - and cleared
+     * once they edit the line.
+     */
+    ai_note?: string | null;
 }
 
 export interface MaterialTypeRef {
@@ -152,6 +161,10 @@ export default function QuoteForm({
     method,
     readOnly = false,
     draftKey,
+    quoteId,
+    attachments,
+    customerLocked = false,
+    ai,
 }: {
     customers: { id: number; name: string }[];
     materials: MaterialOption[];
@@ -171,14 +184,30 @@ export default function QuoteForm({
      * create a missing material doesn't lose the work.
      */
     draftKey?: string;
+    /** Set when editing: attachments then upload/delete immediately. */
+    quoteId?: number;
+    attachments?: Attachment[];
+    /** The quote has been emailed, so the customer can't be changed. */
+    customerLocked?: boolean;
+    /** Whether "Draft from a customer email" is on offer; omitted = hidden. */
+    ai?: AiStatus;
 }) {
     // Read once, before the form exists, so it starts out as the draft.
     const [restored] = useState(() =>
         draftKey ? restoreDraft(draftKey, initialData, markupDefaults) : null,
     );
     const [showRestored, setShowRestored] = useState(restored !== null);
-    const { data, setData, post, put, processing, errors } =
+    const { data, setData, post, put, processing, errors, transform } =
         useForm<QuoteFormData>(restored?.data ?? initialData);
+
+    // New quotes: files picked before the quote exists. Kept out of `data` so
+    // drafts (JSON in localStorage) never have to hold File objects.
+    const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+    transform((formData) =>
+        stagedFiles.length > 0
+            ? { ...formData, attachments: stagedFiles }
+            : formData,
+    );
 
     // Keep the draft current (debounced); a form back at its starting values
     // isn't a draft. `submitted` stops a late write recreating it after a save.
@@ -213,6 +242,7 @@ export default function QuoteForm({
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         (method === 'post' ? post : put)(submitUrl, {
+            forceFormData: stagedFiles.length > 0,
             onSuccess: () => {
                 submitted.current = true;
                 if (draftKey) clearDraft(draftKey);
@@ -222,7 +252,12 @@ export default function QuoteForm({
 
     const patchLineItem = (index: number, patch: Partial<LineItem>) => {
         const lineItems = [...data.line_items];
-        lineItems[index] = { ...lineItems[index], ...patch };
+        lineItems[index] = {
+            ...lineItems[index],
+            ...patch,
+            // Touching a suggested line means the owner has looked at it.
+            ...(lineItems[index].ai_note ? { ai_note: null } : {}),
+        };
         setData('line_items', lineItems);
     };
 
@@ -231,6 +266,26 @@ export default function QuoteForm({
             ...data.line_items,
             createEmptyLineItem(markupDefaults),
         ]);
+    };
+
+    // Suggested lines are appended, never replacing what's there, and a
+    // blank placeholder line (the form's starting row) is swapped out.
+    const addAiLines = (result: AiDraftResult): number => {
+        const suggested = result.lines.map((line) =>
+            lineItemFromSuggestion(
+                line,
+                { materials, services, equipmentList, tools },
+                markupDefaults,
+            ),
+        );
+        if (suggested.length === 0) return 0;
+
+        const existing = data.line_items.filter(
+            (item) => item.description.trim() !== '',
+        );
+        setData('line_items', [...existing, ...suggested]);
+
+        return suggested.length;
     };
 
     const removeLineItem = (index: number) => {
@@ -291,6 +346,7 @@ export default function QuoteForm({
 
                 <div>
                     <InputLabel htmlFor="customer_id" value="Customer" />
+                    <fieldset disabled={customerLocked}>
                     <SearchableSelect
                         id="customer_id"
                         className="block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
@@ -310,10 +366,24 @@ export default function QuoteForm({
                             </>
                         }
                     />
+                    </fieldset>
+                    {customerLocked && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            This quote has been emailed, so the customer can't
+                            be changed. If the email fails to deliver, you'll be
+                            able to correct it.
+                        </p>
+                    )}
                     <InputError message={errors.customer_id} className="mt-2" />
                 </div>
 
-                <div className="mt-6">
+                {ai && !readOnly && (
+                    <div className="mt-6">
+                        <AiQuoteDraftPanel ai={ai} onDraft={addAiLines} />
+                    </div>
+                )}
+
+                <div className={ai && !readOnly ? '' : 'mt-6'}>
                     <InputLabel value="Line items" />
 
                     <div className="mt-2 space-y-3">
@@ -401,6 +471,19 @@ export default function QuoteForm({
                     />
                     <InputError message={errors.notes} className="mt-2" />
                 </div>
+
+                <QuoteAttachments
+                    quoteId={quoteId}
+                    attachments={attachments}
+                    staged={stagedFiles}
+                    onStage={setStagedFiles}
+                    error={
+                        errorMap.attachments ??
+                        Object.entries(errorMap).find(([k]) =>
+                            k.startsWith('attachments.'),
+                        )?.[1]
+                    }
+                />
 
             </fieldset>
 

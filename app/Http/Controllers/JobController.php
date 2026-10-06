@@ -9,6 +9,7 @@ use App\Models\JobQualificationRecord;
 use App\Models\JobStage;
 use App\Models\Material;
 use App\Models\Procedure;
+use App\Support\Attachments;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -84,6 +85,9 @@ class JobController extends Controller
                 'can_edit' => Gate::allows('jobs.update'),
                 'available_transitions' => $this->mapTransitions($job),
                 'total' => $job->total,
+                'quote_id' => $job->quote_id,
+                // Only link to the quote when the viewer could actually open it.
+                'can_view_quote' => Gate::allows('quotes.view') && $shop->canViewFeature(Feature::QuoteBuilder),
                 'customer' => [
                     'name' => $job->customer->name,
                     'email' => $job->customer->email,
@@ -101,6 +105,7 @@ class JobController extends Controller
                     'causer' => $activity->causer?->name,
                     'created_at' => $activity->created_at->toIso8601String(),
                 ]),
+                'attachments' => Attachments::props($job->attachments(), 'jobs.attachments.show', $job),
                 'photos' => $job->photos()->map(fn ($photo) => [
                     'id' => $photo->id,
                     'url' => $this->photoUrl($photo),

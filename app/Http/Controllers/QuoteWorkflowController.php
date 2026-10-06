@@ -14,6 +14,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -26,13 +27,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class QuoteWorkflowController extends Controller
 {
+    /** Recorded as the reason when a quote is marked sent while emailing is off. */
+    private const EMAILING_OFF_REASON = 'Quote emailing is turned off for this shop';
+
     public function send(Quote $quote): RedirectResponse
     {
+        $this->guardEmailingEnabled();
         $this->guard($quote->status === QuoteStatus::Draft && ! $quote->is_archived, 'This quote has already been sent.');
         $this->guard($quote->lineItems->isNotEmpty(), 'A quote needs at least one line item before it can be sent.');
         $this->guard(filled($quote->customer->email), 'This customer has no email address on file.');
 
-        $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now()]);
+        $quote->update(['status' => QuoteStatus::Sent, 'sent_at' => now(), 'email_failed_at' => null]);
 
         GenerateAndSendQuotePdf::dispatch($quote);
         QuoteHistory::log($quote, 'sent', "Emailed to {$quote->customer->email}");
@@ -50,14 +55,18 @@ class QuoteWorkflowController extends Controller
         $this->guard($quote->status === QuoteStatus::Draft && ! $quote->is_archived, 'This quote has already been sent.');
         $this->guard($quote->lineItems->isNotEmpty(), 'A quote needs at least one line item before it can be marked as sent.');
 
-        $validated = $request->validate(['reason' => ['required', 'string', 'max:255']]);
+        // With emailing off there is nothing to explain - not emailing is
+        // simply how this shop works - so no reason is asked for.
+        $reason = Auth::user()->currentShop->quoteEmailingEnabled()
+            ? trim($request->validate(['reason' => ['required', 'string', 'max:255']])['reason'])
+            : self::EMAILING_OFF_REASON;
 
         $quote->update([
             'status' => QuoteStatus::Sent,
             'sent_at' => now(),
-            'send_skipped_reason' => trim($validated['reason']),
+            'send_skipped_reason' => $reason,
         ]);
-        QuoteHistory::log($quote, 'send_skipped', 'Marked as sent without emailing - '.trim($validated['reason']));
+        QuoteHistory::log($quote, 'send_skipped', "Marked as sent without emailing - {$reason}");
 
         return back()->with('status', 'Quote marked as sent without emailing the customer.');
     }
@@ -69,17 +78,44 @@ class QuoteWorkflowController extends Controller
      */
     public function resend(Quote $quote): RedirectResponse
     {
+        $this->guardEmailingEnabled();
         $this->guard($quote->status === QuoteStatus::Sent && ! $quote->is_archived, 'Only a sent quote that is still awaiting an answer can be emailed.');
         $this->guard(filled($quote->customer->email), 'This customer has no email address on file.');
 
         // emailed_at is left alone: it still records the earlier send until the
         // new one goes out and replaces it.
-        $quote->update(['send_skipped_reason' => null]);
+        $quote->update(['send_skipped_reason' => null, 'email_failed_at' => null]);
 
         GenerateAndSendQuotePdf::dispatch($quote);
         QuoteHistory::log($quote, 'resent', "Emailed again to {$quote->customer->email}");
 
         return back()->with('status', 'Quote emailed to the customer.');
+    }
+
+    /**
+     * A fresh draft with the same customer, notes, due date and line items -
+     * nothing about the original's lifecycle (status, sending, history) or
+     * its attachments comes along.
+     */
+    public function duplicate(Quote $quote): RedirectResponse
+    {
+        $copy = DB::transaction(function () use ($quote): Quote {
+            $copy = Quote::create([
+                'customer_id' => $quote->customer_id,
+                'notes' => $quote->notes,
+                'due_date' => $quote->due_date,
+                'status' => QuoteStatus::Draft,
+            ]);
+
+            $copy->lineItems()->saveMany($quote->lineItems->map->replicate());
+
+            return $copy;
+        });
+
+        QuoteHistory::log($copy, 'created', "Duplicated from quote #{$quote->id}");
+        QuoteHistory::log($quote, 'duplicated', "Duplicated as quote #{$copy->id}");
+
+        return redirect()->route('quotes.edit', $copy)->with('status', 'Quote duplicated as a new draft.');
     }
 
     public function markWon(Quote $quote): RedirectResponse
@@ -134,12 +170,31 @@ class QuoteWorkflowController extends Controller
 
         $notStarted = JobStage::query()->where('role', JobStageRole::NotStarted)->firstOrFail();
 
-        $job = DB::transaction(fn (): Job => $quote->job()->create([
-            'customer_id' => $quote->customer_id,
-            'job_number' => Job::nextNumber(),
-            'job_stage_id' => $notStarted->id,
-            'due_date' => $quote->due_date,
-        ]));
+        $job = DB::transaction(function () use ($quote, $notStarted): Job {
+            $job = $quote->job()->create([
+                'customer_id' => $quote->customer_id,
+                'job_number' => Job::nextNumber(),
+                'job_stage_id' => $notStarted->id,
+                'due_date' => $quote->due_date,
+            ]);
+
+            // Copies, not moves: the quote keeps its own files as the
+            // record of what was quoted against.
+            foreach ($quote->attachments() as $attachment) {
+                $attachment->copy($job, 'attachments');
+            }
+
+            return $job;
+        });
+
+        // The job's own history starts with where it came from and any due
+        // date it inherited, so that date isn't unexplained later.
+        activity()->performedOn($job)->causedBy(Auth::user())->log("Created from quote #{$quote->id}");
+
+        if ($job->due_date !== null) {
+            activity()->performedOn($job)->causedBy(Auth::user())
+                ->log('Due date set to '.$job->due_date->format('M j, Y').' (from the quote)');
+        }
 
         QuoteHistory::log($quote, 'converted', "Converted to job {$job->job_number}");
 
@@ -168,6 +223,14 @@ class QuoteWorkflowController extends Controller
         abort_unless($quote->pdf(), 404);
 
         return $quote->pdf()->toInlineResponse($request);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function guardEmailingEnabled(): void
+    {
+        $this->guard(Auth::user()->currentShop->quoteEmailingEnabled(), 'Emailing quotes is turned off for this shop. You can turn it on in Shop settings.');
     }
 
     /**

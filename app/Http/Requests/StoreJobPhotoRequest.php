@@ -18,7 +18,9 @@ class StoreJobPhotoRequest extends FormRequest
     {
         return [
             'photos' => ['required', 'array', 'min:1'],
-            'photos.*' => ['image', 'max:10240'],
+            // Raster formats only (no SVG - it can carry script - and the
+            // thumbnail step needs a bitmap).
+            'photos.*' => ['mimes:jpg,jpeg,png,gif,webp', 'max:10240'],
         ];
     }
 }

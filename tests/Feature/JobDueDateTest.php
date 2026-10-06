@@ -2,6 +2,7 @@
 
 use App\Enums\QuoteStatus;
 use App\Models\Customer;
+use App\Models\Job;
 use App\Models\Quote;
 use App\Models\Shop;
 use App\Models\User;
@@ -138,4 +139,28 @@ test('a quote converts fine without a due date, and the date is editable on the 
 
     $this->actingAs($user)->get(route('quotes.edit', $draft))
         ->assertInertia(fn ($page) => $page->where('quote.due_date', '2026-12-01'));
+});
+
+test('converting a quote logs where the job came from and its inherited due date', function () {
+    $shop = Shop::factory()->create();
+    $quote = Quote::factory()->for($shop)->create(['status' => QuoteStatus::Won, 'due_date' => '2026-12-01']);
+    $user = actingAsShopMember($shop);
+
+    $this->actingAs($user)->post(route('quotes.convert', $quote))->assertRedirect();
+
+    $descriptions = Job::sole()->activitiesAsSubject->pluck('description')->all();
+    expect($descriptions)->toContain("Created from quote #{$quote->id}")
+        ->and($descriptions)->toContain('Due date set to Dec 1, 2026 (from the quote)');
+});
+
+test('the job page links back to its quote', function () {
+    $shop = Shop::factory()->create();
+    $quote = Quote::factory()->for($shop)->create(['status' => QuoteStatus::Won, 'customer_id' => Customer::factory()->for($shop)->create()->id]);
+    $user = actingAsShopMember($shop);
+    $this->actingAs($user)->post(route('quotes.convert', $quote));
+
+    $this->actingAs($user)->get(route('jobs.show', Job::sole()))
+        ->assertInertia(fn ($page) => $page
+            ->where('job.quote_id', $quote->id)
+            ->where('job.can_view_quote', true));
 });

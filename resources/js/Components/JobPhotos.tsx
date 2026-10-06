@@ -53,7 +53,7 @@ export default function JobPhotos({
                         <input
                             ref={fileInput}
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
                             multiple
                             className="hidden"
                             onChange={(e) => upload(e.target.files)}
