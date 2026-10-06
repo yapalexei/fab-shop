@@ -1,3 +1,4 @@
+import { SquareImage } from '@/Components/Avatar';
 import CsvImportDialog from '@/Components/CsvImportDialog';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -15,6 +16,7 @@ interface MaterialRow {
     name: string;
     unit: string | null;
     material_type: string | null;
+    image_url: string | null;
 }
 
 export default function Index({
@@ -122,7 +124,13 @@ export default function Index({
                                     {materials.map((material) => (
                                         <tr key={material.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                                                {material.name}
+                                                <span className="flex items-center gap-3">
+                                                    <SquareImage
+                                                        src={material.image_url}
+                                                        className="size-10"
+                                                    />
+                                                    {material.name}
+                                                </span>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                                 {material.material_type ?? '—'}

@@ -8,6 +8,7 @@ use App\Http\Requests\StoreMaterialRequest;
 use App\Http\Requests\UpdateMaterialRequest;
 use App\Models\Material;
 use App\Models\MaterialType;
+use App\Support\Images;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Inertia\Inertia;
@@ -25,12 +26,13 @@ class MaterialController extends Controller implements HasMiddleware
     public function index(): Response
     {
         return Inertia::render('Materials/Index', [
-            'materials' => Material::query()->with('materialType:id,name')->orderBy('name')->get()
+            'materials' => Material::query()->with('materialType:id,name', 'media')->orderBy('name')->get()
                 ->map(fn (Material $material) => [
                     'id' => $material->id,
                     'name' => $material->name,
                     'unit' => $material->unit,
                     'material_type' => $material->materialType?->name,
+                    'image_url' => $material->imageUrl(),
                 ]),
         ]);
     }
@@ -44,7 +46,9 @@ class MaterialController extends Controller implements HasMiddleware
 
     public function store(StoreMaterialRequest $request): RedirectResponse
     {
-        Material::create($request->validated());
+        $material = Material::create($request->safe()->except(['image', 'remove_image']));
+
+        Images::sync($material, $request, 'image', 'image');
 
         return redirect()->route('materials.index');
     }
@@ -52,14 +56,16 @@ class MaterialController extends Controller implements HasMiddleware
     public function edit(Material $material): Response
     {
         return Inertia::render('Materials/Edit', [
-            'material' => $material,
+            'material' => [...$material->toArray(), 'image_url' => $material->imageUrl()],
             'materialTypes' => $this->materialTypeOptions(),
         ]);
     }
 
     public function update(UpdateMaterialRequest $request, Material $material): RedirectResponse
     {
-        $material->update($request->validated());
+        $material->update($request->safe()->except(['image', 'remove_image']));
+
+        Images::sync($material, $request, 'image', 'image');
 
         return redirect()->route('materials.index');
     }

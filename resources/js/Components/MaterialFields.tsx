@@ -1,4 +1,6 @@
 import { Link } from '@inertiajs/react';
+import { SquareImage } from '@/Components/Avatar';
+import ImageField, { MAX_IMAGE_MB } from '@/Components/ImageField';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import SearchableSelect from '@/Components/SearchableSelect';
@@ -9,7 +11,10 @@ export interface MaterialFormData {
     unit: string;
     notes: string;
     material_type_id: string;
-    [key: string]: string;
+    /** A newly chosen photo, or null to keep the current one. */
+    image: File | null;
+    remove_image: boolean;
+    [key: string]: string | boolean | File | null;
 }
 
 export interface MaterialTypeOption {
@@ -22,15 +27,35 @@ export default function MaterialFields({
     setData,
     errors,
     materialTypes,
+    currentImage,
 }: {
     data: MaterialFormData;
-    setData: (field: keyof MaterialFormData, value: string) => void;
+    setData: (
+        field: keyof MaterialFormData,
+        value: string | boolean | File | null,
+    ) => void;
     errors: Partial<Record<keyof MaterialFormData, string>>;
     materialTypes: MaterialTypeOption[];
+    /** The photo already saved for this material (edit page). */
+    currentImage?: string | null;
 }) {
     return (
         <>
-            <div>
+            <ImageField
+                label="Photo"
+                preview={(src) => (
+                    <SquareImage src={src} className="size-24" />
+                )}
+                current={currentImage}
+                file={data.image}
+                removed={data.remove_image}
+                onChange={(file) => setData('image', file)}
+                onRemove={(removed) => setData('remove_image', removed)}
+                error={errors.image}
+                hint={`JPG, PNG, GIF or WebP, up to ${MAX_IMAGE_MB} MB. It's cropped to a square from the centre.`}
+            />
+
+            <div className="mt-4">
                 <InputLabel htmlFor="name" value="Name" />
                 <TextInput
                     id="name"

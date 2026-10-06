@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BusinessPartner;
 use App\Models\Customer;
+use App\Models\Material;
 use App\Support\Images;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -22,6 +23,13 @@ class EntityImageController extends Controller
         abort_unless(Gate::any(['customers.view', 'quotes.view', 'jobs.view']), 403);
 
         return Images::respond($request, $customer, 'logo');
+    }
+
+    public function materialImage(Request $request, Material $material): StreamedResponse
+    {
+        abort_unless(Gate::any(['materials.view', 'quotes.view', 'jobs.view']), 403);
+
+        return Images::respond($request, $material, 'image');
     }
 
     public function businessPartnerLogo(Request $request, BusinessPartner $businessPartner): StreamedResponse

@@ -18,6 +18,7 @@ interface Material {
     unit: string | null;
     notes: string | null;
     material_type_id: number | null;
+    image_url: string | null;
 }
 
 export default function Edit({
@@ -27,17 +28,21 @@ export default function Edit({
     const can = useCan();
     const readOnly = !can('materials.update');
 
-    const { data, setData, put, processing, errors } =
+    const { data, setData, post, processing, errors } =
         useForm<MaterialFormData>({
             name: material.name,
             unit: material.unit ?? '',
             notes: material.notes ?? '',
+            _method: 'put',
             material_type_id: material.material_type_id?.toString() ?? '',
+            image: null,
+            remove_image: false,
         });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        put(route('materials.update', material.id));
+        // Files can't travel in a PUT body, so it's a POST spoofing PUT.
+        post(route('materials.update', material.id), { forceFormData: true });
     };
 
     return (
@@ -65,6 +70,7 @@ export default function Edit({
                                     setData={setData}
                                     errors={errors}
                                     materialTypes={materialTypes}
+                                    currentImage={material.image_url}
                                 />
                             </fieldset>
 

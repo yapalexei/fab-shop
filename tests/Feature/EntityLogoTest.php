@@ -3,6 +3,7 @@
 use App\Enums\ShopResource;
 use App\Models\BusinessPartner;
 use App\Models\Customer;
+use App\Models\Material;
 use App\Models\Quote;
 use App\Models\Shop;
 use Illuminate\Http\UploadedFile;
@@ -121,4 +122,61 @@ test('the quotes list carries each customer\'s logo, null when there is none', f
     $this->actingAs($user)->get(route('quotes.index'))->assertInertia(fn ($page) => $page
         ->has('quotes', 2)
         ->where('quotes', fn ($quotes) => $quotes->pluck('customer_logo_url')->filter()->count() === 1));
+});
+
+test('a material photo can be uploaded, replaced and removed', function () {
+    $user = actingAsShopMember(Shop::factory()->create());
+
+    $this->actingAs($user)->post(route('materials.store'), [
+        'name' => '1/4in plate',
+        'image' => UploadedFile::fake()->image('plate.jpg', 800, 300),
+    ])->assertSessionHasNoErrors();
+
+    $material = Material::sole();
+    expect($material->imageUrl())->not->toBeNull();
+    $this->actingAs($user)->get($material->imageUrl())->assertOk();
+
+    // The stored preview is a square crop, whatever the upload's shape.
+    [$width, $height] = getimagesize($material->getFirstMedia('image')->getPath('square'));
+    expect($width)->toBe($height);
+
+    $this->actingAs($user)->post(route('materials.update', $material), [
+        '_method' => 'put', 'name' => '1/4in plate', 'image' => UploadedFile::fake()->image('b.png'),
+    ])->assertSessionHasNoErrors();
+    expect(Material::sole()->getMedia('image'))->toHaveCount(1);
+
+    $this->actingAs($user)->put(route('materials.update', $material), ['name' => '1/4in plate']);
+    expect(Material::sole()->imageUrl())->not->toBeNull();
+
+    $this->actingAs($user)->put(route('materials.update', $material), ['name' => '1/4in plate', 'remove_image' => true]);
+    expect(Material::sole()->imageUrl())->toBeNull();
+});
+
+test('material photos must be images up to 5 MB and stay inside their shop', function () {
+    $mine = Shop::factory()->create();
+    $user = actingAsShopMember($mine);
+
+    $this->actingAs($user)->post(route('materials.store'), [
+        'name' => 'A', 'image' => UploadedFile::fake()->create('spec.pdf', 10, 'application/pdf'),
+    ])->assertSessionHasErrors('image');
+    $this->actingAs($user)->post(route('materials.store'), [
+        'name' => 'B', 'image' => UploadedFile::fake()->image('huge.png')->size(5121),
+    ])->assertSessionHasErrors('image');
+
+    $foreign = Material::factory()->for(Shop::factory()->create())->create();
+    $foreign->addMedia(UploadedFile::fake()->image('x.png'))->toMediaCollection('image');
+
+    $this->actingAs($user)->get(route('materials.image', $foreign))->assertNotFound();
+});
+
+test('the materials list carries each photo url', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopMember($shop);
+    $with = Material::factory()->for($shop)->create(['name' => 'A']);
+    $with->addMedia(UploadedFile::fake()->image('x.png'))->toMediaCollection('image');
+    Material::factory()->for($shop)->create(['name' => 'B']);
+
+    $this->actingAs($user)->get(route('materials.index'))->assertInertia(fn ($page) => $page
+        ->where('materials.0.image_url', fn ($url) => is_string($url))
+        ->where('materials.1.image_url', null));
 });

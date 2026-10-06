@@ -20,11 +20,13 @@ export default function Create({
             unit: '',
             notes: '',
             material_type_id: '',
+            image: null,
+            remove_image: false,
         });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('materials.store'));
+        post(route('materials.store'), { forceFormData: true });
     };
 
     return (

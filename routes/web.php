@@ -120,6 +120,9 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::get('customers/{customer}/logo', [EntityImageController::class, 'customerLogo'])->name('customers.logo');
     Route::get('business-partners/{business_partner}/logo', [EntityImageController::class, 'businessPartnerLogo'])->name('business-partners.logo');
 
+    Route::get('materials/{material}/image', [EntityImageController::class, 'materialImage'])->name('materials.image');
+
+    Route::resource('customers', CustomerController::class)
         ->except('show')
         ->middleware('feature:customers');
 

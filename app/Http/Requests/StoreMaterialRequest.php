@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Images;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -27,6 +28,8 @@ class StoreMaterialRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'unit' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'image' => Images::rules(),
+            'remove_image' => ['nullable', 'boolean'],
             'material_type_id' => [
                 'nullable',
                 Rule::exists('material_types', 'id')->where('shop_id', $this->user()->current_shop_id),
