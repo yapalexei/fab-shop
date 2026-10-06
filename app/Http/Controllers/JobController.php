@@ -9,6 +9,7 @@ use App\Models\JobQualificationRecord;
 use App\Models\JobStage;
 use App\Models\Material;
 use App\Models\Procedure;
+use App\Models\User;
 use App\Support\Attachments;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +24,7 @@ class JobController extends Controller
     {
         return Inertia::render('Jobs/Index', [
             'jobs' => Job::query()
-                ->with('customer:id,name', 'jobStage', 'assignedTo:id,name')
+                ->with('customer:id,name', 'jobStage', 'assignedTo:id,name', 'assignedTo.media')
                 // id as a tiebreaker, not just created_at: several jobs can
                 // share the same timestamp (bulk-seeded, or converted in the
                 // same request), and an unstable order between requests
@@ -43,8 +44,10 @@ class JobController extends Controller
                 'role' => $stage->role?->value,
             ]),
             // For the assignee picker - same {id, name} shape qualification
-            // records already sends for its own member dropdown.
-            'members' => Auth::user()->currentShop->members()->orderBy('name')->get(['users.id', 'users.name']),
+            // records already sends for its own member dropdown, plus the
+            // picture shown next to each name.
+            'members' => Auth::user()->currentShop->members()->with('media')->orderBy('name')->get()
+                ->map(fn (User $member) => ['id' => $member->id, 'name' => $member->name, 'avatar_url' => $member->avatarUrl()]),
             'canAssign' => Gate::allows('jobs.update'),
             'today' => Auth::user()->currentShop->localNow()->toDateString(),
         ]);
@@ -52,7 +55,7 @@ class JobController extends Controller
 
     public function show(Job $job): Response
     {
-        $job->load('quote.lineItems', 'customer', 'jobStage', 'activitiesAsSubject.causer');
+        $job->load('quote.lineItems', 'customer', 'jobStage', 'assignedTo.media', 'activitiesAsSubject.causer');
 
         $shop = Auth::user()->currentShop;
         // Entitled shops get the panel; a shop that lost the feature (trial
@@ -81,6 +84,8 @@ class JobController extends Controller
                 'stage_label' => $job->jobStage->name,
                 'cancelled' => $job->isCancelled(),
                 'due_date' => $job->due_date?->toDateString(),
+                'assignee' => $job->assignedTo?->name,
+                'assignee_avatar_url' => $job->assignedTo?->avatarUrl(),
                 'overdue' => $job->isOverdue($shop->localNow()),
                 'can_edit' => Gate::allows('jobs.update'),
                 'available_transitions' => $this->mapTransitions($job),
@@ -201,6 +206,7 @@ class JobController extends Controller
             'available_transitions' => $this->mapTransitions($job),
             'assigned_to' => $job->assigned_to,
             'assignee' => $job->assignedTo?->name,
+            'assignee_avatar_url' => $job->assignedTo?->avatarUrl(),
             // Calendar days on the shop's wall clock (not UTC instants), so
             // the client can lay out spans without any timezone math. Null
             // started_on = not started, so it has no place on a calendar;

@@ -1,3 +1,4 @@
+import { UserAvatar } from '@/Components/Avatar';
 import PageHelp from '@/Components/PageHelp';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { Button } from '@/Components/ui/button';
@@ -29,6 +30,7 @@ interface TimelineJob {
     customer: string;
     stage_label: string;
     assignee: string | null;
+    assignee_avatar_url: string | null;
     started_on: string;
     ended_on: string | null;
     due_date: string | null;
@@ -411,9 +413,17 @@ export default function JobTimeline({
                                                 </span>
                                                 <div className="text-xs text-muted-foreground">
                                                     {job.stage_label}
-                                                    {job.assignee
-                                                        ? ` · ${job.assignee}`
-                                                        : ''}
+                                                    {job.assignee && (
+                                                        <>
+                                                            {' · '}
+                                                            <UserAvatar
+                                                                name={job.assignee}
+                                                                src={job.assignee_avatar_url}
+                                                                className="mx-0.5 size-4 align-text-bottom"
+                                                            />{' '}
+                                                            {job.assignee}
+                                                        </>
+                                                    )}
                                                     {dueDay !== null && (
                                                         <span
                                                             className={

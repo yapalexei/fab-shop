@@ -2,7 +2,9 @@
 
 use App\Events\JobBoardUpdated;
 use App\Models\Shop;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 
 test('a job can be assigned to a shop member', function () {
     $shop = Shop::factory()->create();
@@ -107,4 +109,35 @@ test('a user cannot assign another shop\'s job', function () {
     $this->actingAs($user)->patch(route('jobs.assignee.update', $job), [
         'assigned_to' => $assignee->id,
     ])->assertNotFound();
+});
+
+test('the board, job page and members list carry the assignee\'s picture', function () {
+    Storage::fake('public');
+
+    $shop = Shop::factory()->create();
+    $job = jobForShop($shop);
+    $viewer = actingAsShopMember($shop);
+    $assignee = actingAsShopMember($shop, 'Staff');
+
+    $assignee->addMedia(UploadedFile::fake()->image('a.png'))->toMediaCollection('avatar');
+    $job->forceFill(['assigned_to' => $assignee->id])->save();
+    $url = $assignee->fresh()->avatarUrl();
+
+    expect($url)->not->toBeNull();
+
+    $this->actingAs($viewer)->get(route('jobs.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('jobs.0.assignee_avatar_url', $url)
+            ->where('members', fn ($members) => $members->contains(fn ($m) => $m['id'] === $assignee->id && $m['avatar_url'] === $url)));
+
+    $this->actingAs($viewer)->get(route('jobs.show', $job))
+        ->assertInertia(fn ($page) => $page->where('job.assignee_avatar_url', $url));
+});
+
+test('an unassigned job has no assignee picture', function () {
+    $shop = Shop::factory()->create();
+    jobForShop($shop);
+
+    $this->actingAs(actingAsShopMember($shop))->get(route('jobs.index'))
+        ->assertInertia(fn ($page) => $page->where('jobs.0.assignee_avatar_url', null));
 });

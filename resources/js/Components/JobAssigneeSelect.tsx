@@ -1,3 +1,4 @@
+import { UserAvatar } from '@/Components/Avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -5,17 +6,28 @@ import {
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import { router } from '@inertiajs/react';
+import { User } from 'lucide-react';
 
 export interface Member {
     id: number;
     name: string;
+    avatar_url?: string | null;
 }
 
-function PersonIcon({ className }: { className?: string }) {
-    return (
-        <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
-            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-        </svg>
+/** The assignee's picture, or a generic person when the job has no one. */
+function AssigneeAvatar({
+    name,
+    src,
+}: {
+    name: string | null;
+    src?: string | null;
+}) {
+    return name ? (
+        <UserAvatar name={name} src={src} className="size-5" />
+    ) : (
+        <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <User className="size-3" aria-hidden />
+        </span>
     );
 }
 
@@ -30,19 +42,27 @@ export default function JobAssigneeSelect({
     members,
     editable,
 }: {
-    job: { id: number; assigned_to: number | null; assignee: string | null };
+    job: {
+        id: number;
+        assigned_to: number | null;
+        assignee: string | null;
+        assignee_avatar_url?: string | null;
+    };
     members: Member[];
     editable: boolean;
 }) {
     const label = job.assignee ?? 'Unassigned';
 
     const badgeClasses =
-        'inline-flex max-w-full items-center gap-1 truncate rounded-full border border-gray-200 py-0.5 pe-2 ps-1 text-xs text-gray-600';
+        'inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-gray-200 py-0.5 pe-2 ps-0.5 text-xs text-gray-600';
 
     if (!editable) {
         return (
             <span className={badgeClasses}>
-                <PersonIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                <AssigneeAvatar
+                    name={job.assignee}
+                    src={job.assignee_avatar_url}
+                />
                 <span className="truncate">{label}</span>
             </span>
         );
@@ -64,7 +84,10 @@ export default function JobAssigneeSelect({
                     className={`${badgeClasses} hover:bg-accent`}
                     aria-label="Assigned to"
                 >
-                    <PersonIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                    <AssigneeAvatar
+                        name={job.assignee}
+                        src={job.assignee_avatar_url}
+                    />
                     <span className="truncate">{label}</span>
                 </button>
             </DropdownMenuTrigger>
@@ -84,6 +107,11 @@ export default function JobAssigneeSelect({
                             job.assigned_to === member.id ? 'font-medium' : ''
                         }
                     >
+                        <UserAvatar
+                            name={member.name}
+                            src={member.avatar_url}
+                            className="size-5"
+                        />
                         {member.name}
                     </DropdownMenuItem>
                 ))}

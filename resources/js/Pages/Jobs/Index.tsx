@@ -55,6 +55,7 @@ interface JobRow {
     available_transitions: JobTransition[];
     assigned_to: number | null;
     assignee: string | null;
+    assignee_avatar_url: string | null;
     started_on: string | null;
     ended_on: string | null;
     due_date: string | null;

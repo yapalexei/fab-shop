@@ -69,7 +69,7 @@ class JobTimelineReportController extends Controller
         // Overlap test in UTC: started before the range ends, and either
         // still in progress or finished after the range began.
         $jobs = Job::query()
-            ->with('customer:id,name', 'jobStage', 'assignedTo:id,name')
+            ->with('customer:id,name', 'jobStage', 'assignedTo:id,name', 'assignedTo.media')
             ->when($canSeeFinancials, fn ($q) => $q->with('quote.lineItems'))
             ->whereNotNull('started_at')
             ->whereNull('cancelled_at')
@@ -103,6 +103,7 @@ class JobTimelineReportController extends Controller
                 'customer' => $job->customer->name,
                 'stage_label' => $job->jobStage->name,
                 'assignee' => $job->assignedTo?->name,
+                'assignee_avatar_url' => $job->assignedTo?->avatarUrl(),
                 'started_on' => $job->started_at->copy()->setTimezone($tz)->toDateString(),
                 'ended_on' => $job->finished_at?->copy()->setTimezone($tz)->toDateString(),
                 'due_date' => $job->due_date?->toDateString(),

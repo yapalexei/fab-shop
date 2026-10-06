@@ -1,3 +1,4 @@
+import { UserAvatar } from '@/Components/Avatar';
 import { Attachment, JobAttachments } from '@/Components/Attachments';
 import Breadcrumbs from '@/Components/Breadcrumbs';
 import JobMaterialTracking, {
@@ -43,6 +44,8 @@ interface JobDetail {
     stage_label: string;
     cancelled: boolean;
     due_date: string | null;
+    assignee: string | null;
+    assignee_avatar_url: string | null;
     overdue: boolean;
     can_edit: boolean;
     available_transitions: JobTransition[];
@@ -109,6 +112,27 @@ export default function Show({
                                 </dt>
                                 <dd className="text-sm font-medium text-gray-900">
                                     {job.customer.name}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-gray-500">
+                                    Assigned to
+                                </dt>
+                                <dd className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                    {job.assignee ? (
+                                        <>
+                                            <UserAvatar
+                                                name={job.assignee}
+                                                src={job.assignee_avatar_url}
+                                                className="size-6"
+                                            />
+                                            {job.assignee}
+                                        </>
+                                    ) : (
+                                        <span className="font-normal text-gray-500">
+                                            Unassigned
+                                        </span>
+                                    )}
                                 </dd>
                             </div>
                             <div>
