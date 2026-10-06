@@ -22,6 +22,7 @@ export type PageProps<
         job_board_drag_enabled: boolean;
         on_trial: boolean;
         trial_ends_at: string | null;
+        show_trial_ended_notice: boolean;
         plan_name: string | null;
         can_upgrade: boolean;
     } | null;

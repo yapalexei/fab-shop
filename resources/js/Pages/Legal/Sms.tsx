@@ -1,5 +1,6 @@
 import LegalLayout, { List, Section } from '@/Layouts/LegalLayout';
 import { Link } from '@inertiajs/react';
+import { Alert } from '@/Components/ui/alert';
 
 interface Props {
     company: { name: string; address: string; contact_email: string };
@@ -16,15 +17,15 @@ export default function Sms({
     effectiveDate,
     smsOptInText,
 }: Props) {
-    const link = 'font-medium text-indigo-600 underline hover:text-indigo-900';
+    const link = 'font-medium text-indigo-600 underline hover:underline';
 
     return (
         <LegalLayout title="SMS Terms" effectiveDate={effectiveDate}>
-            <p className="rounded-md bg-amber-50 p-3 text-amber-900">
+            <Alert variant="warning" role="status" className="p-3">
                 {appName} does not send text messages yet. These terms describe
                 how our text messaging program will work when it launches, and
                 apply once you opt in to it.
-            </p>
+            </Alert>
 
             <p>
                 These SMS Terms describe the "{sms.program_name}" text messaging

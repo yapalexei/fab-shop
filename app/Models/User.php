@@ -72,7 +72,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->belongsToMany(Shop::class)
             ->using(ShopMember::class)
-            ->withPivot('hourly_rate', 'permission_overrides');
+            ->withPivot('hourly_rate', 'permission_overrides', 'trial_ended_dismissed_at');
     }
 
     /**

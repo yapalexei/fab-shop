@@ -5,6 +5,8 @@ import { useShopDateTime } from '@/lib/datetime';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 interface Connection {
     realm_id: string;
@@ -41,13 +43,13 @@ export default function Show({
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
-                    <div className="bg-white p-6 shadow sm:rounded-lg">
+                    <Card className="p-6">
                         {connection ? (
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2">
-                                    <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
+                                    <Badge variant="success">
                                         Connected
-                                    </span>
+                                    </Badge>
                                     <span className="text-sm text-gray-500">
                                         Company ID {connection.realm_id}
                                     </span>
@@ -88,7 +90,7 @@ export default function Show({
                                 )}
                             </div>
                         )}
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

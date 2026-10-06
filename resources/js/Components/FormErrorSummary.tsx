@@ -1,3 +1,4 @@
+import { Alert } from '@/Components/ui/alert';
 export default function FormErrorSummary({
     errors,
 }: {
@@ -10,7 +11,7 @@ export default function FormErrorSummary({
     }
 
     return (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
+        <Alert variant="danger" className="mb-4 p-4">
             <p className="text-sm font-medium text-red-800">
                 {messages.length === 1
                     ? 'There is a problem with your submission:'
@@ -21,6 +22,6 @@ export default function FormErrorSummary({
                     <li key={index}>{message}</li>
                 ))}
             </ul>
-        </div>
+        </Alert>
     );
 }

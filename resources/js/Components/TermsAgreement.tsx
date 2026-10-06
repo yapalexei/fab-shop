@@ -1,4 +1,4 @@
-import Checkbox from '@/Components/Checkbox';
+import { Checkbox } from '@/Components/ui/checkbox';
 import InputError from '@/Components/InputError';
 import { Link } from '@inertiajs/react';
 
@@ -20,7 +20,7 @@ export default function TermsAgreement({
     text: string;
     error?: string;
 }) {
-    const link = 'font-medium underline hover:text-gray-900';
+    const link = 'font-medium underline hover:text-foreground';
 
     return (
         <div>
@@ -28,7 +28,7 @@ export default function TermsAgreement({
                 <Checkbox
                     name="accepted_terms"
                     checked={checked}
-                    onChange={(e) => onChange(e.target.checked)}
+                    onCheckedChange={(v) => onChange(v === true)}
                     className="mt-0.5"
                     required
                 />

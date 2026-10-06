@@ -9,6 +9,7 @@ import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { Card } from '@/Components/ui/card';
 
 interface Customer {
     id: number;
@@ -52,7 +53,7 @@ export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                    <Card className="p-4 sm:p-8">
                         <form onSubmit={submit}>
                             <fieldset disabled={readOnly}>
                                 <FormErrorSummary errors={errors} />
@@ -72,7 +73,7 @@ export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
                                 </div>
                             )}
                         </form>
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

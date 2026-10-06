@@ -8,6 +8,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import { PageProps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { Card } from '@/Components/ui/card';
 
 type Mode = 'accepted' | 'expired' | 'ready' | 'login-required' | 'create-account';
 
@@ -17,9 +18,9 @@ function Shell({ children }: { children: React.ReactNode }) {
             <Link href="/" className="flex items-center gap-2 text-gray-900">
                 <ApplicationLogo className="h-10 w-10 fill-current text-gray-500" />
             </Link>
-            <div className="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg">
+            <Card className="mt-6 w-full overflow-hidden px-6 py-4 sm:max-w-md">
                 {children}
-            </div>
+            </Card>
             <LegalLinks className="my-6" />
         </div>
     );
@@ -62,7 +63,7 @@ export default function Accept({
                 </p>
                 <Link
                     href={route('login')}
-                    className="mt-4 inline-block text-sm text-indigo-600 hover:text-indigo-900"
+                    className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
                 >
                     Log in
                 </Link>

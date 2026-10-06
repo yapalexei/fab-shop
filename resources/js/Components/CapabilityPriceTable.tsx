@@ -88,7 +88,7 @@ export default function CapabilityPriceTable({
                                     <td className="px-3 py-2">
                                         <SearchableSelect
                                             wrapperClassName="w-56"
-                                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                                             value={String(row.itemId ?? '')}
                                             onChange={(value) => update(index, 'itemId', value)}
                                             emptyLabel="Select..."
@@ -149,7 +149,7 @@ export default function CapabilityPriceTable({
                                         <button
                                             type="button"
                                             onClick={() => removeRow(index)}
-                                            className="text-sm text-red-600 hover:text-red-900"
+                                            className="text-sm text-red-600 hover:underline"
                                         >
                                             Remove
                                         </button>

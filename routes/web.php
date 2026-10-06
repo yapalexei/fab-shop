@@ -11,11 +11,13 @@ use App\Http\Controllers\FeatureSettingController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\JobAssignmentController;
 use App\Http\Controllers\JobController;
+use App\Http\Controllers\JobDueDateController;
 use App\Http\Controllers\JobMaterialUsageController;
 use App\Http\Controllers\JobPhotoController;
 use App\Http\Controllers\JobQualificationRecordController;
 use App\Http\Controllers\JobStageController;
 use App\Http\Controllers\JobStatusController;
+use App\Http\Controllers\JobTimelineReportController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MarkupDefaultController;
@@ -40,6 +42,7 @@ use App\Http\Controllers\ShopSwitchController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeamMemberAccessController;
 use App\Http\Controllers\ToolController;
+use App\Http\Controllers\TrialEndedNoticeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', MarketingController::class)->name('marketing');
@@ -98,6 +101,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::post('/trial-ended-notice/dismiss', TrialEndedNoticeController::class)->name('trial-ended-notice.dismiss');
     Route::post('/current-shop/{shop}', [ShopSwitchController::class, 'update'])->name('current-shop.update');
 
     Route::resource('customers', CustomerController::class)
@@ -130,6 +134,10 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->only(['index', 'show'])
         ->middleware(['feature:job-board', 'can:jobs.view']);
 
+    Route::get('reports/job-timeline', JobTimelineReportController::class)
+        ->name('reports.job-timeline')
+        ->middleware(['feature:job-board', 'can:jobs.view']);
+
     // Needs jobs.update, or jobs.cancel for a cancellation - checked in the
     // controller since it depends on the target status.
     Route::patch('jobs/{job}/status', [JobStatusController::class, 'update'])
@@ -138,6 +146,10 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
 
     Route::patch('jobs/{job}/assignee', [JobAssignmentController::class, 'update'])
         ->name('jobs.assignee.update')
+        ->middleware(['feature:job-board', 'can:jobs.update']);
+
+    Route::patch('jobs/{job}/due-date', [JobDueDateController::class, 'update'])
+        ->name('jobs.due-date.update')
         ->middleware(['feature:job-board', 'can:jobs.update']);
 
     Route::post('jobs/{job}/photos', [JobPhotoController::class, 'store'])

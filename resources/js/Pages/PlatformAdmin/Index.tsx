@@ -9,6 +9,8 @@ import { formatCents } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 type ShopRow = ManagedShop & {
     owner_email: string;
@@ -57,45 +59,45 @@ function StatCard({
     hint?: string;
 }) {
     return (
-        <div className="rounded-lg bg-white p-6 shadow-sm">
+        <Card className="p-6">
             <div className="text-sm font-medium text-gray-500">{label}</div>
             <div className="mt-1 text-2xl font-semibold text-gray-900">
                 {value}
             </div>
             {hint && <div className="mt-1 text-xs text-gray-400">{hint}</div>}
-        </div>
+        </Card>
     );
 }
 
 function StatusBadge({ shop }: { shop: ShopRow }) {
     if (shop.is_suspended) {
         return (
-            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+            <Badge variant="danger">
                 Suspended
-            </span>
+            </Badge>
         );
     }
 
     if (!shop.is_onboarded) {
         return (
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+            <Badge variant="secondary">
                 Onboarding
-            </span>
+            </Badge>
         );
     }
 
     if (shop.on_trial) {
         return (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+            <Badge variant="warning">
                 Trial
-            </span>
+            </Badge>
         );
     }
 
     return (
-        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+        <Badge variant="success">
             Active
-        </span>
+        </Badge>
     );
 }
 
@@ -108,24 +110,24 @@ function StatusBadge({ shop }: { shop: ShopRow }) {
 function SubscriptionBadge({ shop }: { shop: ShopRow }) {
     if (!shop.subscription_renews_at) {
         return (
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+            <Badge variant="secondary">
                 Not tracked
-            </span>
+            </Badge>
         );
     }
 
     if (shop.subscription_overdue) {
         return (
-            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+            <Badge variant="danger">
                 Overdue
-            </span>
+            </Badge>
         );
     }
 
     return (
-        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+        <Badge variant="success">
             Paid
-        </span>
+        </Badge>
     );
 }
 
@@ -249,8 +251,8 @@ export default function Index({
                         />
                     </div>
 
-                    <div className="flex flex-wrap items-end gap-3 rounded-lg bg-white p-4 shadow-sm">
-                        <div className="min-w-[12rem] flex-1">
+                    <Card className="flex flex-wrap items-end gap-3 p-4">
+                        <div className="min-w-48 flex-1">
                             <label className="block text-xs font-medium text-gray-500">
                                 Search
                             </label>
@@ -267,7 +269,7 @@ export default function Index({
                             </label>
                             <SearchableSelect
                                 wrapperClassName="mt-1 w-32"
-                                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                                 value={status}
                                 onChange={(value) => {
                                     setStatus(value);
@@ -288,7 +290,7 @@ export default function Index({
                             </label>
                             <SearchableSelect
                                 wrapperClassName="mt-1 w-32"
-                                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                                 value={planId}
                                 onChange={(value) => {
                                     setPlanId(value);
@@ -328,7 +330,7 @@ export default function Index({
                             </label>
                             <SearchableSelect
                                 wrapperClassName="mt-1 w-32"
-                                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                                 value={subscription}
                                 onChange={(value) => {
                                     setSubscription(value);
@@ -366,9 +368,9 @@ export default function Index({
                                 Clear filters
                             </SecondaryButton>
                         )}
-                    </div>
+                    </Card>
 
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         {shops.data.length === 0 ? (
                             <div className="p-6">
                                 <PageHelp empty>
@@ -476,7 +478,7 @@ export default function Index({
                             </div>
                         )}
                         <Pagination links={shops.links} />
-                    </div>
+                    </Card>
                 </div>
             </div>
 

@@ -8,6 +8,7 @@ import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
+import { Card } from '@/Components/ui/card';
 
 interface ServiceRow {
     id: number;
@@ -75,7 +76,7 @@ export default function Index({
                         )}
                     </div>
 
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         {services.length === 0 ? (
                             <div className="p-6">
                                 <PageHelp empty>
@@ -120,7 +121,7 @@ export default function Index({
                                                         'services.edit',
                                                         service.id,
                                                     )}
-                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                    className="text-indigo-600 hover:underline"
                                                 >
                                                     {can('services.update')
                                                         ? 'Edit'
@@ -131,7 +132,7 @@ export default function Index({
                                                         onClick={() =>
                                                             destroy(service)
                                                         }
-                                                        className="ms-4 text-red-600 hover:text-red-900"
+                                                        className="ms-4 text-red-600 hover:underline"
                                                     >
                                                         Delete
                                                     </button>
@@ -142,7 +143,7 @@ export default function Index({
                                 </tbody>
                             </table>
                         )}
-                    </div>
+                    </Card>
                 </div>
             </div>
 

@@ -20,12 +20,13 @@ class Quote extends Model implements HasMedia
     /** @use HasFactory<QuoteFactory> */
     use BelongsToShop, HasFactory, InteractsWithMedia;
 
-    protected $fillable = ['customer_id', 'status', 'notes', 'sent_at', 'emailed_at', 'send_skipped_reason', 'archived_at'];
+    protected $fillable = ['customer_id', 'status', 'notes', 'due_date', 'sent_at', 'emailed_at', 'send_skipped_reason', 'archived_at'];
 
     protected function casts(): array
     {
         return [
             'status' => QuoteStatus::class,
+            'due_date' => 'date',
             'sent_at' => 'datetime',
             'emailed_at' => 'datetime',
             'archived_at' => 'datetime',

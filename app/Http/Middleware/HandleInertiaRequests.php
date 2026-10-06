@@ -49,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'job_board_drag_enabled' => $shop->jobBoardDragEnabled(),
                 'on_trial' => $shop->onTrial(),
                 'trial_ends_at' => $shop->trial_ends_at?->toIso8601String(),
+                'show_trial_ended_notice' => $request->user() ? $shop->showsTrialEndedNoticeTo($request->user()) : false,
                 'plan_name' => $shop->plan?->name,
                 // Only the owner can change the plan, so only they get the button.
                 'can_upgrade' => Gate::allows('manage-shop') && $shop->canUpgrade(),

@@ -18,6 +18,7 @@ class ShopMember extends Pivot
         return [
             'hourly_rate' => 'decimal:2',
             'permission_overrides' => 'array',
+            'trial_ended_dismissed_at' => 'datetime',
         ];
     }
 }

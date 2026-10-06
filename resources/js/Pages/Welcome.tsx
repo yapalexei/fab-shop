@@ -1,8 +1,22 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import LegalLinks from '@/Components/LegalLinks';
+import ThemeToggle from '@/Components/ThemeToggle';
+import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
+import { Card } from '@/Components/ui/card';
 import { formatCents } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+import {
+    ArrowRight,
+    Check,
+    ClipboardList,
+    FileText,
+    Hammer,
+    Minus,
+    Receipt,
+    TriangleAlert,
+} from 'lucide-react';
 
 interface FeatureRow {
     key: string;
@@ -39,33 +53,67 @@ const numberWords = [
     'nine',
 ];
 
-function Check({ ok }: { ok: boolean }) {
-    return ok ? (
-        <svg
-            className="h-5 w-5 shrink-0 text-green-600"
-            viewBox="0 0 20 20"
-            fill="currentColor"
+const steps = [
+    {
+        icon: FileText,
+        title: 'Quote',
+        text: 'Build a priced quote from your own materials, services and tooling catalog, with markup rules and a PDF you can email to the customer.',
+    },
+    {
+        icon: Hammer,
+        title: 'Run the job',
+        text: 'A won quote becomes a job on a board you shape to your shop - move it stage by stage, log material and scrap, attach photos.',
+    },
+    {
+        icon: Receipt,
+        title: 'Invoice',
+        text: 'Ship it and it is flagged ready to invoice, so nothing finished sits unbilled.',
+    },
+];
+
+/** Decorative, static picture of the job board - not live data. */
+function BoardPreview() {
+    const columns = [
+        { name: 'Not started', cards: ['Gate repair', 'Stair rail'] },
+        { name: 'Cutting', cards: ['Trailer hitch'] },
+        { name: 'Welding', cards: ['Planter boxes', 'Fire pit'] },
+        { name: 'Shipped', cards: ['Bracket set'] },
+    ];
+
+    return (
+        <div
             aria-hidden="true"
+            className="mx-auto mt-14 max-w-4xl rounded-xl border bg-card p-3 shadow-xl ring-1 ring-black/5 sm:p-4"
         >
-            <path
-                fillRule="evenodd"
-                d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                clipRule="evenodd"
-            />
-        </svg>
-    ) : (
-        <svg
-            className="h-5 w-5 shrink-0 text-gray-300"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
-        >
-            <path
-                fillRule="evenodd"
-                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                clipRule="evenodd"
-            />
-        </svg>
+            <div className="mb-3 flex items-center gap-1.5 px-1">
+                <span className="size-2.5 rounded-full bg-red-400" />
+                <span className="size-2.5 rounded-full bg-amber-400" />
+                <span className="size-2.5 rounded-full bg-green-400" />
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {columns.map((column) => (
+                    <div
+                        key={column.name}
+                        className="rounded-lg bg-muted/60 p-2 text-start"
+                    >
+                        <p className="px-1 pb-2 text-xs font-semibold text-muted-foreground">
+                            {column.name}
+                        </p>
+                        <div className="space-y-2">
+                            {column.cards.map((card) => (
+                                <div
+                                    key={card}
+                                    className="rounded-md border bg-background p-2.5 text-xs shadow-xs"
+                                >
+                                    <p className="font-medium">{card}</p>
+                                    <div className="mt-2 h-1.5 w-2/3 rounded-full bg-muted" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 
@@ -82,28 +130,21 @@ function TierFeatureRow({
     return (
         <li className="flex items-center gap-2 text-sm">
             {feature.shipped ? (
-                <Check ok={included} />
+                included ? (
+                    <Check className="size-4 shrink-0 text-green-600" />
+                ) : (
+                    <Minus className="size-4 shrink-0 text-muted-foreground/50" />
+                )
             ) : (
-                <svg
-                    className="h-5 w-5 shrink-0 text-amber-400"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                >
-                    <path
-                        fillRule="evenodd"
-                        d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.28 11.185c.75 1.334-.213 2.98-1.742 2.98H3.72c-1.53 0-2.493-1.646-1.743-2.98L8.257 3.1zM10 13a1 1 0 100-2 1 1 0 000 2zm-.75-6a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0v-3z"
-                        clipRule="evenodd"
-                    />
-                </svg>
+                <TriangleAlert className="size-4 shrink-0 text-amber-500" />
             )}
             <span
                 className={
                     feature.shipped
                         ? included
-                            ? 'text-gray-900'
-                            : 'text-gray-400'
-                        : 'text-gray-500'
+                            ? 'text-foreground'
+                            : 'text-muted-foreground/60'
+                        : 'text-muted-foreground'
                 }
             >
                 {feature.label}
@@ -136,18 +177,18 @@ function TierCard({
     const secondColumn = features.slice(half);
 
     return (
-        <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900">{tier.name}</h3>
-            <p className="mt-1 text-sm text-gray-500">
+        <Card className="flex h-full flex-col p-6">
+            <h3 className="text-lg font-semibold">{tier.name}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
                 Up to {tier.userLimit} user{tier.userLimit === 1 ? '' : 's'}
             </p>
 
             {!tier.isTrialOnly && (
-                <div className="mt-2">
-                    <span className="text-2xl font-bold text-gray-900">
+                <div className="mt-3">
+                    <span className="text-3xl font-bold tracking-tight">
                         {formatCents(tier.monthlyPriceCents)}
                     </span>
-                    <span className="text-sm text-gray-500">/mo</span>
+                    <span className="text-sm text-muted-foreground">/mo</span>
                     {tier.savingsCents > 0 && (
                         <p className="mt-1 text-xs font-medium text-green-700">
                             Save {formatCents(tier.savingsCents)}/mo bundled vs.
@@ -166,7 +207,7 @@ function TierCard({
                 // mobile, half-width at sm) - back to 1 column at lg, where
                 // the tier grid itself goes to 4-across and each card gets
                 // too narrow for two columns of feature labels.
-                <div className="mt-4 grid flex-1 grid-cols-1 content-start gap-x-6 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="mt-5 grid flex-1 grid-cols-1 content-start gap-x-6 gap-y-2 border-t pt-5 sm:grid-cols-2 lg:grid-cols-1">
                     <ul className="space-y-2">
                         {firstColumn.map((feature) => (
                             <TierFeatureRow
@@ -189,14 +230,11 @@ function TierCard({
             )}
 
             {canRegister && (
-                <Link
-                    href={route('register')}
-                    className="mt-6 block rounded-md bg-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
-                >
-                    Start free trial
-                </Link>
+                <Button asChild className="mt-6" variant={tier.isTrialOnly ? 'default' : 'outline'}>
+                    <Link href={route('register')}>Start free trial</Link>
+                </Button>
             )}
-        </div>
+        </Card>
     );
 }
 
@@ -218,44 +256,48 @@ export default function Welcome({
         <>
             <Head title="Quoting, jobs & invoicing for metal fab shops" />
 
-            <div className="min-h-screen bg-white">
-                <header className="border-b border-gray-100">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+            <div className="min-h-screen bg-background">
+                <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+                    <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                         <Link
                             href="/"
-                            className="flex items-center gap-2 text-gray-900"
+                            className="flex items-center gap-2 text-foreground"
                         >
-                            <ApplicationLogo className="h-8 w-8 fill-current text-gray-800" />
+                            <ApplicationLogo className="size-8 fill-current" />
                             <span className="text-lg font-semibold">
                                 Fab Shop
                             </span>
                         </Link>
 
-                        <nav className="flex items-center gap-4">
+                        <nav className="flex items-center gap-2">
+                            <a
+                                href="#pricing"
+                                className="hidden px-3 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline"
+                            >
+                                Pricing
+                            </a>
+                            <ThemeToggle />
                             {auth.user ? (
-                                <Link
-                                    href={route('dashboard')}
-                                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
-                                >
-                                    Dashboard
-                                </Link>
+                                <Button asChild size="sm">
+                                    <Link href={route('dashboard')}>
+                                        Dashboard
+                                    </Link>
+                                </Button>
                             ) : (
                                 <>
                                     {canLogin && (
-                                        <Link
-                                            href={route('login')}
-                                            className="text-sm font-medium text-gray-600 hover:text-gray-900"
-                                        >
-                                            Log in
-                                        </Link>
+                                        <Button asChild variant="ghost" size="sm">
+                                            <Link href={route('login')}>
+                                                Log in
+                                            </Link>
+                                        </Button>
                                     )}
                                     {canRegister && (
-                                        <Link
-                                            href={route('register')}
-                                            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
-                                        >
-                                            Start free trial
-                                        </Link>
+                                        <Button asChild size="sm">
+                                            <Link href={route('register')}>
+                                                Start free trial
+                                            </Link>
+                                        </Button>
                                     )}
                                 </>
                             )}
@@ -264,60 +306,69 @@ export default function Welcome({
                 </header>
 
                 <main>
-                    <section className="mx-auto max-w-5xl px-4 py-20 text-center sm:px-6 lg:px-8">
-                        <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-                            Quoting, jobs and invoicing built for metal fab
-                            shops
-                        </h1>
-                        <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
-                            Replace the
-                            QuickBooks-plus-spreadsheets-plus-paper-traveler
-                            routine with one place to quote a job, track it
-                            across the shop floor, and sync the invoice
-                            automatically once it ships.
-                        </p>
-                        <div className="mt-10 flex items-center justify-center gap-4">
-                            {canRegister && (
-                                <Link
-                                    href={route('register')}
-                                    className="rounded-md bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
-                                >
-                                    Start your free {trialDays}-day trial
-                                </Link>
-                            )}
-                            <a
-                                href="#pricing"
-                                className="text-sm font-semibold text-gray-700 hover:text-gray-900"
-                            >
-                                See what&apos;s included →
-                            </a>
+                    <section className="relative overflow-hidden">
+                        <div
+                            aria-hidden="true"
+                            className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-linear-to-b from-indigo-100/70 to-transparent dark:from-indigo-950/60"
+                        />
+                        <div className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center sm:px-6 sm:pt-28 lg:px-8">
+                            <Badge variant="secondary" className="mb-6">
+                                For custom, ornamental and mobile fab shops
+                            </Badge>
+                            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+                                Quoting, jobs and invoicing built for metal fab
+                                shops
+                            </h1>
+                            <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+                                Replace the
+                                QuickBooks-plus-spreadsheets-plus-paper-traveler
+                                routine with one place to quote a job, track it
+                                across the shop floor, and get it invoiced once
+                                it ships.
+                            </p>
+                            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                                {canRegister && (
+                                    <Button asChild size="lg">
+                                        <Link href={route('register')}>
+                                            Start your free {trialDays}-day
+                                            trial
+                                            <ArrowRight />
+                                        </Link>
+                                    </Button>
+                                )}
+                                <Button asChild variant="ghost" size="lg">
+                                    <a href="#pricing">
+                                        See what&apos;s included
+                                    </a>
+                                </Button>
+                            </div>
+                            <p className="mt-4 text-xs text-muted-foreground">
+                                No card required.
+                            </p>
+
+                            <BoardPreview />
                         </div>
                     </section>
 
-                    <section className="bg-gray-50 py-16">
+                    <section className="border-y bg-muted/40 py-20">
                         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-                            <h2 className="text-center text-2xl font-bold text-gray-900">
-                                Everything a small shop needs to quote, track
-                                and get paid
+                            <h2 className="text-center text-3xl font-bold tracking-tight">
+                                From estimate to invoice
                             </h2>
-                            <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                                {features.map((feature) => (
-                                    <div
-                                        key={feature.key}
-                                        className="rounded-lg bg-white p-6 shadow-sm"
-                                    >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <h3 className="font-semibold text-gray-900">
-                                                {feature.label}
-                                            </h3>
-                                            {!feature.shipped && (
-                                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                                                    Coming soon
-                                                </span>
-                                            )}
+                            <div className="mt-12 grid gap-6 md:grid-cols-3">
+                                {steps.map((step, index) => (
+                                    <div key={step.title} className="text-center">
+                                        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                                            <step.icon className="size-6" />
                                         </div>
-                                        <p className="mt-2 text-sm text-gray-600">
-                                            {feature.tagline}
+                                        <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                            Step {index + 1}
+                                        </p>
+                                        <h3 className="mt-1 text-lg font-semibold">
+                                            {step.title}
+                                        </h3>
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {step.text}
                                         </p>
                                     </div>
                                 ))}
@@ -325,16 +376,47 @@ export default function Welcome({
                         </div>
                     </section>
 
-                    <section id="pricing" className="py-16">
+                    <section className="py-20">
                         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-                            <h2 className="text-center text-2xl font-bold text-gray-900">
+                            <h2 className="text-center text-3xl font-bold tracking-tight">
+                                Everything a small shop needs to quote, track
+                                and get paid
+                            </h2>
+                            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                {features.map((feature) => (
+                                    <Card key={feature.key} className="p-6">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                <ClipboardList className="size-5" />
+                                            </div>
+                                            {!feature.shipped && (
+                                                <Badge variant="warning">
+                                                    Coming soon
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <h3 className="mt-4 font-semibold">
+                                            {feature.label}
+                                        </h3>
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {feature.tagline}
+                                        </p>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="pricing" className="border-t bg-muted/40 py-20">
+                        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                            <h2 className="text-center text-3xl font-bold tracking-tight">
                                 One plan to try,{' '}
                                 {tiers.length < numberWords.length
                                     ? numberWords[tiers.length]
                                     : 'many'}{' '}
                                 to grow into
                             </h2>
-                            <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-gray-600">
+                            <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
                                 Every plan starts with a full-access,{' '}
                                 {trialDays}-day free trial - no card required.
                                 Pick Solo, Start-up or Pro when the trial ends,
@@ -342,7 +424,7 @@ export default function Welcome({
                                 ready.
                             </p>
 
-                            <div className="mt-10 grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                            <div className="mt-12 grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-4">
                                 {tiers.map((tier) => (
                                     <TierCard
                                         key={tier.key}
@@ -355,19 +437,38 @@ export default function Welcome({
                             </div>
                         </div>
                     </section>
+
+                    {canRegister && (
+                        <section className="py-20">
+                            <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+                                <h2 className="text-3xl font-bold tracking-tight">
+                                    Try it on your next quote
+                                </h2>
+                                <p className="mt-3 text-muted-foreground">
+                                    {trialDays} days, every feature, no card.
+                                </p>
+                                <Button asChild size="lg" className="mt-8">
+                                    <Link href={route('register')}>
+                                        Start free trial
+                                        <ArrowRight />
+                                    </Link>
+                                </Button>
+                            </div>
+                        </section>
+                    )}
                 </main>
 
-                <footer className="border-t border-gray-100 py-8">
-                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 text-sm text-gray-500 sm:flex-row sm:px-6 lg:px-8">
+                <footer className="border-t py-8">
+                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 text-sm text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
                         <span className="flex items-center gap-2">
-                            <ApplicationLogo className="h-5 w-5 fill-current text-gray-400" />
+                            <ApplicationLogo className="size-5 fill-current" />
                             Fab Shop
                         </span>
                         <LegalLinks />
                         {canLogin && (
                             <Link
                                 href={route('login')}
-                                className="hover:text-gray-700"
+                                className="hover:text-foreground"
                             >
                                 Log in
                             </Link>

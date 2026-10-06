@@ -6,10 +6,10 @@ import QuoteLineItemCard, {
     lineTotal,
 } from '@/Components/QuoteLineItemCard';
 import SearchableSelect from '@/Components/SearchableSelect';
-import SecondaryButton from '@/Components/SecondaryButton';
 import { clearDraft, readDraft, writeDraft } from '@/lib/draft';
 import { Link, useForm } from '@inertiajs/react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
+import { Alert } from '@/Components/ui/alert';
 
 export interface LineItem {
     type: 'material' | 'labor' | 'equipment' | 'tooling';
@@ -79,6 +79,7 @@ export type MarkupDefaults = Record<LineItem['type'], number>;
 export interface QuoteFormData {
     customer_id: number | string;
     notes: string;
+    due_date: string;
     line_items: LineItem[];
 }
 
@@ -123,6 +124,10 @@ function restoreDraft(
     const data: QuoteFormData = {
         customer_id: raw.customer_id ?? initialData.customer_id,
         notes: typeof raw.notes === 'string' ? raw.notes : initialData.notes,
+        due_date:
+            typeof raw.due_date === 'string'
+                ? raw.due_date
+                : initialData.due_date,
         line_items: raw.line_items.map((item) => ({
             ...createEmptyLineItem(markupDefaults),
             ...item,
@@ -264,9 +269,9 @@ export default function QuoteForm({
     return (
         <form onSubmit={submit}>
             {showRestored && restored && (
-                <div
+                <Alert
                     role="status"
-                    className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-900"
+                    variant="warning" className="mb-4 flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
                 >
                     <span>
                         Restored your unsaved draft from{' '}
@@ -279,7 +284,7 @@ export default function QuoteForm({
                     >
                         Start over
                     </button>
-                </div>
+                </Alert>
             )}
             <fieldset disabled={readOnly}>
                 <FormErrorSummary errors={errorMap} />
@@ -288,7 +293,7 @@ export default function QuoteForm({
                     <InputLabel htmlFor="customer_id" value="Customer" />
                     <SearchableSelect
                         id="customer_id"
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         wrapperClassName="mt-1"
                         value={String(data.customer_id ?? '')}
                         onChange={(value) => setData('customer_id', value)}
@@ -336,11 +341,15 @@ export default function QuoteForm({
 
                     <InputError message={errors.line_items} className="mt-2" />
 
-                    <SecondaryButton className="mt-3" onClick={addLineItem}>
-                        Add line item
-                    </SecondaryButton>
+                    <button
+                        type="button"
+                        onClick={addLineItem}
+                        className="mt-3 flex w-full items-center justify-center rounded-lg border-2 border-dashed px-4 py-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    >
+                        + Add line item
+                    </button>
                 </div>
-
+                <hr className="mt-4" />
                 <div className="mt-6 flex justify-end">
                     <dl className="w-64 space-y-1 text-sm">
                         <div className="flex justify-between">
@@ -364,12 +373,28 @@ export default function QuoteForm({
                         </div>
                     </dl>
                 </div>
+                <hr className="mt-7" />
+                <div className="mt-4">
+                    <InputLabel htmlFor="due_date" value="Due date (optional)" />
+                    <input
+                        id="due_date"
+                        type="date"
+                        className="mt-1 block rounded-md border bg-background px-3 py-2 text-sm"
+                        value={data.due_date}
+                        onChange={(e) => setData('due_date', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        When the customer needs it by - carried over to the job
+                        if this quote is converted.
+                    </p>
+                    <InputError message={errors.due_date} className="mt-2" />
+                </div>
 
                 <div className="mt-4">
                     <InputLabel htmlFor="notes" value="Notes" />
                     <textarea
                         id="notes"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         rows={3}
                         value={data.notes}
                         onChange={(e) => setData('notes', e.target.value)}

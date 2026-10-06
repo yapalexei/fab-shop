@@ -8,6 +8,7 @@ import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
+import { Card } from '@/Components/ui/card';
 
 interface StageRow {
     id: number;
@@ -75,7 +76,7 @@ function CustomStageRow({
                             onClick={onMoveUp}
                             disabled={!canMoveUp}
                             aria-label={`Move ${stage.name} earlier`}
-                            className="text-gray-400 hover:text-gray-700 disabled:opacity-25"
+                            className="text-gray-400 hover:text-foreground disabled:opacity-25"
                         >
                             ▲
                         </button>
@@ -84,7 +85,7 @@ function CustomStageRow({
                             onClick={onMoveDown}
                             disabled={!canMoveDown}
                             aria-label={`Move ${stage.name} later`}
-                            className="text-gray-400 hover:text-gray-700 disabled:opacity-25"
+                            className="text-gray-400 hover:text-foreground disabled:opacity-25"
                         >
                             ▼
                         </button>
@@ -117,7 +118,7 @@ function CustomStageRow({
                                 reset();
                                 setEditing(false);
                             }}
-                            className="px-2 py-2 text-sm text-gray-500 hover:text-gray-700"
+                            className="px-2 py-2 text-sm text-gray-500 hover:text-foreground"
                         >
                             Cancel
                         </button>
@@ -142,7 +143,7 @@ function CustomStageRow({
                         <button
                             type="button"
                             onClick={() => setEditing(true)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="text-indigo-600 hover:underline"
                         >
                             Rename
                         </button>
@@ -157,7 +158,7 @@ function CustomStageRow({
                                     ? 'Move its jobs to another stage first'
                                     : undefined
                             }
-                            className="text-red-600 hover:text-red-900 disabled:cursor-not-allowed disabled:text-gray-300"
+                            className="text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-300"
                         >
                             Delete
                         </button>
@@ -245,7 +246,7 @@ export default function Index({ stages }: PageProps<{ stages: StageRow[] }>) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
-                    <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         <ul className="divide-y divide-gray-100">
                             {stages.map((stage) => {
                                 if (stage.is_built_in) {
@@ -310,7 +311,7 @@ export default function Index({ stages }: PageProps<{ stages: StageRow[] }>) {
                                 </p>
                             </form>
                         )}
-                    </section>
+                    </Card>
 
                     <SecondaryButton
                         onClick={() => router.visit(route('jobs.index'))}

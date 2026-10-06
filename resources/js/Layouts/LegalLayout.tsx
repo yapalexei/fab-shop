@@ -28,7 +28,7 @@ export default function LegalLayout({
             </header>
 
             <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-                <article className="rounded-lg bg-white p-6 shadow-sm sm:p-10">
+                <article className="rounded-lg bg-white p-6 shadow-xs sm:p-10">
                     <h1 className="text-2xl font-bold text-gray-900">
                         {title}
                     </h1>

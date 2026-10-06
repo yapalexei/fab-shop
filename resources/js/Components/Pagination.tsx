@@ -35,7 +35,7 @@ export default function Pagination({ links }: { links: PaginationLink[] }) {
                         className={`rounded-md px-3 py-1 text-sm ${
                             link.active
                                 ? 'bg-indigo-600 text-white'
-                                : 'text-gray-600 hover:bg-gray-100'
+                                : 'text-gray-600 hover:bg-accent'
                         }`}
                         dangerouslySetInnerHTML={{ __html: link.label }}
                     />

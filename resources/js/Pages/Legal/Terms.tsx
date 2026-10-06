@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function Terms({ company, appName, effectiveDate }: Props) {
-    const link = 'font-medium text-indigo-600 underline hover:text-indigo-900';
+    const link = 'font-medium text-indigo-600 underline hover:underline';
 
     return (
         <LegalLayout title="Terms of Service" effectiveDate={effectiveDate}>

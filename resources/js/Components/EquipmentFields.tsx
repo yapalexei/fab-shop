@@ -39,7 +39,7 @@ export default function EquipmentFields({
                 <InputLabel htmlFor="billing_method" value="Billing method" />
                 <SearchableSelect
                     id="billing_method"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                     wrapperClassName="mt-1"
                     value={data.billing_method}
                     onChange={(value) => setData('billing_method', value)}
@@ -77,7 +77,7 @@ export default function EquipmentFields({
                 <InputLabel htmlFor="notes" value="Notes" />
                 <textarea
                     id="notes"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                     rows={3}
                     value={data.notes}
                     onChange={(e) => setData('notes', e.target.value)}

@@ -6,6 +6,8 @@ import PlatformAdminLayout from '@/Layouts/PlatformAdminLayout';
 import { PageProps } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 interface PlanRow {
     id: number;
@@ -94,7 +96,7 @@ export default function Plans({
 
             <div className="py-12">
                 <div className="mx-auto max-w-5xl sm:px-6 lg:px-8">
-                    <div className="overflow-x-auto bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                    <Card className="overflow-x-auto p-4 sm:p-8">
                         <form onSubmit={submit}>
                             <FormErrorSummary
                                 errors={errors as Record<string, string>}
@@ -149,9 +151,9 @@ export default function Plans({
                                             <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-700">
                                                 {feature.label}
                                                 {!feature.shipped && (
-                                                    <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                                    <Badge variant="warning" className="ms-2">
                                                         Coming soon
-                                                    </span>
+                                                    </Badge>
                                                 )}
                                             </td>
                                             {data.plans.map((plan, index) => (
@@ -162,7 +164,7 @@ export default function Plans({
                                                     <input
                                                         type="checkbox"
                                                         aria-label={`${plan.name}: ${feature.label}`}
-                                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                        className="rounded-sm border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                                         checked={plan.features.includes(
                                                             feature.key,
                                                         )}
@@ -188,7 +190,7 @@ export default function Plans({
                                 </PrimaryButton>
                             </div>
                         </form>
-                    </div>
+                    </Card>
                 </div>
             </div>
         </PlatformAdminLayout>

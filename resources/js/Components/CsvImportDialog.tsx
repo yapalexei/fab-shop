@@ -4,6 +4,7 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
+import { Alert } from '@/Components/ui/alert';
 
 interface ImportError {
     row: number;
@@ -131,7 +132,7 @@ export default function CsvImportDialog({
                                 or update them in bulk.{' '}
                                 <a
                                     href={route('imports.template', resource)}
-                                    className="text-indigo-600 hover:text-indigo-900"
+                                    className="text-indigo-600 hover:underline"
                                 >
                                     Download the template
                                 </a>{' '}
@@ -142,7 +143,7 @@ export default function CsvImportDialog({
                                 ref={fileInput}
                                 type="file"
                                 accept=".csv,text/csv"
-                                className="block w-full text-sm text-gray-600 file:me-4 file:rounded-md file:border file:border-gray-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-gray-600 hover:file:bg-gray-50"
+                                className="block w-full text-sm text-gray-600 file:me-4 file:rounded-md file:border file:border-gray-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-gray-600 hover:file:bg-accent"
                             />
                             {fileError && (
                                 <p className="text-sm text-red-600">
@@ -153,7 +154,7 @@ export default function CsvImportDialog({
                             <label className="flex items-center gap-2 text-sm text-gray-700">
                                 <input
                                     type="checkbox"
-                                    className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                    className="rounded-sm border-gray-300 text-indigo-600 shadow-xs focus:ring-indigo-500"
                                     checked={overwrite}
                                     onChange={(e) =>
                                         setOverwrite(e.target.checked)
@@ -203,7 +204,7 @@ export default function CsvImportDialog({
                             )}
 
                             {result.errors && result.errors.length > 0 && (
-                                <div className="max-h-48 overflow-y-auto rounded-md bg-amber-50 p-3">
+                                <Alert variant="warning" role="status" className="max-h-48 overflow-y-auto p-3">
                                     <p className="text-xs font-semibold uppercase tracking-wider text-amber-800">
                                         {result.status === 'failed'
                                             ? 'Fix this and re-upload'
@@ -218,7 +219,7 @@ export default function CsvImportDialog({
                                             </li>
                                         ))}
                                     </ul>
-                                </div>
+                                </Alert>
                             )}
 
                             <div className="flex justify-end gap-3 pt-2">

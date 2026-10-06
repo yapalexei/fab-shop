@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { Card } from '@/Components/ui/card';
 
 interface MarkupDefaultRow {
     line_item_type: 'material' | 'labor' | 'equipment' | 'tooling';
@@ -50,7 +51,7 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                    <Card className="p-4 sm:p-8">
                         <p className="mb-6 text-sm text-gray-500">
                             A new quote line item's markup is pre-filled from
                             these defaults based on its type - always
@@ -109,7 +110,7 @@ export default function Index({
                                 </div>
                             )}
                         </form>
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

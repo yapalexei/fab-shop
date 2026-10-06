@@ -3,6 +3,7 @@ import BusinessPartnerForm from '@/Components/BusinessPartnerForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
+import { Card } from '@/Components/ui/card';
 
 export default function Create({
     materials,
@@ -26,7 +27,7 @@ export default function Create({
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                    <Card className="p-4 sm:p-8">
                         <BusinessPartnerForm
                             materialOptions={materials}
                             serviceOptions={services}
@@ -42,7 +43,7 @@ export default function Create({
                                 services: [],
                             }}
                         />
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

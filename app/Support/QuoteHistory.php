@@ -41,6 +41,7 @@ final class QuoteHistory
         return [
             'customer' => $quote->customer?->name,
             'notes' => $quote->notes,
+            'due_date' => $quote->due_date?->toDateString(),
             'lines' => $quote->lineItems->map(fn ($item) => [
                 'type' => $item->type->value,
                 'description' => $item->description,
@@ -85,7 +86,7 @@ final class QuoteHistory
     {
         $changes = [];
 
-        foreach (['customer' => 'Customer', 'notes' => 'Notes'] as $key => $label) {
+        foreach (['customer' => 'Customer', 'notes' => 'Notes', 'due_date' => 'Due date'] as $key => $label) {
             if (($before[$key] ?? null) !== ($after[$key] ?? null)) {
                 $changes[] = ['type' => 'changed', 'subject' => $label, 'from' => $before[$key] ?? null, 'to' => $after[$key] ?? null];
             }

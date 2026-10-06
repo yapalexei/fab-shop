@@ -6,6 +6,8 @@ import { useCan } from '@/lib/permissions';
 import { useShopDateTime } from '@/lib/datetime';
 import { Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 export interface MaterialUsage {
     id: number;
@@ -142,7 +144,7 @@ export default function JobMaterialTracking({
               : 'default';
 
     return (
-        <div className="bg-white p-6 shadow sm:rounded-lg">
+        <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                     Material & scrap tracking
@@ -151,7 +153,7 @@ export default function JobMaterialTracking({
                     <button
                         type="button"
                         onClick={() => setShowForm((v) => !v)}
-                        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-accent"
                     >
                         {showForm ? 'Cancel' : 'Log material'}
                     </button>
@@ -185,7 +187,7 @@ export default function JobMaterialTracking({
                 >
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <SearchableSelect
-                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                             value={String(data.material_id)}
                             onChange={selectMaterial}
                             emptyLabel="Custom (not in catalog)"
@@ -201,7 +203,7 @@ export default function JobMaterialTracking({
                             }
                         />
                         <SearchableSelect
-                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                             value={data.type}
                             onChange={(value) => setData('type', value as 'used' | 'scrap')}
                             options={[
@@ -273,7 +275,7 @@ export default function JobMaterialTracking({
                     </div>
 
                     <textarea
-                        className="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="block w-full rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         rows={2}
                         placeholder="Notes (optional) - e.g. reason for scrap"
                         value={data.notes}
@@ -302,17 +304,17 @@ export default function JobMaterialTracking({
                             >
                                 <div className="min-w-0 flex-1">
                                     <p className="flex items-center gap-2 text-gray-900">
-                                        <span
-                                            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                                        <Badge
+                                            variant={
                                                 usage.type === 'scrap'
-                                                    ? 'bg-amber-100 text-amber-800'
-                                                    : 'bg-gray-100 text-gray-700'
-                                            }`}
+                                                    ? 'warning'
+                                                    : 'secondary'
+                                            }
                                         >
                                             {usage.type === 'scrap'
                                                 ? 'Scrap'
                                                 : 'Used'}
-                                        </span>
+                                        </Badge>
                                         {usage.quantity}
                                         {usage.unit ? ` ${usage.unit}` : ''} of{' '}
                                         {usage.description}
@@ -347,6 +349,6 @@ export default function JobMaterialTracking({
                     </ul>
                 )}
             </div>
-        </div>
+        </Card>
     );
 }

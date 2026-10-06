@@ -1,6 +1,7 @@
 import { useCan } from '@/lib/permissions';
 import { router } from '@inertiajs/react';
 import { useRef } from 'react';
+import { Card } from '@/Components/ui/card';
 
 export interface JobPhoto {
     id: number;
@@ -41,13 +42,13 @@ export default function JobPhotos({
     };
 
     return (
-        <div className="bg-white p-6 shadow sm:rounded-lg">
+        <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                     Photos
                 </h3>
                 {canEdit && (
-                    <label className="cursor-pointer rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                    <label className="cursor-pointer rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-accent">
                         Upload
                         <input
                             ref={fileInput}
@@ -78,7 +79,7 @@ export default function JobPhotos({
                                 <button
                                     type="button"
                                     onClick={() => destroy(photo.id)}
-                                    className="absolute right-1 top-1 hidden rounded-full bg-white/90 px-1.5 text-xs text-red-600 shadow group-hover:block"
+                                    className="absolute right-1 top-1 hidden rounded-full bg-white/90 px-1.5 text-xs text-red-600 shadow-sm group-hover:block"
                                 >
                                     &times;
                                 </button>
@@ -87,6 +88,6 @@ export default function JobPhotos({
                     ))}
                 </div>
             )}
-        </div>
+        </Card>
     );
 }

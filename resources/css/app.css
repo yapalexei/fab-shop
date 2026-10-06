@@ -1,6 +1,218 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@plugin '@tailwindcss/forms';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/*
+ * Dark mode is the `dark` class on <html> (resources/js/lib/theme.ts), an
+ * explicit user choice rather than the OS preference. Light is the default.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    /* Primary brand blue (#4d9bf0 = 600). The app's markup was written
+       against `indigo-*`, so that palette is remapped rather than renaming
+       ~200 class usages. */
+    --color-indigo-50: #eef6fe;
+    --color-indigo-100: #dbeafc;
+    --color-indigo-200: #b8d7f9;
+    --color-indigo-300: #94c3f6;
+    --color-indigo-400: #70adf3;
+    --color-indigo-500: #67a6f2;
+    --color-indigo-600: #4d9bf0;
+    --color-indigo-700: #2f80d8;
+    --color-indigo-800: #2466ae;
+    --color-indigo-900: #1c4f87;
+    --color-indigo-950: #12335a;
+
+    /* Status colors: pastel fills that carry dark text in both themes. Use
+       bg-success etc. for any new status markup. */
+    --color-success: #a6ffac;
+    --color-warning: #ffcf94;
+    --color-danger: #ffa5a0;
+    --color-info: #a5dbff;
+
+    --font-sans: Figtree, ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+
+    /* A bell notifying of a job board change from elsewhere - plays once
+       (no repeat) on mount, restarted by remounting the icon under a fresh
+       key each time an update arrives. */
+    --animate-bell-ring: bell-ring 0.6s ease-in-out;
+
+    @keyframes bell-ring {
+        0%,
+        100% {
+            transform: rotate(0deg);
+        }
+        20% {
+            transform: rotate(12deg);
+        }
+        40% {
+            transform: rotate(-10deg);
+        }
+        60% {
+            transform: rotate(6deg);
+        }
+        80% {
+            transform: rotate(-4deg);
+        }
+    }
+}
+
+/*
+ * shadcn/ui semantic tokens, wired onto the app's own theme variables
+ * (--surface/--box/--ink, below) so a shadcn component and the legacy
+ * gray/white markup always agree. Change the palette in one place - the
+ * :root/.dark blocks - and both follow. `@theme inline` makes these
+ * available as bg-background, text-foreground, bg-primary, etc.
+ */
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-on-status: var(--ink-on-status);
+    --color-primary-hover: var(--primary-hover);
+    --color-primary-active: var(--primary-active);
+    --color-destructive-hover: var(--destructive-hover);
+    --color-destructive-active: var(--destructive-active);
+    --color-secondary-hover: var(--secondary-hover);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+}
+
+/*
+ * Theming. --surface is the page itself, --box is anything sitting on it
+ * (cards, nav, panels), --ink the body text.
+ */
+:root {
+    --surface: #ffffff;
+    --box: #f8faff;
+    --ink: #222222;
+    --ink-on-status: #222222;
+
+    --radius: 0.5rem;
+    --background: var(--surface);
+    --foreground: var(--ink);
+    --card: var(--box);
+    --card-foreground: var(--ink);
+    --popover: var(--box);
+    --popover-foreground: var(--ink);
+    --primary: var(--color-indigo-600);
+    --primary-foreground: #ffffff;
+    --secondary: color-mix(in srgb, var(--box) 85%, var(--ink));
+    --secondary-foreground: var(--ink);
+    --muted: color-mix(in srgb, var(--box) 85%, var(--ink));
+    --muted-foreground: color-mix(in srgb, var(--ink) 65%, var(--box));
+    --accent: color-mix(in srgb, var(--box) 85%, var(--ink));
+    --accent-foreground: var(--ink);
+    --destructive: #dc2626;
+    /* Hover/pressed shades are derived, so retheming --primary or
+       --destructive retints every button state with it. Darken in light
+       mode; the .dark block lightens instead. */
+    --primary-hover: color-mix(in srgb, var(--primary) 88%, black);
+    --primary-active: color-mix(in srgb, var(--primary) 76%, black);
+    --destructive-hover: color-mix(in srgb, var(--destructive) 88%, black);
+    --destructive-active: color-mix(in srgb, var(--destructive) 76%, black);
+    --secondary-hover: color-mix(in srgb, var(--secondary) 82%, var(--ink));
+    --border: color-mix(in srgb, var(--ink) 10%, transparent);
+    --input: color-mix(in srgb, var(--ink) 32%, transparent);
+    --ring: var(--color-indigo-500);
+    --sidebar: hsl(0 0% 98%);
+    --sidebar-foreground: hsl(240 5.3% 26.1%);
+    --sidebar-primary: hsl(240 5.9% 10%);
+    --sidebar-primary-foreground: hsl(0 0% 98%);
+    --sidebar-accent: hsl(240 4.8% 95.9%);
+    --sidebar-accent-foreground: hsl(240 5.9% 10%);
+    --sidebar-border: hsl(220 13% 91%);
+    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+.dark {
+    --surface: #121212;
+    --box: #2d2d2d;
+    --ink: #ffffff;
+    --destructive: #f87171;
+    --primary-hover: color-mix(in srgb, var(--primary) 85%, white);
+    --primary-active: color-mix(in srgb, var(--primary) 72%, white);
+    --destructive-hover: color-mix(in srgb, var(--destructive) 85%, white);
+    --destructive-active: color-mix(in srgb, var(--destructive) 72%, white);
+    --sidebar: hsl(240 5.9% 10%);
+    --sidebar-foreground: hsl(240 4.8% 95.9%);
+    --sidebar-primary: hsl(224.3 76.3% 48%);
+    --sidebar-primary-foreground: hsl(0 0% 100%);
+    --sidebar-accent: hsl(240 3.7% 15.9%);
+    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+    --sidebar-border: hsl(240 3.7% 15.9%);
+    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+    --border: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+/*
+ * Tailwind v4 defaults borders to currentColor (v3: gray-200); keep the old
+ * default so un-colored `border` classes look the same.
+ */
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--border);
+    }
+
+    /* Inline underlined links: thicken the underline on hover. */
+    a.underline {
+        text-underline-offset: 2px;
+        transition: text-decoration-thickness 0.1s;
+    }
+    a.underline:hover {
+        text-decoration-thickness: 2px;
+    }
+
+    /* v4 dropped the pointer cursor on buttons. */
+    button:not(:disabled),
+    [role='button']:not(:disabled) {
+        cursor: pointer;
+    }
+}
 
 /*
  * App shell: the window itself never scrolls. The nav is a fixed-height strip
@@ -31,189 +243,186 @@
 }
 
 /*
- * Dark theme, applied via the `dark` class on <html> (see
- * resources/js/lib/theme.ts) rather than the `media` strategy, so an
- * explicit user choice can override the OS preference it defaults to.
+ * Job board cards: a faded warm tint, hue set inline as --card-hue. Low
+ * saturation keeps it quiet; dark mode drops the lightness instead of
+ * reusing the pale light values.
+ */
+@layer components {
+    .job-card {
+        background-color: hsl(var(--card-hue) 38% 95%);
+        border-color: hsl(var(--card-hue) 25% 85%);
+    }
+    .dark .job-card {
+        background-color: hsl(var(--card-hue) 14% 36%);
+        border-color: hsl(var(--card-hue) 12% 48%);
+    }
+}
+
+/*
+ * The app's markup was built with a small, consistent vocabulary of plain
+ * Tailwind utilities (bg-white, bg-gray-100, text-gray-900, border-gray-300,
+ * red/green/amber chips...) rather than semantic tokens - so instead of
+ * touching ~40 page files, this layer repoints that same vocabulary at the
+ * variables above, for both themes. New markup should use the semantic
+ * tokens (bg-background, bg-card, text-foreground, bg-success...) instead.
+ * Anything reaching for a color outside this vocabulary needs its own
+ * override here or an inline `dark:` variant.
  *
- * The app's existing markup was built with a small, consistent vocabulary
- * of plain Tailwind utilities (bg-white, text-gray-900, border-gray-300...)
- * rather than semantic tokens - so instead of adding a `dark:` variant next
- * to every one of those classes across ~40 page files, this layer
- * overrides that same vocabulary globally by selector specificity
- * (`.dark .bg-white` beats `.bg-white`). New markup gets dark mode for
- * free by sticking to this same vocabulary; anything reaching for a color
- * outside it (a one-off hex, an unlisted shade) needs its own `.dark`
- * override added here, or its own explicit `dark:` variant inline.
- *
- * Plain `color`/`background-color`/`border-color` declarations throughout,
- * not `@apply` - two of these mappings are intentionally reciprocal
- * (gray-400 <-> gray-500, gray-300 <-> gray-600), which `@apply` refuses
- * as a circular dependency even though it's a perfectly normal palette
- * remap when written as a plain property.
+ * Plain `color`/`background-color`/`border-color` declarations, not
+ * `@apply` - some mappings are reciprocal (gray-400 <-> gray-500), which
+ * `@apply` refuses as a circular dependency.
  */
 @layer utilities {
+    html {
+        color-scheme: light;
+    }
     html.dark {
         color-scheme: dark;
     }
 
-    .dark body {
-        background-color: theme('colors.gray.900');
-        color: theme('colors.gray.100');
+    body {
+        background-color: var(--surface);
+        color: var(--ink);
     }
 
-    /* Surfaces */
-    .dark .bg-white {
-        background-color: theme('colors.gray.900');
+    /* Page backgrounds -> surface */
+    .bg-gray-50,
+    .bg-gray-100 {
+        background-color: var(--surface);
     }
-    .dark .bg-gray-50 {
-        background-color: theme('colors.gray.900');
+    /* Cards, nav, panels -> box */
+    .bg-white {
+        background-color: var(--box);
     }
-    .dark .bg-gray-100 {
-        background-color: theme('colors.gray.800');
-    }
-    .dark .bg-gray-200 {
-        background-color: theme('colors.gray.700');
+    .bg-gray-200 {
+        background-color: color-mix(in srgb, var(--box) 70%, var(--ink));
     }
 
     /* Body text */
-    .dark .text-gray-900 {
-        color: theme('colors.gray.100');
+    .text-gray-900,
+    .text-gray-800,
+    .text-gray-700 {
+        color: var(--ink);
     }
-    .dark .text-gray-800 {
-        color: theme('colors.gray.200');
+    .text-gray-600 {
+        color: color-mix(in srgb, var(--ink) 88%, var(--box));
     }
-    .dark .text-gray-700 {
-        color: theme('colors.gray.300');
+    .text-gray-500 {
+        color: color-mix(in srgb, var(--ink) 78%, var(--box));
     }
-    .dark .text-gray-600 {
-        color: theme('colors.gray.300');
+    .text-gray-400 {
+        color: color-mix(in srgb, var(--ink) 62%, var(--box));
     }
-    .dark .text-gray-500 {
-        color: theme('colors.gray.400');
-    }
-    .dark .text-gray-400 {
-        color: theme('colors.gray.500');
-    }
-    .dark .text-gray-300 {
-        color: theme('colors.gray.600');
+    .text-gray-300 {
+        color: color-mix(in srgb, var(--ink) 45%, var(--box));
     }
 
     /* Borders */
-    .dark .border-gray-100 {
-        border-color: theme('colors.gray.700');
+    .border-gray-100,
+    .border-gray-200 {
+        border-color: color-mix(in srgb, var(--ink) 14%, transparent);
     }
-    .dark .border-gray-200 {
-        border-color: theme('colors.gray.700');
-    }
-    .dark .border-gray-300 {
-        border-color: theme('colors.gray.600');
+    .border-gray-300 {
+        border-color: color-mix(in srgb, var(--ink) 32%, transparent);
     }
 
     /* divide-* generates a child combinator, not a plain color rule -
        target that directly. */
-    .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-    .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
-        border-color: theme('colors.gray.700');
+    .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+    .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+        border-color: color-mix(in srgb, var(--ink) 14%, transparent);
     }
 
     /* Form controls - @tailwindcss/forms sets an explicit white background
        in its own base layer, so this needs to win on specificity, and
        checkboxes/radios/file inputs are excluded since they render their
        own chrome rather than a plain text field. */
-    .dark input:not([type='checkbox']):not([type='radio']):not([type='file']),
-    .dark select,
-    .dark textarea {
-        background-color: theme('colors.gray.900');
-        border-color: theme('colors.gray.600');
-        color: theme('colors.gray.100');
+    input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    select,
+    textarea {
+        background-color: var(--surface);
+        border-color: color-mix(in srgb, var(--ink) 32%, transparent);
+        color: var(--ink);
     }
-    .dark input::placeholder,
-    .dark textarea::placeholder {
-        color: theme('colors.gray.500');
-    }
-
-    /* Status chips/banners (badges, error/success panels) - pale-background
-       chips read as a jarring bright patch on an otherwise dark page, so
-       these get a dark, tinted background with lightened text instead of
-       just lightened text on their original pale background. */
-    .dark .bg-red-50 {
-        background-color: theme('colors.red.950');
-    }
-    .dark .bg-green-50 {
-        background-color: theme('colors.green.950');
-    }
-    .dark .bg-amber-50 {
-        background-color: theme('colors.amber.950');
-    }
-    .dark .bg-yellow-50 {
-        background-color: theme('colors.yellow.950');
-    }
-    .dark .bg-indigo-50 {
-        background-color: theme('colors.indigo.950');
-    }
-    .dark .bg-red-100 {
-        background-color: theme('colors.red.900');
-    }
-    .dark .bg-green-100 {
-        background-color: theme('colors.green.900');
-    }
-    .dark .bg-amber-100 {
-        background-color: theme('colors.amber.900');
+    input::placeholder,
+    textarea::placeholder {
+        color: color-mix(in srgb, var(--ink) 55%, var(--surface));
     }
 
-    .dark .text-red-600 {
-        color: theme('colors.red.400');
+    /* Status chips/banners -> the shared pastel status colors, with dark
+       text on everything inside them (descendants included, since they
+       carry their own text color classes). */
+    .bg-green-50,
+    .bg-green-100 {
+        background-color: var(--color-success);
     }
+    .bg-amber-50,
+    .bg-amber-100,
+    .bg-yellow-50 {
+        background-color: var(--color-warning);
+    }
+    .bg-red-50,
+    .bg-red-100 {
+        background-color: var(--color-danger);
+    }
+    .bg-blue-100 {
+        background-color: var(--color-info);
+    }
+    .bg-green-50,
+    .bg-green-100,
+    .bg-amber-50,
+    .bg-amber-100,
+    .bg-yellow-50,
+    .bg-red-50,
+    .bg-red-100,
+    .bg-blue-100,
+    .bg-green-50 *,
+    .bg-green-100 *,
+    .bg-amber-50 *,
+    .bg-amber-100 *,
+    .bg-yellow-50 *,
+    .bg-red-50 *,
+    .bg-red-100 *,
+    .bg-blue-100 * {
+        color: var(--ink-on-status);
+    }
+
+    /* Standalone colored text sits on the surface/box, not a pastel chip, so
+       it needs lightening in dark mode only. */
+    .dark .text-red-600,
     .dark .text-red-700 {
-        color: theme('colors.red.400');
+        color: var(--color-red-300);
     }
-    .dark .text-red-800 {
-        color: theme('colors.red.300');
-    }
+    .dark .text-red-800,
     .dark .text-red-900 {
-        color: theme('colors.red.300');
+        color: var(--color-red-200);
     }
-    .dark .text-green-600 {
-        color: theme('colors.green.400');
-    }
+    .dark .text-green-600,
     .dark .text-green-700 {
-        color: theme('colors.green.400');
+        color: var(--color-green-200);
     }
-    .dark .text-green-800 {
-        color: theme('colors.green.300');
-    }
-    .dark .text-amber-600 {
-        color: theme('colors.amber.400');
-    }
+    .dark .text-amber-600,
     .dark .text-amber-700 {
-        color: theme('colors.amber.400');
+        color: var(--color-amber-200);
     }
-    .dark .text-amber-800 {
-        color: theme('colors.amber.300');
-    }
+    .dark .text-amber-800,
+    .dark .text-amber-900,
     .dark .text-yellow-800 {
-        color: theme('colors.yellow.300');
+        color: var(--color-amber-100);
     }
-    .dark .text-indigo-600 {
-        color: theme('colors.indigo.400');
-    }
-    .dark .text-indigo-700 {
-        color: theme('colors.indigo.300');
-    }
+    .dark .text-indigo-600,
+    .dark .text-indigo-700,
     .dark .text-indigo-900 {
-        color: theme('colors.indigo.300');
+        color: var(--color-indigo-100);
     }
-
-    .dark .border-red-200 {
-        border-color: theme('colors.red.800');
-    }
+    .dark .border-red-200,
     .dark .border-red-300 {
-        border-color: theme('colors.red.700');
+        border-color: var(--color-red-700);
     }
     .dark .border-green-300 {
-        border-color: theme('colors.green.700');
+        border-color: var(--color-green-700);
     }
     .dark .border-indigo-300 {
-        border-color: theme('colors.indigo.700');
+        border-color: var(--color-indigo-700);
     }
 }

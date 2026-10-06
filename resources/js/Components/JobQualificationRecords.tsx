@@ -6,6 +6,8 @@ import { useShopDateTime } from '@/lib/datetime';
 import { useCan } from '@/lib/permissions';
 import { Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 export interface QualificationRecord {
     id: number;
@@ -31,15 +33,9 @@ function QualifiedBadge({ wasQualified }: { wasQualified: boolean | null }) {
     }
 
     return (
-        <span
-            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                wasQualified
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
-            }`}
-        >
+        <Badge variant={wasQualified ? 'success' : 'danger'}>
             {wasQualified ? 'Certified' : 'Not certified'}
-        </span>
+        </Badge>
     );
 }
 
@@ -92,7 +88,7 @@ export default function JobQualificationRecords({
     };
 
     return (
-        <div className="bg-white p-6 shadow sm:rounded-lg">
+        <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                     Qualification records
@@ -101,7 +97,7 @@ export default function JobQualificationRecords({
                     <button
                         type="button"
                         onClick={() => setShowForm((v) => !v)}
-                        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                        className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-accent"
                     >
                         {showForm ? 'Cancel' : 'Log record'}
                     </button>
@@ -115,7 +111,7 @@ export default function JobQualificationRecords({
                 >
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <SearchableSelect
-                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                             value={String(data.procedure_id)}
                             onChange={(value) =>
                                 setData('procedure_id', value === '' ? '' : Number(value))
@@ -133,7 +129,7 @@ export default function JobQualificationRecords({
                             }
                         />
                         <SearchableSelect
-                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                             value={String(data.performed_by)}
                             onChange={(value) =>
                                 setData('performed_by', value === '' ? '' : Number(value))
@@ -185,7 +181,7 @@ export default function JobQualificationRecords({
                     </div>
 
                     <textarea
-                        className="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="block w-full rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         rows={2}
                         placeholder="Notes (optional)"
                         value={data.notes}
@@ -249,6 +245,6 @@ export default function JobQualificationRecords({
                     </ul>
                 )}
             </div>
-        </div>
+        </Card>
     );
 }

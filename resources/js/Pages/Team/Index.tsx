@@ -7,6 +7,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
+import { Card } from '@/Components/ui/card';
 
 interface Member {
     id: number;
@@ -39,7 +40,7 @@ function InviteForm({ roles }: { roles: string[] }) {
     };
 
     return (
-        <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+        <Card className="p-6">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                 Invite by email
             </h3>
@@ -56,7 +57,7 @@ function InviteForm({ roles }: { roles: string[] }) {
                     />
                     <SearchableSelect
                         wrapperClassName="w-32"
-                        className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         value={data.role}
                         onChange={(value) => setData('role', value)}
                         options={roles.map((role) => ({ value: role, label: role }))}
@@ -66,7 +67,7 @@ function InviteForm({ roles }: { roles: string[] }) {
                     </PrimaryButton>
                 </div>
             </form>
-        </div>
+        </Card>
     );
 }
 
@@ -80,7 +81,7 @@ function PendingInvitations({
     }
 
     return (
-        <div className="bg-white p-6 shadow-sm sm:rounded-lg">
+        <Card className="p-6">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                 Pending invitations
             </h3>
@@ -97,7 +98,7 @@ function PendingInvitations({
                     </li>
                 ))}
             </ul>
-        </div>
+        </Card>
     );
 }
 
@@ -148,7 +149,7 @@ function RateCell({
             <button
                 type="button"
                 onClick={save}
-                className="text-sm text-indigo-600 hover:text-indigo-900"
+                className="text-sm text-indigo-600 hover:underline"
             >
                 Save
             </button>
@@ -203,7 +204,7 @@ export default function Index({
                         <PendingInvitations invitations={pendingInvitations} />
                     )}
 
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -254,7 +255,7 @@ export default function Index({
                                                             'team.access.edit',
                                                             member.id,
                                                         )}
-                                                        className="text-indigo-600 hover:text-indigo-900"
+                                                        className="text-indigo-600 hover:underline"
                                                     >
                                                         Role & access
                                                     </Link>
@@ -265,7 +266,7 @@ export default function Index({
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

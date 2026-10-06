@@ -13,6 +13,8 @@ import {
     ToolOption,
 } from '@/Components/QuoteForm';
 import { useState } from 'react';
+import { Badge } from '@/Components/ui/badge';
+import { Alert } from '@/Components/ui/alert';
 
 const currency = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -240,7 +242,7 @@ export default function QuoteLineItemCard({
         .filter(Boolean) as string[];
 
     const selectClass =
-        'block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+        'block w-full rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500';
 
     // A collapsed item never hides an invalid one (errors force it back
     // open), and a read-only form never shows the editable version at all.
@@ -250,9 +252,9 @@ export default function QuoteLineItemCard({
         return (
             <div className="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-4 py-2.5">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium capitalize text-gray-600">
+                    <Badge variant="secondary" className="shrink-0 capitalize">
                         {item.type}
-                    </span>
+                    </Badge>
                     <span className="truncate text-sm text-gray-900">
                         {item.description || 'Untitled line item'}
                     </span>
@@ -270,14 +272,14 @@ export default function QuoteLineItemCard({
                             <button
                                 type="button"
                                 onClick={() => setIsEditing(true)}
-                                className="text-sm text-indigo-600 hover:text-indigo-900"
+                                className="text-sm text-indigo-600 hover:underline"
                             >
                                 Edit
                             </button>
                             <button
                                 type="button"
                                 onClick={() => onRemove(index)}
-                                className="text-sm text-red-600 hover:text-red-900"
+                                className="text-sm text-red-600 hover:underline"
                             >
                                 Remove
                             </button>
@@ -461,14 +463,14 @@ export default function QuoteLineItemCard({
                     <button
                         type="button"
                         onClick={() => setIsEditing(false)}
-                        className="text-sm text-gray-500 hover:text-gray-700"
+                        className="text-sm text-gray-500 hover:text-foreground"
                     >
                         Done
                     </button>
                     <button
                         type="button"
                         onClick={() => onRemove(index)}
-                        className="text-sm text-red-600 hover:text-red-900"
+                        className="text-sm text-red-600 hover:underline"
                     >
                         Remove
                     </button>
@@ -476,13 +478,13 @@ export default function QuoteLineItemCard({
             </div>
 
             {toolMismatch && selectedTool && (
-                <p
+                <Alert
                     role="alert"
-                    className="mt-3 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800"
+                    variant="warning" className="mt-3 px-2 py-1 text-xs"
                 >
                     Rated for {selectedTool.cuts} - this quote's materials are{' '}
                     {quoteMaterialTypes.map((type) => type.name).join(', ')}.
-                </p>
+                </Alert>
             )}
 
             <div className="mt-3">
@@ -564,9 +566,9 @@ export default function QuoteLineItemCard({
             </div>
 
             {rowErrors.length > 0 && (
-                <p className="mt-2 rounded bg-red-50 px-2 py-1 text-sm text-red-600">
+                <Alert variant="danger" className="mt-2 px-2 py-1 text-sm">
                     {rowErrors.join(' ')}
-                </p>
+                </Alert>
             )}
         </div>
     );

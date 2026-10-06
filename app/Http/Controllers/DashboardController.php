@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\JobStageRole;
 use App\Enums\QuoteStatus;
+use App\Models\BusinessPartner;
+use App\Models\Customer;
+use App\Models\Equipment;
 use App\Models\Job;
 use App\Models\JobStage;
+use App\Models\Material;
 use App\Models\Quote;
 use App\Models\Shop;
 use Carbon\CarbonImmutable;
@@ -44,7 +49,44 @@ class DashboardController extends Controller
             'pipeline' => $this->pipeline($jobs),
             'attention' => $this->attention($shop, $jobs, $openQuotes, $canSeeFinancials),
             'recentActivity' => $this->recentActivity(),
+            'gettingStarted' => $this->gettingStarted($shop),
         ]);
+    }
+
+    /**
+     * Suggested next steps for a shop that's still setting up: starting a
+     * quote (primary) plus filling the lists the quote builder prices from.
+     * Only steps this user can actually act on are returned - the shop's
+     * plan must include the feature and they must hold the `create`
+     * permission - and null once nothing is left to suggest, so the banner
+     * disappears on its own rather than needing a dismiss flag.
+     *
+     * @return array<int, array{key: string, title: string, description: string, href: string, list_href: string, done: bool, primary: bool}>|null
+     */
+    private function gettingStarted(Shop $shop): ?array
+    {
+        $candidates = [
+            ['quotes', 'Start a quote', 'Build your first quote and see how pricing comes together.', 'quotes.create', Feature::QuoteBuilder, Quote::class, true],
+            ['customers', 'Add your customers', 'Quotes and jobs are tied to a customer.', 'customers.create', Feature::Customers, Customer::class, false],
+            ['materials', 'Add your materials', 'Material costs feed straight into quote totals.', 'materials.create', Feature::QuoteBuilder, Material::class, false],
+            ['equipment', 'Add your equipment', 'Machine rates let quotes price shop time accurately.', 'equipment.create', Feature::QuoteBuilder, Equipment::class, false],
+            ['business-partners', 'Add your business partners', 'Suppliers and subcontractors you buy from or send work to.', 'business-partners.create', Feature::QuoteBuilder, BusinessPartner::class, false],
+        ];
+
+        $steps = collect($candidates)
+            ->filter(fn (array $c) => $shop->hasFeature($c[4]) && Gate::allows($c[3]))
+            ->map(fn (array $c) => [
+                'key' => $c[0],
+                'title' => $c[1],
+                'description' => $c[2],
+                'href' => route($c[0].'.create'),
+                'list_href' => route($c[0].'.index'),
+                'done' => $c[5]::query()->exists(),
+                'primary' => $c[6],
+            ])
+            ->values();
+
+        return $steps->contains('done', false) ? $steps->all() : null;
     }
 
     /**

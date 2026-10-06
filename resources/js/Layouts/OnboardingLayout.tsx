@@ -2,6 +2,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import LegalLinks from '@/Components/LegalLinks';
 import { Link } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
+import { Card } from '@/Components/ui/card';
 
 const steps = [
     { key: 'shop', label: 'Shop' },
@@ -71,7 +72,7 @@ export default function OnboardingLayout({
                         href={route('logout')}
                         method="post"
                         as="button"
-                        className="text-sm text-gray-500 hover:text-gray-700"
+                        className="text-sm text-gray-500 hover:text-foreground"
                     >
                         Log out
                     </Link>
@@ -83,9 +84,9 @@ export default function OnboardingLayout({
                     <StepIndicator current={step} />
                 </div>
 
-                <div className="rounded-lg bg-white p-6 shadow-sm sm:p-8">
+                <Card className="p-6 sm:p-8">
                     {children}
-                </div>
+                </Card>
 
                 <LegalLinks className="mt-8" />
             </main>

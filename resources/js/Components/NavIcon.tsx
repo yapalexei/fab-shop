@@ -2,6 +2,7 @@ import {
     AdjustmentsHorizontalIcon,
     BookOpenIcon,
     BuildingOffice2Icon,
+    ChartBarSquareIcon,
     CheckBadgeIcon,
     ClipboardDocumentListIcon,
     Cog6ToothIcon,
@@ -64,6 +65,7 @@ const ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
     Dashboard: Squares2X2Icon,
     Quotes: DocumentTextIcon,
     Jobs: ViewColumnsIcon,
+    Reports: ChartBarSquareIcon,
     Customers: UserIcon,
     Materials: CubeIcon,
     Services: WrenchScrewdriverIcon,
@@ -83,7 +85,13 @@ const ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
 };
 
 /** Icon for a menu item, looked up by its label; renders nothing if unknown. */
-export default function NavIcon({ label }: { label: string }) {
+export default function NavIcon({
+    label,
+    className,
+}: {
+    label: string;
+    className?: string;
+}) {
     const Icon = ICONS[label];
 
     if (!Icon) {
@@ -92,7 +100,10 @@ export default function NavIcon({ label }: { label: string }) {
 
     return (
         <Icon
-            className="me-1.5 inline-block h-4 w-4 shrink-0 self-center align-text-bottom"
+            className={
+                className ??
+                'me-1.5 inline-block h-4 w-4 shrink-0 self-center align-text-bottom'
+            }
             aria-hidden="true"
         />
     );

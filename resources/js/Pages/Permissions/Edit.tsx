@@ -5,6 +5,8 @@ import PermissionGrid, {
 } from '@/Components/PermissionGrid';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -73,7 +75,7 @@ export default function Edit({
                 <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                     <form
                         onSubmit={submit}
-                        className="space-y-6 bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                        className="space-y-6 bg-white p-4 shadow-sm sm:rounded-lg sm:p-8"
                     >
                         <p className="text-sm text-gray-500">
                             What each role can do in this shop. The owner can
@@ -81,7 +83,7 @@ export default function Edit({
                             person, open them from the{' '}
                             <Link
                                 href={route('team.index')}
-                                className="text-indigo-600 hover:text-indigo-900"
+                                className="text-indigo-600 hover:underline"
                             >
                                 team page
                             </Link>
@@ -93,7 +95,7 @@ export default function Edit({
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div
                                 role="tablist"
-                                className="inline-flex rounded-md shadow-sm"
+                                className="inline-flex rounded-md shadow-xs"
                             >
                                 {roles.map((name, i) => (
                                     <button
@@ -102,7 +104,7 @@ export default function Edit({
                                         role="tab"
                                         aria-selected={role === name}
                                         onClick={() => setRole(name)}
-                                        className={`border px-4 py-2 text-sm font-medium ${i === 0 ? 'rounded-s-md' : '-ms-px'} ${i === roles.length - 1 ? 'rounded-e-md' : ''} ${role === name ? 'z-10 border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                        className={`border px-4 py-2 text-sm font-medium ${i === 0 ? 'rounded-s-md' : '-ms-px'} ${i === roles.length - 1 ? 'rounded-e-md' : ''} ${role === name ? 'z-10 border-indigo-600 bg-indigo-600 text-white hover:bg-primary-hover' : 'border-gray-300 bg-white text-gray-700 hover:bg-accent hover:text-foreground'}`}
                                     >
                                         {name}
                                         <span className="ms-2 text-xs opacity-75">
@@ -132,13 +134,22 @@ export default function Edit({
 
                                 return (
                                     <label
-                                        className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${checked ? (isDestructive(action.action) ? 'border-red-300 bg-red-50 text-red-800' : 'border-indigo-300 bg-indigo-50 text-indigo-900') : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                        className={cn(
+                                            'inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm',
+                                            checked
+                                                ? isDestructive(action.action)
+                                                    ? 'border-destructive/60 bg-destructive/10 text-foreground'
+                                                    : 'border-primary/60 bg-primary/10 text-foreground'
+                                                : 'border-border text-muted-foreground hover:bg-accent',
+                                        )}
                                     >
-                                        <input
-                                            type="checkbox"
-                                            className={`rounded border-gray-300 shadow-sm ${isDestructive(action.action) ? 'text-red-600 focus:ring-red-500' : 'text-indigo-600 focus:ring-indigo-500'}`}
+                                        <Checkbox
+                                            className={cn(
+                                                isDestructive(action.action) &&
+                                                    'data-[state=checked]:border-destructive data-[state=checked]:bg-destructive',
+                                            )}
                                             checked={checked}
-                                            onChange={() =>
+                                            onCheckedChange={() =>
                                                 toggle(action.permission)
                                             }
                                             aria-label={`${role}: ${action.permission}`}

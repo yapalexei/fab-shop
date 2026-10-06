@@ -71,7 +71,7 @@ function QuickAddList<T extends { name: string }>({
             <button
                 type="button"
                 onClick={addRow}
-                className="mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-900"
+                className="mt-2 text-sm font-medium text-indigo-600 hover:underline"
             >
                 + Add {label.toLowerCase()}
             </button>

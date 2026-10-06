@@ -1,114 +1,115 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import Dropdown from '@/Components/Dropdown';
 import FlashToast from '@/Components/FlashToast';
 import LegalLinks from '@/Components/LegalLinks';
 import NavIcon from '@/Components/NavIcon';
-import NavLink from '@/Components/NavLink';
 import RequiresSubscription from '@/Components/RequiresSubscription';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeToggle from '@/Components/ThemeToggle';
 import TrialBanner from '@/Components/TrialBanner';
+import { Button } from '@/Components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import { Separator } from '@/Components/ui/separator';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarInset,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarProvider,
+    SidebarRail,
+    SidebarTrigger,
+    useSidebar,
+} from '@/Components/ui/sidebar';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
+import { Check, ChevronsUpDown, LogOut, User } from 'lucide-react';
+import { PropsWithChildren, ReactNode, useEffect } from 'react';
 
-function GatedNavLink({
-    enabled,
-    locked = false,
-    href,
-    active,
-    label,
-}: {
-    enabled: boolean;
-    locked?: boolean;
+interface NavItem {
+    label: string;
     href: string;
     active: boolean;
-    label: string;
-}) {
-    if (enabled) {
+    enabled: boolean;
+    locked: boolean;
+}
+
+/** One sidebar row; plan-gated items stay visible but greyed as an upgrade hint. */
+function SidebarNavItem({ item }: { item: NavItem }) {
+    if (!item.enabled) {
         return (
-            <NavLink href={href} active={active}>
-                <NavIcon label={label} />
-                {label}
-                {locked && <RequiresSubscription />}
-            </NavLink>
+            <SidebarMenuItem>
+                <SidebarMenuButton disabled className="opacity-50">
+                    <NavIcon label={item.label} className="size-4" />
+                    <span>{item.label}</span>
+                    <RequiresSubscription />
+                </SidebarMenuButton>
+            </SidebarMenuItem>
         );
     }
 
     return (
-        <span
-            className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-300"
-        >
-            <NavIcon label={label} />
-            {label}
-            <RequiresSubscription />
-        </span>
+        <SidebarMenuItem>
+            <SidebarMenuButton
+                asChild
+                isActive={item.active}
+                tooltip={item.label}
+                className="relative data-[active=true]:bg-primary data-[active=true]:font-semibold data-[active=true]:text-primary-foreground data-[active=true]:hover:bg-primary/90 data-[active=true]:hover:text-primary-foreground"
+            >
+                <Link
+                    href={item.href}
+                    aria-current={item.active ? 'page' : undefined}
+                >
+                    <NavIcon label={item.label} className="size-4" />
+                    <span>{item.label}</span>
+                    {item.locked && <RequiresSubscription />}
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
     );
 }
 
-function GatedResponsiveNavLink({
-    enabled,
-    locked = false,
-    href,
-    active,
+function SidebarNavGroup({
     label,
+    items,
 }: {
-    enabled: boolean;
-    locked?: boolean;
-    href: string;
-    active: boolean;
-    label: string;
+    label?: string;
+    items: NavItem[];
 }) {
-    if (enabled) {
-        return (
-            <ResponsiveNavLink href={href} active={active}>
-                <NavIcon label={label} />
-                {label}
-                {locked && <RequiresSubscription />}
-            </ResponsiveNavLink>
-        );
-    }
+    if (items.length === 0) return null;
 
     return (
-        <span className="flex items-center py-2 pe-4 ps-3 text-base font-medium text-gray-300">
-            <NavIcon label={label} />
-            {label}
-            <RequiresSubscription />
-        </span>
+        <SidebarGroup>
+            {label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
+            <SidebarMenu>
+                {items.map((item) => (
+                    <SidebarNavItem key={item.label} item={item} />
+                ))}
+            </SidebarMenu>
+        </SidebarGroup>
     );
 }
 
-function GatedDropdownLink({
-    enabled,
-    locked = false,
-    href,
-    label,
-}: {
-    enabled: boolean;
-    locked?: boolean;
-    href: string;
-    label: string;
-}) {
-    if (enabled) {
-        return (
-            <Dropdown.Link href={href}>
-                <NavIcon label={label} />
-                {label}
-                {locked && <RequiresSubscription />}
-            </Dropdown.Link>
-        );
-    }
+/** Closes the mobile drawer when navigating - the layout persists across Inertia visits. */
+function CloseMobileSidebarOnNavigate({ url }: { url: string }) {
+    const { setOpenMobile } = useSidebar();
 
-    return (
-        <span
-            className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-300"
-        >
-            <NavIcon label={label} />
-            {label}
-            <RequiresSubscription />
-        </span>
-    );
+    useEffect(() => {
+        setOpenMobile(false);
+    }, [url, setOpenMobile]);
+
+    return null;
 }
 
 export default function Authenticated({
@@ -123,12 +124,9 @@ export default function Authenticated({
     // pages themselves hide every edit control.
     const accessibleFeatures = [...enabledFeatures, ...readOnlyFeatures];
     const upgradeLink = shop?.can_upgrade ? (
-        <Link
-            href={route('shop.plan.index')}
-            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-indigo-500"
-        >
-            Upgrade
-        </Link>
+        <Button asChild size="sm">
+            <Link href={route('shop.plan.index')}>Upgrade</Link>
+        </Button>
     ) : null;
     const isLocked = (feature: string) => readOnlyFeatures.includes(feature);
     const customersEnabled = accessibleFeatures.includes('customers');
@@ -281,470 +279,217 @@ export default function Authenticated({
         .filter((item) => item.visible)
         .sort((a, b) => a.label.localeCompare(b.label));
 
-    const [showingNavigationDropdown, setShowingNavigationDropdown] =
-        useState(false);
-
-    // The mobile menu is a drawer over the page: close it when navigating
-    // (the layout persists across Inertia visits) or on Escape.
-    useEffect(() => {
-        setShowingNavigationDropdown(false);
-    }, [page.url]);
-
-    useEffect(() => {
-        if (!showingNavigationDropdown) return;
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') setShowingNavigationDropdown(false);
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [showingNavigationDropdown]);
+    const mainNavItems: NavItem[] = [
+        {
+            label: 'Dashboard',
+            href: route('dashboard'),
+            active: route().current('dashboard') === true,
+            enabled: true,
+            locked: false,
+        },
+        ...(can('quotes.view')
+            ? [
+                  {
+                      label: 'Quotes',
+                      href: route('quotes.index'),
+                      active: route().current('quotes.*') === true,
+                      enabled: quoteBuilderEnabled,
+                      locked: isLocked('quote-builder'),
+                  },
+              ]
+            : []),
+        ...(can('jobs.view')
+            ? [
+                  {
+                      label: 'Jobs',
+                      href: route('jobs.index'),
+                      active: route().current('jobs.*') === true,
+                      enabled: jobBoardEnabled,
+                      locked: isLocked('job-board'),
+                  },
+                  {
+                      label: 'Reports',
+                      href: route('reports.job-timeline'),
+                      active: route().current('reports.*') === true,
+                      enabled: jobBoardEnabled,
+                      locked: isLocked('job-board'),
+                  },
+              ]
+            : []),
+    ];
 
     return (
-        <div className="app-shell flex flex-col bg-gray-100">
-            <nav className="shrink-0 border-b border-gray-100 bg-white">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 justify-between">
-                        <div className="flex">
-                            <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
-                                </Link>
-                            </div>
+        <SidebarProvider className="app-shell min-h-0">
+            <CloseMobileSidebarOnNavigate url={page.url} />
 
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink
-                                    href={route('dashboard')}
-                                    active={route().current('dashboard')}
+            <Sidebar collapsible="icon">
+                <SidebarHeader>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger
+                                    asChild
+                                    disabled={availableShops.length <= 1}
                                 >
-                                    <NavIcon label="Dashboard" />
-                            Dashboard
-                                </NavLink>
-                                {can('quotes.view') && (
-                                    <GatedNavLink
-                                        enabled={quoteBuilderEnabled}
-                                        locked={isLocked('quote-builder')}
-                                        href={route('quotes.index')}
-                                        active={route().current('quotes.*')}
-                                        label="Quotes"
-                                    />
-                                )}
-                                {can('jobs.view') && (
-                                    <GatedNavLink
-                                        enabled={jobBoardEnabled}
-                                        locked={isLocked('job-board')}
-                                        href={route('jobs.index')}
-                                        active={route().current('jobs.*')}
-                                        label="Jobs"
-                                    />
-                                )}
-
-                                {setupNavItems.length > 0 && (
-                                    <div className="flex items-center">
-                                        <Dropdown>
-                                            <Dropdown.Trigger>
-                                                <button
-                                                    type="button"
-                                                    className={
-                                                        'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none ' +
-                                                        (setupActive
-                                                            ? 'border-indigo-400 text-gray-900 focus:border-indigo-700'
-                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700')
-                                                    }
-                                                >
-                                                    Setup
-                                                    <svg
-                                                        className="-me-0.5 ms-1 h-4 w-4"
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        viewBox="0 0 20 20"
-                                                        fill="currentColor"
-                                                    >
-                                                        <path
-                                                            fillRule="evenodd"
-                                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                            clipRule="evenodd"
-                                                        />
-                                                    </svg>
-                                                </button>
-                                            </Dropdown.Trigger>
-
-                                            <Dropdown.Content align="left">
-                                                {setupNavItems.map((item) => (
-                                                    <GatedDropdownLink
-                                                        key={item.label}
-                                                        enabled={item.enabled}
-                                                        locked={item.locked}
-                                                        href={item.href}
-                                                        label={item.label}
-                                                    />
-                                                ))}
-                                            </Dropdown.Content>
-                                        </Dropdown>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center sm:gap-3">
-                            {upgradeLink}
-                            <div className="relative">
-                                <Dropdown>
-                                    <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                className={
-                                                    'inline-flex items-center rounded-md border bg-white px-3 py-2 text-sm font-medium leading-4 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none ' +
-                                                    (shopNavItems.some(
-                                                        (item) => item.active,
-                                                    )
-                                                        ? 'border-indigo-300 text-gray-900'
-                                                        : 'border-gray-300 text-gray-500')
-                                                }
-                                            >
+                                    <SidebarMenuButton
+                                        size="lg"
+                                        tooltip={currentShop?.name ?? 'Shop'}
+                                    >
+                                        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                                            <ApplicationLogo className="size-5 fill-current" />
+                                        </div>
+                                        <div className="grid flex-1 text-start text-sm leading-tight">
+                                            <span className="truncate font-semibold">
                                                 {currentShop?.name ?? 'Shop'}
-
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </Dropdown.Trigger>
-
-                                    <Dropdown.Content align="right" width="56">
-                                        {shopNavItems.map((item) => (
-                                            <GatedDropdownLink
-                                                key={item.label}
-                                                enabled={item.enabled}
-                                                locked={item.locked}
-                                                href={item.href}
-                                                label={item.label}
-                                            />
-                                        ))}
-
+                                            </span>
+                                        </div>
                                         {availableShops.length > 1 && (
-                                            <>
-                                                <div className="mt-1 border-t border-gray-100 px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                                                    Switch shop
-                                                </div>
-                                                {availableShops.map((shop) => (
-                                                    <Dropdown.Link
-                                                        key={shop.id}
-                                                        href={route(
-                                                            'current-shop.update',
-                                                            shop.id,
-                                                        )}
-                                                        method="post"
-                                                        as="button"
-                                                        className={
-                                                            shop.id ===
-                                                            user.current_shop_id
-                                                                ? 'font-semibold'
-                                                                : ''
-                                                        }
-                                                    >
-                                                        {shop.name}
-                                                    </Dropdown.Link>
-                                                ))}
-                                            </>
+                                            <ChevronsUpDown className="ms-auto" />
                                         )}
-                                    </Dropdown.Content>
-                                </Dropdown>
-                            </div>
-
-                            <ThemeToggle className="ms-3" />
-
-                            <div className="relative ms-3">
-                                <Dropdown>
-                                    <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                    </SidebarMenuButton>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="start"
+                                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+                                >
+                                    <DropdownMenuLabel>
+                                        Switch shop
+                                    </DropdownMenuLabel>
+                                    {availableShops.map((s) => (
+                                        <DropdownMenuItem key={s.id} asChild>
+                                            <Link
+                                                href={route(
+                                                    'current-shop.update',
+                                                    s.id,
+                                                )}
+                                                method="post"
+                                                as="button"
+                                                className="w-full cursor-pointer"
                                             >
+                                                {s.name}
+                                                {s.id ===
+                                                    user.current_shop_id && (
+                                                    <Check className="ms-auto" />
+                                                )}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarHeader>
+
+                <SidebarContent>
+                    <SidebarNavGroup items={mainNavItems} />
+                    <SidebarNavGroup label="Setup" items={setupNavItems} />
+                    <SidebarNavGroup
+                        label={currentShop?.name ?? 'Shop'}
+                        items={shopNavItems}
+                    />
+                </SidebarContent>
+
+                <SidebarFooter>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <SidebarMenuButton size="lg" tooltip={user.name}>
+                                        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent">
+                                            <User className="size-4" />
+                                        </div>
+                                        <div className="grid flex-1 text-start text-sm leading-tight">
+                                            <span className="truncate font-medium">
                                                 {user.name}
-
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </Dropdown.Trigger>
-
-                                    <Dropdown.Content>
-                                        <Dropdown.Link
+                                            </span>
+                                            <span className="truncate text-xs text-muted-foreground">
+                                                {user.email}
+                                            </span>
+                                        </div>
+                                        <ChevronsUpDown className="ms-auto" />
+                                    </SidebarMenuButton>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    side="top"
+                                    align="start"
+                                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+                                >
+                                    <DropdownMenuItem asChild>
+                                        <Link
                                             href={route('profile.edit')}
+                                            className="cursor-pointer"
                                         >
-                                            Profile
-                                        </Dropdown.Link>
-                                        {auth.isPlatformAdmin && (
-                                            <Dropdown.Link
+                                            <User /> Profile
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    {auth.isPlatformAdmin && (
+                                        <DropdownMenuItem asChild>
+                                            <Link
                                                 href={route(
                                                     'platform-admin.index',
                                                 )}
+                                                className="cursor-pointer"
                                             >
                                                 Platform admin
-                                            </Dropdown.Link>
-                                        )}
-                                        <Dropdown.Link
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem asChild>
+                                        <Link
                                             href={route('logout')}
                                             method="post"
                                             as="button"
+                                            className="w-full cursor-pointer"
                                         >
-                                            Log Out
-                                        </Dropdown.Link>
-                                    </Dropdown.Content>
-                                </Dropdown>
-                            </div>
-                        </div>
+                                            <LogOut /> Log Out
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarFooter>
+                <SidebarRail />
+            </Sidebar>
 
-                        <div className="-me-2 flex items-center gap-1 sm:hidden">
-                            {upgradeLink}
-                            <ThemeToggle />
+            <SidebarInset className="min-h-0 overflow-hidden bg-gray-100">
+                <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-white px-4">
+                    <SidebarTrigger className="-ms-1" />
+                    <Separator orientation="vertical" className="me-2 h-4" />
+                    <div className="flex-1" />
+                    {upgradeLink}
+                    <ThemeToggle />
+                </header>
 
-                            <button
-                                onClick={() =>
-                                    setShowingNavigationDropdown(
-                                        (previousState) => !previousState,
-                                    )
-                                }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
-                            >
-                                <svg
-                                    className="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        className={
-                                            !showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        className={
-                                            showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+                <div className="shrink-0">
+                    <TrialBanner />
                 </div>
 
-                <div className="sm:hidden">
-                    <div
-                        onClick={() => setShowingNavigationDropdown(false)}
-                        aria-hidden="true"
-                        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ${
-                            showingNavigationDropdown
-                                ? 'opacity-100'
-                                : 'pointer-events-none opacity-0'
-                        }`}
-                    />
-                    <div
-                        id="mobile-menu"
-                        role="dialog"
-                        aria-label="Menu"
-                        className={`fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] overflow-y-auto bg-white shadow-xl transition-[transform,visibility] duration-200 ease-out ${
-                            showingNavigationDropdown
-                                ? 'visible translate-x-0'
-                                : 'invisible translate-x-full'
-                        }`}
-                    >
-                    <div className="flex justify-end px-2 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => setShowingNavigationDropdown(false)}
-                            aria-label="Close menu"
-                            className="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none"
-                        >
-                            <svg
-                                className="h-6 w-6"
-                                stroke="currentColor"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
-                            </svg>
-                        </button>
-                    </div>
-                    <div className="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
-                        >
-                            Dashboard
-                        </ResponsiveNavLink>
-                        {can('quotes.view') && (
-                            <GatedResponsiveNavLink
-                                enabled={quoteBuilderEnabled}
-                                locked={isLocked('quote-builder')}
-                                href={route('quotes.index')}
-                                active={route().current('quotes.*')}
-                                label="Quotes"
-                            />
-                        )}
-                        {can('jobs.view') && (
-                            <GatedResponsiveNavLink
-                                enabled={jobBoardEnabled}
-                                locked={isLocked('job-board')}
-                                href={route('jobs.index')}
-                                active={route().current('jobs.*')}
-                                label="Jobs"
-                            />
-                        )}
-                    </div>
+                <FlashToast />
 
-                    {setupNavItems.length > 0 && (
-                        <div className="border-t border-gray-200 pb-1 pt-4">
-                            <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                                Setup
+                {/* The page scrolls here, not the window, so the header above
+                    stays put. `scroll-region` lets Inertia reset/preserve this
+                    scroll position on visits like it does the window's. */}
+                <div
+                    scroll-region=""
+                    className="min-h-0 flex-1 overflow-y-auto grid grid-rows-[auto_1fr_auto]"
+                >
+                    {header && (
+                        <header className="border-b bg-white">
+                            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                                {header}
                             </div>
-                            <div className="mt-1 space-y-1">
-                                {setupNavItems.map((item) => (
-                                    <GatedResponsiveNavLink
-                                        key={item.label}
-                                        enabled={item.enabled}
-                                        locked={item.locked}
-                                        href={item.href}
-                                        active={item.active}
-                                        label={item.label}
-                                    />
-                                ))}
-                            </div>
-                        </div>
+                        </header>
                     )}
 
-                    <div className="border-t border-gray-200 pb-1 pt-4">
-                        <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                            {currentShop?.name ?? 'Shop'}
-                        </div>
-                        <div className="mt-1 space-y-1">
-                            {shopNavItems.map((item) => (
-                                <GatedResponsiveNavLink
-                                    key={item.label}
-                                    enabled={item.enabled}
-                                    locked={item.locked}
-                                    href={item.href}
-                                    active={item.active}
-                                    label={item.label}
-                                />
-                            ))}
-                        </div>
-                    </div>
+                    <main>{children}</main>
 
-                    {availableShops.length > 1 && (
-                        <div className="border-t border-gray-200 pb-1 pt-4">
-                            <div className="px-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                                Switch shop
-                            </div>
-                            <div className="mt-1 space-y-1">
-                                {availableShops.map((shop) => (
-                                    <ResponsiveNavLink
-                                        key={shop.id}
-                                        href={route(
-                                            'current-shop.update',
-                                            shop.id,
-                                        )}
-                                        method="post"
-                                        as="button"
-                                        active={
-                                            shop.id === user.current_shop_id
-                                        }
-                                    >
-                                        {shop.name}
-                                    </ResponsiveNavLink>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="border-t border-gray-200 pb-1 pt-4">
-                        <div className="px-4">
-                            <div className="text-base font-medium text-gray-800">
-                                {user.name}
-                            </div>
-                            <div className="text-sm font-medium text-gray-500">
-                                {user.email}
-                            </div>
-                        </div>
-
-                        <div className="mt-3 space-y-1">
-                            <ResponsiveNavLink href={route('profile.edit')}>
-                                Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
-                                href={route('logout')}
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
-                        </div>
-                    </div>
-                    </div>
+                    <footer className="px-4 py-6">
+                        <LegalLinks />
+                    </footer>
                 </div>
-            </nav>
-
-            <div className="shrink-0">
-                <TrialBanner />
-            </div>
-
-            <FlashToast />
-
-            {/* The page scrolls here, not the window, so the nav above stays
-                put. `scroll-region` lets Inertia reset/preserve this scroll
-                position on visits like it does the window's. */}
-            <div scroll-region="" className="app-scroll min-h-0 flex-1 overflow-y-auto">
-                {header && (
-                    <header className="bg-white shadow">
-                        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                            {header}
-                        </div>
-                    </header>
-                )}
-
-                <main>{children}</main>
-
-                <footer className="px-4 py-6">
-                    <LegalLinks />
-                </footer>
-            </div>
-        </div>
+            </SidebarInset>
+        </SidebarProvider>
     );
 }

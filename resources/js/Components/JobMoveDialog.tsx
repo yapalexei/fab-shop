@@ -5,6 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { Alert } from '@/Components/ui/alert';
 
 export interface MovableJob {
     id: number;
@@ -92,14 +93,14 @@ export default function JobMoveDialog({
 
                     {isCancel && (
                         <>
-                            <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">
+                            <Alert variant="danger" className="mt-3 p-3 text-sm">
                                 A cancelled job can't be moved again - this
                                 can't be undone.
-                            </p>
+                            </Alert>
                             <label className="mt-4 block text-sm font-medium text-gray-700">
                                 Reason (optional)
                                 <textarea
-                                    className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-red-500 focus:ring-red-500"
+                                    className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-xs focus:border-red-500 focus:ring-red-500"
                                     rows={2}
                                     value={reason}
                                     maxLength={1000}

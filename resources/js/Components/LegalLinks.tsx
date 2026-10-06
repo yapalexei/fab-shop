@@ -7,7 +7,7 @@ import { Link } from '@inertiajs/react';
  */
 export default function LegalLinks({ className = '' }: { className?: string }) {
     const link =
-        'underline-offset-2 hover:text-gray-700 hover:underline focus:outline-none focus:underline';
+        'underline-offset-2 hover:text-foreground hover:underline focus:outline-hidden focus:underline';
 
     return (
         <nav

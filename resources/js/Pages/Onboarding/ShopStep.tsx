@@ -61,7 +61,7 @@ export default function ShopStep({
                     <InputLabel htmlFor="timezone" value="Timezone" />
                     <SearchableSelect
                         id="timezone"
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         wrapperClassName="mt-1"
                         value={data.timezone}
                         onChange={(value) => setData('timezone', value)}
@@ -86,7 +86,7 @@ export default function ShopStep({
                                 className={`flex cursor-pointer items-center justify-between rounded-md border px-4 py-3 ${
                                     data.plan === plan.key
                                         ? 'border-indigo-300 bg-indigo-50'
-                                        : 'border-gray-200 hover:bg-gray-50'
+                                        : 'border-gray-200 hover:bg-accent'
                                 }`}
                             >
                                 <span className="flex items-center gap-3">
@@ -119,7 +119,7 @@ export default function ShopStep({
                             href={route('marketing')}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="text-indigo-600 hover:underline"
                         >
                             compare plans
                         </a>

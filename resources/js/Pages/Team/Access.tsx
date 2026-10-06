@@ -8,6 +8,7 @@ import PermissionGrid, {
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { RoleGrants } from '@/Pages/Permissions/Edit';
+import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import SearchableSelect from '@/Components/SearchableSelect';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -82,7 +83,7 @@ export default function Access({
                 <h2 className="text-xl font-semibold leading-tight text-gray-800">
                     <Link
                         href={route('team.index')}
-                        className="text-gray-500 hover:text-gray-700"
+                        className="text-gray-500 hover:text-foreground"
                     >
                         Team
                     </Link>{' '}
@@ -96,7 +97,7 @@ export default function Access({
                 <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                     <form
                         onSubmit={submit}
-                        className="space-y-6 bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                        className="space-y-6 bg-white p-4 shadow-sm sm:rounded-lg sm:p-8"
                     >
                         <div className="flex flex-wrap items-end justify-between gap-4">
                             <div>
@@ -110,7 +111,7 @@ export default function Access({
                                     />
                                     <SearchableSelect
                                         id="role"
-                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
+                                        className="block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-500"
                                         wrapperClassName="mt-1"
                                         value={data.role}
                                         disabled={!canChangeRole}
@@ -140,7 +141,7 @@ export default function Access({
                             Each action follows the {data.role} role (set on{' '}
                             <Link
                                 href={route('shop.permissions.edit')}
-                                className="text-indigo-600 hover:text-indigo-900"
+                                className="text-indigo-600 hover:underline"
                             >
                                 Roles & permissions
                             </Link>
@@ -168,14 +169,21 @@ export default function Access({
 
                                 return (
                                     <div
-                                        className={`rounded-md border px-2 py-1.5 ${effective ? (isDestructive(action.action) ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50') : 'border-gray-200'}`}
+                                        className={cn(
+                                            'rounded-md border px-2 py-1.5',
+                                            effective
+                                                ? isDestructive(action.action)
+                                                    ? 'border-destructive/60 bg-destructive/10'
+                                                    : 'border-primary/60 bg-primary/10'
+                                                : 'border-border',
+                                        )}
                                     >
                                         <label className="block text-xs font-medium text-gray-700">
                                             {actionLabel(action.action)}
                                             <SearchableSelect
                                                 ariaLabel={`${member.name}: ${action.permission}`}
                                                 wrapperClassName="mt-1"
-                                                className="rounded border-gray-300 py-1 text-xs focus:border-indigo-500 focus:ring-indigo-500"
+                                                className="rounded-sm border-gray-300 py-1 text-xs focus:border-indigo-500 focus:ring-indigo-500"
                                                 value={
                                                     override === null ? 'inherit' : override ? 'allow' : 'deny'
                                                 }

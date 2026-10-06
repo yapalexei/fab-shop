@@ -3,6 +3,7 @@ import LegalLinks from '@/Components/LegalLinks';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { Link } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
+import { Card } from '@/Components/ui/card';
 
 export default function Guest({ children }: PropsWithChildren) {
     return (
@@ -15,9 +16,9 @@ export default function Guest({ children }: PropsWithChildren) {
                 </Link>
             </div>
 
-            <div className="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg">
+            <Card className="mt-6 w-full overflow-hidden px-6 py-4 sm:max-w-md">
                 {children}
-            </div>
+            </Card>
 
             <LegalLinks className="my-6" />
         </div>

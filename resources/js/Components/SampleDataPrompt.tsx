@@ -17,7 +17,7 @@ export default function SampleDataPrompt({
             <button
                 type="button"
                 onClick={onOpen}
-                className="font-medium text-indigo-600 underline hover:text-indigo-900"
+                className="font-medium text-indigo-600 underline hover:underline"
             >
                 Add sample {label}
             </button>{' '}

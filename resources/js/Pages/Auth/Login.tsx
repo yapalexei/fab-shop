@@ -1,4 +1,4 @@
-import Checkbox from '@/Components/Checkbox';
+import { Checkbox } from '@/Components/ui/checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -77,11 +77,8 @@ export default function Login({
                         <Checkbox
                             name="remember"
                             checked={data.remember}
-                            onChange={(e) =>
-                                setData(
-                                    'remember',
-                                    (e.target.checked || false) as false,
-                                )
+                            onCheckedChange={(v) =>
+                                setData('remember', (v === true) as false)
                             }
                         />
                         <span className="ms-2 text-sm text-gray-600">
@@ -94,7 +91,7 @@ export default function Login({
                     {canResetPassword && (
                         <Link
                             href={route('password.request')}
-                            className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            className="rounded-md text-sm text-gray-600 underline hover:text-foreground focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         >
                             Forgot your password?
                         </Link>

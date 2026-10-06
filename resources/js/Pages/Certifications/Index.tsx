@@ -4,6 +4,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 interface CertificationRow {
     id: number;
@@ -62,7 +64,7 @@ export default function Index({
                         )}
                     </div>
 
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         {certifications.length === 0 ? (
                             <div className="p-6">
                                 <PageHelp empty>
@@ -122,20 +124,15 @@ export default function Index({
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm">
                                                 {certification.expires_at ? (
-                                                    <span
-                                                        className={
-                                                            certification.is_expired
-                                                                ? 'inline-flex rounded-full bg-red-100 px-2 text-xs font-semibold leading-5 text-red-800'
-                                                                : 'text-gray-500'
-                                                        }
-                                                    >
-                                                        {
-                                                            certification.expires_at
-                                                        }
-                                                        {certification.is_expired
-                                                            ? ' (expired)'
-                                                            : ''}
-                                                    </span>
+                                                    certification.is_expired ? (
+                                                        <Badge variant="danger">
+                                                            {certification.expires_at} (expired)
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-gray-500">
+                                                            {certification.expires_at}
+                                                        </span>
+                                                    )
                                                 ) : (
                                                     <span className="text-gray-400">
                                                         Never
@@ -148,7 +145,7 @@ export default function Index({
                                                         'certifications.edit',
                                                         certification.id,
                                                     )}
-                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                    className="text-indigo-600 hover:underline"
                                                 >
                                                     {can(
                                                         'certifications.update',
@@ -165,7 +162,7 @@ export default function Index({
                                                                 certification,
                                                             )
                                                         }
-                                                        className="ms-4 text-red-600 hover:text-red-900"
+                                                        className="ms-4 text-red-600 hover:underline"
                                                     >
                                                         Delete
                                                     </button>
@@ -176,7 +173,7 @@ export default function Index({
                                 </tbody>
                             </table>
                         )}
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

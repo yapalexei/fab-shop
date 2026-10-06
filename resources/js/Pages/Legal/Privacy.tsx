@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function Privacy({ company, appName, effectiveDate }: Props) {
-    const link = 'font-medium text-indigo-600 underline hover:text-indigo-900';
+    const link = 'font-medium text-indigo-600 underline hover:underline';
 
     return (
         <LegalLayout title="Privacy Policy" effectiveDate={effectiveDate}>

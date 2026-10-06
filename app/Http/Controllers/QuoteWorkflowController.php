@@ -138,6 +138,7 @@ class QuoteWorkflowController extends Controller
             'customer_id' => $quote->customer_id,
             'job_number' => Job::nextNumber(),
             'job_stage_id' => $notStarted->id,
+            'due_date' => $quote->due_date,
         ]));
 
         QuoteHistory::log($quote, 'converted', "Converted to job {$job->job_number}");

@@ -1,8 +1,11 @@
 <?php
 
 use App\Enums\QuoteStatus;
+use App\Models\BusinessPartner;
 use App\Models\Customer;
+use App\Models\Equipment;
 use App\Models\Job;
+use App\Models\Material;
 use App\Models\Quote;
 use App\Models\Shop;
 use Illuminate\Support\Carbon;
@@ -242,4 +245,47 @@ test('months are bucketed on the shop\'s calendar, not UTC', function () {
         ->assertInertia(fn ($page) => $page
             ->where('financials.invoiced_this_month', 0)
             ->where('financials.invoiced_last_month', 700));
+});
+
+test('a new shop is nudged to start a quote and fill its lists', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopRole($shop, 'Owner');
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->has('gettingStarted', 5)
+            ->where('gettingStarted.0.key', 'quotes')
+            ->where('gettingStarted.0.primary', true)
+            ->where('gettingStarted.0.list_href', route('quotes.index'))
+            ->where('gettingStarted.1.list_href', route('customers.index'))
+            ->where('gettingStarted.1.done', false));
+});
+
+test('getting-started steps reflect existing data and the banner disappears when all are done', function () {
+    $shop = Shop::factory()->create();
+    Customer::factory()->for($shop)->create();
+    $user = actingAsShopRole($shop, 'Owner');
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('gettingStarted.1.key', 'customers')
+            ->where('gettingStarted.1.done', true)
+            ->where('gettingStarted.2.done', false));
+
+    pricedQuote($shop, QuoteStatus::Sent, 100);
+    Material::factory()->for($shop)->create();
+    Equipment::factory()->for($shop)->create();
+    BusinessPartner::factory()->for($shop)->create();
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('gettingStarted', null));
+});
+
+test('getting-started steps leave out what the member cannot create', function () {
+    $shop = Shop::factory()->create();
+    $user = actingAsShopRole($shop, 'Staff');
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('gettingStarted', fn ($steps) => collect($steps)
+            ->every(fn ($s) => in_array($s['key'], ['quotes', 'customers', 'materials', 'equipment', 'business-partners']))));
 });

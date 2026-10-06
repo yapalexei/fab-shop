@@ -159,7 +159,7 @@ export default function ShopManageDialog({
                         <InputLabel value="Plan" />
                         <SearchableSelect
                             wrapperClassName="mt-1 w-48"
-                            className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                             value={String(shown.plan_id ?? '')}
                             onChange={changePlan}
                             emptyLabel="No plan"
@@ -218,7 +218,7 @@ export default function ShopManageDialog({
                                 <button
                                     type="button"
                                     onClick={expireTrial}
-                                    className="text-xs text-red-600 hover:text-red-800 hover:underline"
+                                    className="text-xs text-red-600 hover:underline hover:underline"
                                 >
                                     End trial now
                                 </button>

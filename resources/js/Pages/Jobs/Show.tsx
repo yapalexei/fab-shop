@@ -15,7 +15,10 @@ import JobStatusActions, {
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useShopDateTime } from '@/lib/datetime';
 import { PageProps } from '@/types';
-import { Head } from '@inertiajs/react';
+import { shortDate, toDay } from '@/lib/dates';
+import { Head, router } from '@inertiajs/react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 interface JobLineItem {
     id: number;
@@ -38,6 +41,9 @@ interface JobDetail {
     stage: string;
     stage_label: string;
     cancelled: boolean;
+    due_date: string | null;
+    overdue: boolean;
+    can_edit: boolean;
     available_transitions: JobTransition[];
     total: number;
     customer: { name: string; email: string | null };
@@ -91,7 +97,7 @@ export default function Show({
 
             <div className="py-12">
                 <div className="mx-auto max-w-5xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-6 shadow sm:rounded-lg">
+                    <Card className="p-6">
                         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                             <div>
                                 <dt className="text-sm text-gray-500">
@@ -108,9 +114,48 @@ export default function Show({
                                 <dd className="text-sm font-medium text-gray-900">
                                     {job.stage_label}
                                     {job.cancelled && (
-                                        <span className="ms-2 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                                        <Badge variant="danger" className="ms-2">
                                             Cancelled
-                                        </span>
+                                        </Badge>
+                                    )}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm text-gray-500">
+                                    <label htmlFor="job-due-date">
+                                        Due date
+                                    </label>
+                                </dt>
+                                <dd className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                    {job.can_edit ? (
+                                        <input
+                                            id="job-due-date"
+                                            type="date"
+                                            defaultValue={job.due_date ?? ''}
+                                            key={job.due_date ?? 'none'}
+                                            onChange={(e) =>
+                                                router.patch(
+                                                    route(
+                                                        'jobs.due-date.update',
+                                                        job.id,
+                                                    ),
+                                                    {
+                                                        due_date:
+                                                            e.target.value ||
+                                                            null,
+                                                    },
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                            className="rounded-md border bg-background px-2 py-1 text-sm"
+                                        />
+                                    ) : job.due_date ? (
+                                        shortDate(toDay(job.due_date))
+                                    ) : (
+                                        'Not set'
+                                    )}
+                                    {job.overdue && (
+                                        <Badge variant="danger">Overdue</Badge>
                                     )}
                                 </dd>
                             </div>
@@ -130,9 +175,9 @@ export default function Show({
                                 transitions={job.available_transitions}
                             />
                         </div>
-                    </div>
+                    </Card>
 
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -169,7 +214,7 @@ export default function Show({
                                 ))}
                             </tbody>
                         </table>
-                    </div>
+                    </Card>
 
                     <JobPhotos jobId={job.id} photos={job.photos} />
 
@@ -193,7 +238,7 @@ export default function Show({
                         />
                     )}
 
-                    <div className="bg-white p-6 shadow sm:rounded-lg">
+                    <Card className="p-6">
                         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
                             History
                         </h3>
@@ -223,7 +268,7 @@ export default function Show({
                                 ))}
                             </ul>
                         )}
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

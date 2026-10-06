@@ -25,7 +25,7 @@ export default function Breadcrumbs({ items }: { items: Crumb[] }) {
                         {item.href ? (
                             <Link
                                 href={item.href}
-                                className="text-gray-500 hover:text-gray-700"
+                                className="text-gray-500 hover:text-foreground"
                             >
                                 {item.label}
                             </Link>

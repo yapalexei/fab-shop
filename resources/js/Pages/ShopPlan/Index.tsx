@@ -96,7 +96,7 @@ export default function Index({
                     </div>
 
                     {annualSwitch && current && (
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-indigo-400 bg-indigo-50 p-4 shadow sm:rounded-lg">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-l-4 border-indigo-400 bg-indigo-50 p-4 shadow-sm sm:rounded-lg">
                             <p className="text-sm text-indigo-900">
                                 Switch your {current.name} plan to annual
                                 billing and pay{' '}

@@ -63,7 +63,7 @@ class QuoteController extends Controller implements HasMiddleware
     {
         $quote = DB::transaction(function () use ($request) {
             $quote = Quote::create([
-                ...$request->safe()->only(['customer_id', 'notes']),
+                ...$request->safe()->only(['customer_id', 'notes', 'due_date']),
                 'status' => QuoteStatus::Draft,
             ]);
 
@@ -90,6 +90,7 @@ class QuoteController extends Controller implements HasMiddleware
                 'emailed_at' => $quote->emailed_at?->toIso8601String(),
                 'send_skipped_reason' => $quote->send_skipped_reason,
                 'notes' => $quote->notes,
+                'due_date' => $quote->due_date?->toDateString(),
                 'line_items' => $quote->lineItems->map(fn ($item) => [
                     'id' => $item->id,
                     'type' => $item->type->value,
@@ -154,7 +155,7 @@ class QuoteController extends Controller implements HasMiddleware
         $before = QuoteHistory::enabled() ? QuoteHistory::snapshot($quote) : null;
 
         DB::transaction(function () use ($request, $quote) {
-            $quote->update($request->safe()->only(['customer_id', 'notes']));
+            $quote->update($request->safe()->only(['customer_id', 'notes', 'due_date']));
 
             $this->syncLineItems($quote, $request->validated('line_items'));
         });

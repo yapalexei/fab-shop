@@ -37,7 +37,7 @@ test('registering sends a verification email', function () {
         'password_confirmation' => 'password', 'accepted_terms' => true,
     ]);
 
-    Notification::assertSentTo(auth()->user(), VerifyEmail::class);
+    Notification::assertSentToTimes(auth()->user(), VerifyEmail::class, 1);
 });
 
 test('an unverified new user is sent to verify their email, not the dashboard', function () {

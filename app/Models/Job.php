@@ -6,6 +6,7 @@ use App\Enums\JobStageRole;
 use App\Enums\LineItemType;
 use App\Enums\MaterialUsageType;
 use App\Models\Concerns\BelongsToShop;
+use Carbon\CarbonInterface;
 use Database\Factories\JobFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,11 +27,14 @@ class Job extends Model implements HasMedia
 
     protected $table = 'fabrication_jobs';
 
-    protected $fillable = ['quote_id', 'customer_id', 'job_number', 'job_stage_id', 'assigned_to'];
+    protected $fillable = ['quote_id', 'customer_id', 'job_number', 'job_stage_id', 'assigned_to', 'due_date'];
 
     protected function casts(): array
     {
         return [
+            'started_at' => 'datetime',
+            'finished_at' => 'datetime',
+            'due_date' => 'date',
             'invoiced_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'quickbooks_synced_at' => 'datetime',
@@ -110,6 +114,19 @@ class Job extends Model implements HasMedia
     public function isCancelled(): bool
     {
         return $this->cancelled_at !== null;
+    }
+
+    /**
+     * Past its due date and still not shipped. $today is the shop's local
+     * date (Shop::localNow()) - due_date is a plain calendar day, so it's
+     * compared against the shop's "today", never UTC's.
+     */
+    public function isOverdue(CarbonInterface $today): bool
+    {
+        return $this->due_date !== null
+            && ! $this->isCancelled()
+            && $this->finished_at === null
+            && $this->due_date->toDateString() < $today->toDateString();
     }
 
     public function canBeCancelled(): bool

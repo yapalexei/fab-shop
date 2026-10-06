@@ -1,4 +1,9 @@
-import Dropdown from '@/Components/Dropdown';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/Components/ui/popover';
+import { Alert } from '@/Components/ui/alert';
 import { PropsWithChildren } from 'react';
 
 /**
@@ -14,31 +19,27 @@ export default function PageHelp({
 }: PropsWithChildren<{ empty?: boolean }>) {
     if (empty) {
         return (
-            <div className="rounded-md border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
+            <Alert className="border-indigo-100 bg-indigo-50 text-indigo-900 dark:border-indigo-700 dark:bg-indigo-900 dark:text-indigo-100">
                 {children}
-            </div>
+            </Alert>
         );
     }
 
     return (
-        <Dropdown>
-            <Dropdown.Trigger>
+        <Popover>
+            <PopoverTrigger asChild>
                 <button
                     type="button"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-xs font-semibold text-gray-500 transition duration-150 ease-in-out hover:bg-gray-50 hover:text-gray-700"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-input text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     aria-label="What is this page for?"
                     title="What is this page for?"
                 >
                     ?
                 </button>
-            </Dropdown.Trigger>
-            <Dropdown.Content
-                align="left"
-                width="80"
-                contentClasses="bg-white p-4 text-sm text-gray-600 space-y-2"
-            >
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-80 space-y-2 text-sm text-muted-foreground">
                 {children}
-            </Dropdown.Content>
-        </Dropdown>
+            </PopoverContent>
+        </Popover>
     );
 }

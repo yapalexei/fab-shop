@@ -1,4 +1,4 @@
-import Checkbox from '@/Components/Checkbox';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Link } from '@inertiajs/react';
 
 /**
@@ -22,14 +22,14 @@ export default function SmsConsentCheckbox({
     onChange: (checked: boolean) => void;
     text: string;
 }) {
-    const link = 'font-medium underline hover:text-gray-900';
+    const link = 'font-medium underline hover:text-foreground';
 
     return (
         <label className="flex items-start gap-2 text-sm text-gray-600">
             <Checkbox
                 name="sms_consent"
                 checked={checked}
-                onChange={(e) => onChange(e.target.checked)}
+                onCheckedChange={(v) => onChange(v === true)}
                 className="mt-0.5"
             />
             <span>

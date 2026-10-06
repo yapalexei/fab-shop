@@ -105,7 +105,7 @@ export default function TeamStep({
                             </div>
                             <SearchableSelect
                                 wrapperClassName="w-32"
-                                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                className="rounded-md border-gray-300 text-sm shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                                 value={row.role}
                                 onChange={(value) => update(index, { role: value })}
                                 options={roles.map((role) => ({ value: role, label: role }))}
@@ -125,7 +125,7 @@ export default function TeamStep({
                 <button
                     type="button"
                     onClick={addRow}
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
+                    className="text-sm font-medium text-indigo-600 hover:underline"
                 >
                     + Add another
                 </button>

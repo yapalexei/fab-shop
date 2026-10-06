@@ -11,6 +11,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import Breadcrumbs from '@/Components/Breadcrumbs';
 import { Head, usePage } from '@inertiajs/react';
+import { Card } from '@/Components/ui/card';
 
 export default function Create({
     customers,
@@ -46,7 +47,7 @@ export default function Create({
 
             <div className="py-12">
                 <div className="mx-auto max-w-5xl sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                    <Card className="p-4 sm:p-8">
                         <QuoteForm
                             customers={customers}
                             materials={materials}
@@ -61,10 +62,11 @@ export default function Create({
                             initialData={{
                                 customer_id: '',
                                 notes: '',
+                                due_date: '',
                                 line_items: [createEmptyLineItem(markupDefaults)],
                             }}
                         />
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

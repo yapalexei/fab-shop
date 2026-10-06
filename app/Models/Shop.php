@@ -68,7 +68,7 @@ class Shop extends Model
     {
         return $this->belongsToMany(User::class)
             ->using(ShopMember::class)
-            ->withPivot('hourly_rate', 'permission_overrides');
+            ->withPivot('hourly_rate', 'permission_overrides', 'trial_ended_dismissed_at');
     }
 
     public function plan(): BelongsTo
@@ -171,6 +171,36 @@ class Shop extends Model
     public function onTrial(): bool
     {
         return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
+    }
+
+    /**
+     * Whether this shop has ever paid for anything: a priced plan, a
+     * "paid through" date, or any add-on (cancelled ones included - they
+     * still prove it). Derived from existing data rather than stored, so it
+     * can't drift. Used to stop nagging about an ended trial a shop has
+     * clearly moved past.
+     */
+    public function hasEverSubscribed(): bool
+    {
+        return $this->subscription_renews_at !== null
+            || ($this->plan?->monthly_price_cents ?? 0) > 0
+            || $this->featureSubscriptions()->withoutGlobalScopes()->exists();
+    }
+
+    /**
+     * Whether $user should still see the "your trial ended" notice: the trial
+     * is over, the shop never subscribed, and they haven't dismissed it since
+     * the trial ended (an extended-then-expired trial brings it back).
+     */
+    public function showsTrialEndedNoticeTo(User $user): bool
+    {
+        if ($this->trial_ends_at === null || $this->onTrial() || $this->hasEverSubscribed()) {
+            return false;
+        }
+
+        $dismissedAt = $user->shops()->whereKey($this->id)->first()?->pivot->trial_ended_dismissed_at;
+
+        return $dismissedAt === null || $dismissedAt->lt($this->trial_ends_at);
     }
 
     /** The cadence the plan and add-ons renew on (monthly until the shop picks annual). */

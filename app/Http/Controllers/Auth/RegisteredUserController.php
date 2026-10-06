@@ -53,8 +53,8 @@ class RegisteredUserController extends Controller
         // Proof of what was agreed, to which version, from where.
         Consent::recordAgreement($user, 'registration', $request);
 
-        // Triggers the verification email (App\Providers\AppServiceProvider
-        // wires Registered -> SendEmailVerificationNotification).
+        // Triggers the verification email (the framework wires
+        // Registered -> SendEmailVerificationNotification for MustVerifyEmail).
         event(new Registered($user));
 
         Auth::login($user);

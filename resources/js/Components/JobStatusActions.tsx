@@ -1,5 +1,10 @@
 import JobMoveDialog, { MovableJob } from '@/Components/JobMoveDialog';
-import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
 import { useState } from 'react';
 
 export interface JobTransition {
@@ -50,42 +55,34 @@ export default function JobStatusActions({
 
     return (
         <>
-            <Popover className="relative inline-block">
-                <PopoverButton
-                    aria-label={`Move ${job.job_number}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 py-0.5 pe-2 ps-1 text-xs text-gray-600 hover:bg-gray-50"
-                >
-                    <GearIcon className="h-4 w-4 shrink-0 text-gray-400" />
-                    Move
-                </PopoverButton>
+            <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label={`Move ${job.job_number}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 py-0.5 pe-2 ps-1 text-xs text-gray-600 hover:bg-accent"
+                    >
+                        <GearIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                        Move
+                    </button>
+                </DropdownMenuTrigger>
 
-                <PopoverPanel
-                    anchor="bottom start"
-                    className="z-10 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg focus:outline-none"
-                >
-                    {({ close }) => (
-                        <>
-                            {transitions.map((transition) => (
-                                <button
-                                    key={transition.value}
-                                    type="button"
-                                    onClick={() => {
-                                        setPending(transition);
-                                        close();
-                                    }}
-                                    className={`block w-full px-3 py-1.5 text-start text-sm hover:bg-gray-50 ${
-                                        transition.value === 'cancelled'
-                                            ? 'text-red-600'
-                                            : 'text-gray-700'
-                                    }`}
-                                >
-                                    {transitionLabel(transition)}
-                                </button>
-                            ))}
-                        </>
-                    )}
-                </PopoverPanel>
-            </Popover>
+                <DropdownMenuContent align="start" className="w-44">
+                    {transitions.map((transition) => (
+                        <DropdownMenuItem
+                            key={transition.value}
+                            variant={
+                                transition.value === 'cancelled'
+                                    ? 'destructive'
+                                    : 'default'
+                            }
+                            onSelect={() => setPending(transition)}
+                        >
+                            {transitionLabel(transition)}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
 
             <JobMoveDialog
                 job={pending ? job : null}

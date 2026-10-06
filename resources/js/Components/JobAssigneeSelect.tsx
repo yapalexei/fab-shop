@@ -1,4 +1,9 @@
-import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
 import { router } from '@inertiajs/react';
 
 export interface Member {
@@ -43,8 +48,7 @@ export default function JobAssigneeSelect({
         );
     }
 
-    const assign = (assignedTo: number | null, close: () => void) => {
-        close();
+    const assign = (assignedTo: number | null) => {
         router.patch(
             route('jobs.assignee.update', job.id),
             { assigned_to: assignedTo },
@@ -53,49 +57,37 @@ export default function JobAssigneeSelect({
     };
 
     return (
-        <Popover className="relative inline-block">
-            <PopoverButton
-                className={`${badgeClasses} hover:bg-gray-50`}
-                aria-label="Assigned to"
-            >
-                <PersonIcon className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className="truncate">{label}</span>
-            </PopoverButton>
+        <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+                <button
+                    type="button"
+                    className={`${badgeClasses} hover:bg-accent`}
+                    aria-label="Assigned to"
+                >
+                    <PersonIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                    <span className="truncate">{label}</span>
+                </button>
+            </DropdownMenuTrigger>
 
-            <PopoverPanel
-                anchor="bottom start"
-                className="z-10 mt-1 w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg focus:outline-none"
-            >
-                {({ close }) => (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => assign(null, close)}
-                            className={`block w-full px-3 py-1.5 text-start text-sm hover:bg-gray-50 ${
-                                job.assigned_to === null
-                                    ? 'font-medium text-gray-900'
-                                    : 'text-gray-600'
-                            }`}
-                        >
-                            Unassigned
-                        </button>
-                        {members.map((member) => (
-                            <button
-                                key={member.id}
-                                type="button"
-                                onClick={() => assign(member.id, close)}
-                                className={`block w-full px-3 py-1.5 text-start text-sm hover:bg-gray-50 ${
-                                    job.assigned_to === member.id
-                                        ? 'font-medium text-gray-900'
-                                        : 'text-gray-600'
-                                }`}
-                            >
-                                {member.name}
-                            </button>
-                        ))}
-                    </>
-                )}
-            </PopoverPanel>
-        </Popover>
+            <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem
+                    onSelect={() => assign(null)}
+                    className={job.assigned_to === null ? 'font-medium' : ''}
+                >
+                    Unassigned
+                </DropdownMenuItem>
+                {members.map((member) => (
+                    <DropdownMenuItem
+                        key={member.id}
+                        onSelect={() => assign(member.id)}
+                        className={
+                            job.assigned_to === member.id ? 'font-medium' : ''
+                        }
+                    >
+                        {member.name}
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

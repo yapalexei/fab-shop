@@ -4,27 +4,23 @@ export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'theme';
 
-function systemPrefersDark(): boolean {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
 /**
- * The explicit choice the user made, if any - absent means "follow the OS",
- * same as the inline script in app.blade.php that sets the initial class
- * before React ever mounts (see that file for why it has to be inline).
+ * The explicit choice the user made, if any - absent means the default,
+ * light, same as the inline script in app.blade.php that sets the initial
+ * class before React ever mounts (see that file for why it has to be inline).
  */
 export function getStoredTheme(): Theme | null {
     try {
         const value = localStorage.getItem(STORAGE_KEY);
         return value === 'light' || value === 'dark' ? value : null;
     } catch {
-        // Private browsing / storage disabled - fall back to system.
+        // Private browsing / storage disabled - fall back to the default.
         return null;
     }
 }
 
 export function currentTheme(): Theme {
-    return getStoredTheme() ?? (systemPrefersDark() ? 'dark' : 'light');
+    return getStoredTheme() ?? 'light';
 }
 
 export function applyTheme(theme: Theme): void {
@@ -33,7 +29,7 @@ export function applyTheme(theme: Theme): void {
 
 /**
  * Toggles between light and dark, persisting the choice - this is what
- * makes it "adjustable" rather than purely system-following from here on.
+ * makes it "adjustable" rather than always light.
  */
 export function useTheme() {
     const [theme, setTheme] = useState<Theme>(() => currentTheme());
@@ -41,18 +37,6 @@ export function useTheme() {
     useEffect(() => {
         applyTheme(theme);
     }, [theme]);
-
-    // Only listens while no explicit choice has been made - once the user
-    // toggles, their choice sticks regardless of the OS setting.
-    useEffect(() => {
-        if (getStoredTheme() !== null) return;
-
-        const media = window.matchMedia('(prefers-color-scheme: dark)');
-        const onChange = () => setTheme(media.matches ? 'dark' : 'light');
-        media.addEventListener('change', onChange);
-
-        return () => media.removeEventListener('change', onChange);
-    }, []);
 
     const toggleTheme = () => {
         const next: Theme = theme === 'dark' ? 'light' : 'dark';

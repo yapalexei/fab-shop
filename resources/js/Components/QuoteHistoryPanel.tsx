@@ -85,7 +85,7 @@ export default function QuoteHistoryPanel({
                             {' '}
                             <Link
                                 href={route('shop.addons.index')}
-                                className="font-medium text-indigo-600 hover:text-indigo-900"
+                                className="font-medium text-indigo-600 hover:underline"
                             >
                                 See add-ons
                             </Link>

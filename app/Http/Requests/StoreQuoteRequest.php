@@ -27,6 +27,7 @@ class StoreQuoteRequest extends FormRequest
                     ->where('shop_id', $this->user()->current_shop_id),
             ],
             'notes' => ['nullable', 'string', 'max:5000'],
+            'due_date' => ['nullable', 'date_format:Y-m-d'],
             'line_items' => ['required', 'array', 'min:1'],
             'line_items.*.type' => ['required', Rule::enum(LineItemType::class)],
             'line_items.*.description' => ['required', 'string', 'max:255'],
@@ -87,6 +88,7 @@ class StoreQuoteRequest extends FormRequest
     {
         return [
             'customer_id' => 'customer',
+            'due_date' => 'due date',
             'line_items' => 'line items',
             'line_items.*.type' => 'type',
             'line_items.*.description' => 'description',

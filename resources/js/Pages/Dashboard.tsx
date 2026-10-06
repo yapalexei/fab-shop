@@ -2,6 +2,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { ReactNode } from 'react';
+import { Card } from '@/Components/ui/card';
+import GettingStartedBanner, {
+    GettingStartedStep,
+} from '@/Components/GettingStartedBanner';
 
 interface Counts {
     work_in_progress: number;
@@ -90,7 +94,7 @@ function Panel({
     children: ReactNode;
 }) {
     return (
-        <section className="rounded-lg bg-white p-6 shadow-sm">
+        <Card className="p-6">
             <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                     {title}
@@ -98,7 +102,7 @@ function Panel({
                 {action}
             </div>
             {children}
-        </section>
+        </Card>
     );
 }
 
@@ -116,7 +120,7 @@ function KpiCard({
     return (
         <Link
             href={href}
-            className="block rounded-lg bg-white p-5 shadow-sm transition hover:shadow-md"
+            className="block rounded-lg bg-white p-5 shadow-xs transition hover:shadow-md"
         >
             <p className="text-sm font-medium text-gray-500">{label}</p>
             <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
@@ -163,7 +167,7 @@ function RevenueChart({ months }: { months: RevenueMonth[] }) {
                                 : ''}
                         </span>
                         <div
-                            className={`w-full rounded-t ${isCurrent ? 'bg-indigo-500' : 'bg-indigo-200'}`}
+                            className={`w-full rounded-t ${isCurrent ? 'bg-green-400' : 'bg-green-800'}`}
                             style={{
                                 height: `${(month.total / max) * 100}%`,
                                 minHeight: month.total > 0 ? '4px' : '1px',
@@ -189,7 +193,7 @@ function Pipeline({ stages }: { stages: PipelineStage[] }) {
                 <Link
                     key={stage.status}
                     href={route('jobs.index')}
-                    className={`rounded-md p-3 text-center transition hover:ring-2 hover:ring-indigo-200 ${stage.count > 0 ? 'bg-indigo-50' : 'bg-gray-50'}`}
+                    className={`rounded-md p-3 text-center transition hover:ring-2 hover:ring-indigo-200 ${stage.count > 0 ? 'bg-gray-100' : 'bg-gray-100'}`}
                 >
                     <p
                         className={`text-2xl font-semibold ${stage.count > 0 ? 'text-indigo-700' : 'text-gray-300'}`}
@@ -284,12 +288,14 @@ export default function Dashboard({
     pipeline,
     attention,
     recentActivity,
+    gettingStarted,
 }: PageProps<{
     counts: Counts;
     financials: Financials | null;
     pipeline: PipelineStage[];
     attention: AttentionItem[];
     recentActivity: ActivityEntry[];
+    gettingStarted: GettingStartedStep[] | null;
 }>) {
     return (
         <AuthenticatedLayout
@@ -303,6 +309,10 @@ export default function Dashboard({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+                    {gettingStarted && (
+                        <GettingStartedBanner steps={gettingStarted} />
+                    )}
+
                     {financials ? (
                         <FinancialKpis
                             financials={financials}
@@ -337,7 +347,7 @@ export default function Dashboard({
                                             >
                                                 <Link
                                                     href={item.href}
-                                                    className="flex items-start gap-3 py-2 hover:bg-gray-50"
+                                                    className="flex items-start gap-3 py-2 hover:bg-accent"
                                                 >
                                                     <span
                                                         className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${attentionStyles[item.kind]}`}
@@ -373,7 +383,7 @@ export default function Dashboard({
                         action={
                             <Link
                                 href={route('jobs.index')}
-                                className="text-sm text-indigo-600 hover:text-indigo-900"
+                                className="text-sm text-indigo-600 hover:underline"
                             >
                                 Open board
                             </Link>
@@ -399,7 +409,7 @@ export default function Dashboard({
                                             {entry.href ? (
                                                 <Link
                                                     href={entry.href}
-                                                    className="font-medium text-indigo-600 hover:text-indigo-900"
+                                                    className="font-medium text-indigo-600 hover:underline"
                                                 >
                                                     {entry.job_number}
                                                 </Link>

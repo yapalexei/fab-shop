@@ -7,6 +7,8 @@ import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 interface ToolRow {
     id: number;
@@ -90,7 +92,7 @@ export default function Index({
                                     type="button"
                                     onClick={() => setMaterial(option.value)}
                                     aria-pressed={material === option.value}
-                                    className={`rounded-full border px-3 py-1 text-xs font-medium ${material === option.value ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'}`}
+                                    className={`rounded-full border px-3 py-1 text-xs font-medium ${material === option.value ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:bg-accent'}`}
                                 >
                                     {option.label}
                                 </button>
@@ -112,7 +114,7 @@ export default function Index({
                         </div>
                     </div>
 
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         {visible.length === 0 ? (
                             tools.length === 0 ? (
                                 <div className="p-6">
@@ -163,12 +165,12 @@ export default function Index({
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
                                                     {tool.cuts.map((value) => (
-                                                        <span
+                                                        <Badge
                                                             key={value}
-                                                            className="inline-flex rounded-full bg-gray-100 px-2 text-xs font-medium leading-5 text-gray-700"
+                                                            variant="secondary"
                                                         >
                                                             {labelFor(value)}
-                                                        </span>
+                                                        </Badge>
                                                     ))}
                                                 </div>
                                             </td>
@@ -182,7 +184,7 @@ export default function Index({
                                                         'tools.edit',
                                                         tool.id,
                                                     )}
-                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                    className="text-indigo-600 hover:underline"
                                                 >
                                                     {can('tooling.update')
                                                         ? 'Edit'
@@ -193,7 +195,7 @@ export default function Index({
                                                         onClick={() =>
                                                             destroy(tool)
                                                         }
-                                                        className="ms-4 text-red-600 hover:text-red-900"
+                                                        className="ms-4 text-red-600 hover:underline"
                                                     >
                                                         Delete
                                                     </button>
@@ -204,7 +206,7 @@ export default function Index({
                                 </tbody>
                             </table>
                         )}
-                    </div>
+                    </Card>
                 </div>
             </div>
         </AuthenticatedLayout>

@@ -10,6 +10,7 @@ import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
+import { Card } from '@/Components/ui/card';
 
 interface MaterialTypeRow {
     id: number;
@@ -78,7 +79,7 @@ function CustomTypeRow({ type }: { type: MaterialTypeRow }) {
                             reset();
                             setEditing(false);
                         }}
-                        className="px-2 py-2 text-sm text-gray-500 hover:text-gray-700"
+                        className="px-2 py-2 text-sm text-gray-500 hover:text-foreground"
                     >
                         Cancel
                     </button>
@@ -98,7 +99,7 @@ function CustomTypeRow({ type }: { type: MaterialTypeRow }) {
                         <button
                             type="button"
                             onClick={() => setEditing(true)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="text-indigo-600 hover:underline"
                         >
                             Rename
                         </button>
@@ -107,7 +108,7 @@ function CustomTypeRow({ type }: { type: MaterialTypeRow }) {
                         <button
                             type="button"
                             onClick={destroy}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:underline"
                         >
                             Delete
                         </button>
@@ -188,7 +189,7 @@ export default function Index({
                         rated for its materials.
                     </p>
 
-                    <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                                 Your custom types
@@ -261,9 +262,9 @@ export default function Index({
                                 )}
                             </form>
                         )}
-                    </section>
+                    </Card>
 
-                    <section className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <Card className="overflow-hidden">
                         <div className="border-b border-gray-100 px-6 py-4">
                             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
                                 Built in
@@ -288,7 +289,7 @@ export default function Index({
                                 </li>
                             ))}
                         </ul>
-                    </section>
+                    </Card>
                 </div>
             </div>
 

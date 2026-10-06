@@ -1,7 +1,9 @@
 import JobAssigneeSelect, { Member } from '@/Components/JobAssigneeSelect';
+import JobCalendar from '@/Components/JobCalendar';
 import JobMoveDialog from '@/Components/JobMoveDialog';
 import JobStatusActions, { JobTransition } from '@/Components/JobStatusActions';
 import PageHelp from '@/Components/PageHelp';
+import { shortDate, toDay } from '@/lib/dates';
 import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
@@ -23,9 +25,20 @@ import {
 } from '@dnd-kit/core';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { CSSProperties, useEffect, useRef, useState } from 'react';
+import { Alert } from '@/Components/ui/alert';
+import { Button } from '@/Components/ui/button';
 
 const ANIMATIONS_STORAGE_KEY = 'jobBoardAnimationsEnabled';
+const VIEW_MODE_STORAGE_KEY = 'jobBoardViewMode';
+
+// Presentation modes for the jobs page - the kanban board is the default.
+// (The timeline/gantt view lives under Reports, not here.)
+const VIEW_MODES = [
+    { value: 'board', label: 'Board' },
+    { value: 'calendar', label: 'Calendar' },
+] as const;
+type ViewMode = (typeof VIEW_MODES)[number]['value'];
 
 // A smooth, non-bouncy curve fits a work tool better than the springy
 // default - this isn't a playful interaction, just "a card moved."
@@ -42,6 +55,10 @@ interface JobRow {
     available_transitions: JobTransition[];
     assigned_to: number | null;
     assignee: string | null;
+    started_on: string | null;
+    ended_on: string | null;
+    due_date: string | null;
+    overdue: boolean;
 }
 
 interface StageOption {
@@ -85,7 +102,7 @@ function KioskUpdateBorder() {
             className={`pointer-events-none fixed inset-0 z-50 transition-shadow ease-out ${
                 visible
                     ? 'shadow-[inset_0_0_0_10px_rgba(99,102,241,0.6)] duration-300'
-                    : 'shadow-[inset_0_0_0_10px_rgba(99,102,241,0)] duration-[3000ms]'
+                    : 'shadow-[inset_0_0_0_10px_rgba(99,102,241,0)] duration-3000'
             }`}
         />
     );
@@ -163,13 +180,31 @@ function UpdateBell({ pulse }: { pulse: number }) {
     );
 }
 
+// Cards take a faded tint by their column's position: the first column is
+// blue, the last green, and everything between cycles through a warm
+// assortment (yellow, orange, yellow, red) - see .job-card in app.css.
+const FIRST_HUE = 200;
+const LAST_HUE = 140;
+const MIDDLE_HUES = [50, 28, 42, 6];
+
+function cardTint(columnIndex: number, columnCount: number): CSSProperties {
+    const hue =
+        columnIndex <= 0
+            ? FIRST_HUE
+            : columnIndex >= columnCount - 1
+              ? LAST_HUE
+              : MIDDLE_HUES[(columnIndex - 1) % MIDDLE_HUES.length];
+
+    return { '--card-hue': hue } as CSSProperties;
+}
+
 function JobCardBody({ job }: { job: JobRow }) {
     return (
         <>
             <div className="flex items-start justify-between">
                 <Link
                     href={route('jobs.show', job.id)}
-                    className="text-sm font-semibold text-indigo-600 hover:text-indigo-900"
+                    className="text-sm font-semibold text-indigo-600 hover:underline"
                 >
                     {job.job_number}
                 </Link>
@@ -178,6 +213,14 @@ function JobCardBody({ job }: { job: JobRow }) {
                 </span>
             </div>
             <p className="text-sm text-gray-700">{job.customer}</p>
+            {job.due_date && (
+                <p
+                    className={`text-xs ${job.overdue ? 'font-semibold text-red-600' : 'text-gray-500'}`}
+                >
+                    Due {shortDate(toDay(job.due_date))}
+                    {job.overdue && ' · Overdue'}
+                </p>
+            )}
         </>
     );
 }
@@ -189,8 +232,10 @@ function JobCard({
     canAssign,
     animated,
     onAnimatingChange,
+    tint,
 }: {
     job: JobRow;
+    tint: CSSProperties;
     draggable: boolean;
     members: Member[];
     canAssign: boolean;
@@ -228,7 +273,8 @@ function JobCard({
             // See Column's hasAnimatingJob.
             onLayoutAnimationStart={() => onAnimatingChange(job.id, true)}
             onLayoutAnimationComplete={() => onAnimatingChange(job.id, false)}
-            className={`relative space-y-2 rounded-md border border-gray-200 bg-white p-3 shadow-sm ${isDragging ? 'opacity-40' : ''} ${draggable ? 'ps-7' : ''}`}
+            style={tint}
+            className={`job-card relative space-y-2 rounded-md border p-3 shadow-xs ${isDragging ? 'opacity-40' : ''} ${draggable ? 'ps-7' : ''}`}
         >
             {draggable && (
                 // Only the handle starts a drag, so links/buttons on the card
@@ -238,7 +284,7 @@ function JobCard({
                     {...listeners}
                     {...attributes}
                     aria-label={`Drag ${job.job_number} to another station`}
-                    className="absolute inset-y-0 start-0 flex w-6 cursor-grab touch-none items-center justify-center rounded-s-md text-gray-300 hover:bg-gray-50 hover:text-gray-500 active:cursor-grabbing"
+                    className="absolute inset-y-0 inset-s-0 flex w-6 cursor-grab touch-none items-center justify-center rounded-s-md text-gray-300 hover:bg-accent hover:text-foreground active:cursor-grabbing m-0"
                 >
                     <svg
                         className="h-4 w-4"
@@ -276,7 +322,11 @@ function Column({
     animatingJobIds,
     onAnimatingChange,
     focused,
+    columnIndex,
+    columnCount,
 }: {
+    columnIndex: number;
+    columnCount: number;
     stage: StageOption;
     jobs: JobRow[];
     draggingJob: JobRow | null;
@@ -329,25 +379,25 @@ function Column({
     // While dragging, legal destinations light up and everything else dims,
     // so it's obvious where a job can (and can't) go.
     const dropStyle = !draggingJob
-        ? 'bg-gray-50'
+        ? ''
         : isValidTarget
           ? isOver
               ? 'bg-indigo-100 ring-2 ring-indigo-500'
               : 'bg-indigo-50 ring-2 ring-indigo-200'
           : isSource
-            ? 'bg-gray-50'
-            : 'bg-gray-50 opacity-50';
+            ? ''
+            : ' opacity-50';
 
-    // A plain `shadow-sm` alongside a conditional `shadow-[...]` would fight
+    // A plain `shadow-xs` alongside a conditional `shadow-[...]` would fight
     // over the same box-shadow property - whichever rule Tailwind happens
     // to emit later in the stylesheet wins, regardless of class order in
     // the markup - so the resting shadow is folded into the same arbitrary
     // value instead of coexisting as a separate utility.
     const columnShadow = !focused
-        ? 'shadow-sm'
+        ? 'shadow-xs'
         : highlightVisible
           ? 'shadow-[0_0_0_4px_rgba(99,102,241,0.6),0_1px_2px_0_rgba(0,0,0,0.05)] duration-300'
-          : 'shadow-[0_0_0_4px_rgba(99,102,241,0),0_1px_2px_0_rgba(0,0,0,0.05)] duration-[1500ms]';
+          : 'shadow-[0_0_0_4px_rgba(99,102,241,0),0_1px_2px_0_rgba(0,0,0,0.05)] duration-1500';
 
     return (
         <div
@@ -356,13 +406,13 @@ function Column({
             // unclipped card can visually pass over them instead of being
             // painted behind them (grid items z-index against each other
             // regardless of position:static).
-            className={`relative flex h-full flex-col rounded-lg border border-gray-300 transition-shadow ease-out ${columnShadow} ${hasAnimatingJob ? 'z-10 overflow-visible' : 'overflow-hidden'}`}
+            className={`relative flex h-full flex-col rounded-lg transition-shadow ease-out bg-[#fbfbfb] dark:bg-[#1c1c1c] ${columnShadow} ${hasAnimatingJob ? 'z-10 overflow-visible' : 'overflow-hidden'}`}
         >
-            <div className="flex shrink-0 items-center justify-between border-b border-gray-300 bg-gray-100 px-3 py-2">
+            <div className="flex shrink-0 items-center justify-between px-3 py-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-700">
                     {stage.label}
                 </h3>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-500">
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium text-gray-500">
                     {jobs.length}
                 </span>
             </div>
@@ -370,19 +420,20 @@ function Column({
                 ref={setNodeRef}
                 // h-full/flex-1 only bite when an ancestor actually has a
                 // real height (kiosk mode's h-screen chain) - otherwise
-                // they resolve to auto and min-h-[28rem] is what governs,
+                // they resolve to auto and min-h-112 is what governs,
                 // same as before. overflow-y-auto only ever activates once
                 // something constrains this box shorter than its content,
                 // so it's inert in the normal (auto-height) case too.
                 // Briefly dropped to visible (losing vertical scroll for
                 // that moment) while a card here is mid-animation, for the
                 // same reason as the wrapper above.
-                className={`min-h-[28rem] flex-1 space-y-3 p-2 transition ${dropStyle} ${hasAnimatingJob ? 'overflow-visible' : 'overflow-y-auto'}`}
+                className={`min-h-112 flex-1 space-y-3 p-2 transition ${dropStyle} ${hasAnimatingJob ? 'overflow-visible' : 'overflow-y-auto'}`}
             >
                 {jobs.map((job) => (
                     <JobCard
                         key={job.id}
                         job={job}
+                        tint={cardTint(columnIndex, columnCount)}
                         // No handle on a card with nowhere to go (e.g. an
                         // Invoiced job, which can only be cancelled).
                         draggable={
@@ -430,12 +481,14 @@ export default function Index({
     dragEnabled,
     members,
     canAssign,
+    today,
 }: PageProps<{
     jobs: JobRow[];
     stages: StageOption[];
     dragEnabled: boolean;
     members: Member[];
     canAssign: boolean;
+    today: string;
 }>) {
     const cancelledJobs = jobs.filter((j) => j.cancelled);
     const shopId = usePage().props.auth.user.current_shop_id;
@@ -541,6 +594,27 @@ export default function Index({
         }
     }, [animated]);
 
+    // Remembered per browser (for now - not yet a server-side user setting),
+    // so whichever view someone picks becomes their default next visit.
+    const [viewMode, setViewMode] = useState<ViewMode>(() => {
+        try {
+            const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+            return VIEW_MODES.some((m) => m.value === saved)
+                ? (saved as ViewMode)
+                : 'board';
+        } catch {
+            return 'board';
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+        } catch {
+            // Blocked storage - the choice still holds for this session.
+        }
+    }, [viewMode]);
+
     const [draggingJob, setDraggingJob] = useState<JobRow | null>(null);
     const [pendingMove, setPendingMove] = useState<{
         job: JobRow;
@@ -639,12 +713,12 @@ export default function Index({
         // stacking, same as the fragment it replaced.
         <div className="flex h-full flex-col gap-6">
             {dropHint && (
-                <div
+                <Alert
                     role="status"
-                    className="shrink-0 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800"
+                    variant="warning" className="shrink-0 p-3 text-sm"
                 >
                     {dropHint}
-                </div>
+                </Alert>
             )}
 
                 <DndContext
@@ -687,9 +761,11 @@ export default function Index({
                                 minHeight: jobs.length === 0 ? '24rem' : undefined,
                             }}
                         >
-                            {stages.map((stage) => (
+                            {stages.map((stage, index) => (
                                 <Column
                                     key={stage.value}
+                                    columnIndex={index}
+                                    columnCount={stages.length}
                                     stage={stage}
                                     jobs={jobs.filter(
                                         (job) =>
@@ -723,7 +799,7 @@ export default function Index({
                                     Convert a won quote to create one - go to{' '}
                                     <Link
                                         href={route('quotes.index')}
-                                        className="font-medium text-indigo-600 hover:text-indigo-900"
+                                        className="font-medium text-indigo-600 hover:underline"
                                     >
                                         Quotes
                                     </Link>
@@ -738,7 +814,15 @@ export default function Index({
                         isn't clipped while it's dragged across it. */}
                     <DragOverlay>
                         {draggingJob && (
-                            <div className="w-72 cursor-grabbing space-y-2 rounded-md border border-indigo-300 bg-white p-3 shadow-lg">
+                            <div
+                                className="job-card w-72 cursor-grabbing space-y-2 rounded-md border p-3 shadow-lg"
+                                style={cardTint(
+                                    stages.findIndex(
+                                        (s) => s.value === draggingJob.stage,
+                                    ),
+                                    stages.length,
+                                )}
+                            >
                                 <JobCardBody job={draggingJob} />
                             </div>
                         )}
@@ -748,7 +832,7 @@ export default function Index({
     );
 
     const cancelledJobsSection = cancelledJobs.length > 0 && (
-        <details className="rounded-lg bg-white p-4 shadow-sm">
+        <details className="rounded-lg bg-white p-4 shadow-xs">
             <summary className="cursor-pointer text-sm font-medium text-gray-600">
                 Cancelled jobs ({cancelledJobs.length})
             </summary>
@@ -760,7 +844,7 @@ export default function Index({
                     >
                         <Link
                             href={route('jobs.show', job.id)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="text-indigo-600 hover:underline"
                         >
                             {job.job_number} - {job.customer}
                         </Link>
@@ -779,6 +863,27 @@ export default function Index({
             transition={pendingMove?.transition ?? null}
             onClose={() => setPendingMove(null)}
         />
+    );
+
+    const viewModeToggle = (
+        <div
+            role="group"
+            aria-label="Jobs view"
+            className="inline-flex rounded-md border p-0.5"
+        >
+            {VIEW_MODES.map((mode) => (
+                <Button
+                    key={mode.value}
+                    type="button"
+                    size="sm"
+                    variant={viewMode === mode.value ? 'default' : 'ghost'}
+                    aria-pressed={viewMode === mode.value}
+                    onClick={() => setViewMode(mode.value)}
+                >
+                    {mode.label}
+                </Button>
+            ))}
+        </div>
     );
 
     const animationsToggle = (
@@ -850,10 +955,15 @@ export default function Index({
                                 </p>
                             </PageHelp>
                             <UpdateBell pulse={updatePulse} />
-                            {animationsToggle}
-                            <SecondaryButton onClick={enterKiosk}>
-                                Kiosk mode
-                            </SecondaryButton>
+                            {viewModeToggle}
+                            {viewMode === 'board' && (
+                                <>
+                                    {animationsToggle}
+                                    <SecondaryButton onClick={enterKiosk}>
+                                        Kiosk mode
+                                    </SecondaryButton>
+                                </>
+                            )}
                         </>
                     )}
                 </div>
@@ -863,8 +973,14 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-full space-y-6 px-4 sm:px-6 lg:px-8">
-                    {boardContent}
-                    {cancelledJobsSection}
+                    {viewMode === 'calendar' && jobs.length > 0 ? (
+                        <JobCalendar jobs={jobs} today={today} />
+                    ) : (
+                        <>
+                            {boardContent}
+                            {cancelledJobsSection}
+                        </>
+                    )}
                 </div>
             </div>
 

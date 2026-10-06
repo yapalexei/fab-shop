@@ -19,7 +19,7 @@ export default function BillingIntervalToggle({
             className={`px-4 py-1.5 text-sm font-medium first:rounded-s-md last:rounded-e-md ${
                 value === interval
                     ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    : 'bg-white text-gray-700 hover:bg-accent'
             }`}
         >
             {label}
@@ -28,7 +28,7 @@ export default function BillingIntervalToggle({
 
     return (
         <div className="inline-flex items-center gap-3">
-            <div className="inline-flex divide-x divide-gray-300 rounded-md border border-gray-300 shadow-sm">
+            <div className="inline-flex divide-x divide-gray-300 rounded-md border border-gray-300 shadow-xs">
                 {button('monthly', 'Monthly')}
                 {button(
                     'annual',

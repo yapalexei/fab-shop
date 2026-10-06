@@ -72,11 +72,11 @@ export default function ToolFields({
                         return (
                             <label
                                 key={option.value}
-                                className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${checked ? 'border-indigo-300 bg-indigo-50 text-indigo-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${checked ? 'border-indigo-300 bg-indigo-50 text-indigo-900' : 'border-gray-200 text-gray-600 hover:bg-accent'}`}
                             >
                                 <input
                                     type="checkbox"
-                                    className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                    className="rounded-sm border-gray-300 text-indigo-600 shadow-xs focus:ring-indigo-500"
                                     checked={checked}
                                     onChange={() =>
                                         toggleMaterial(option.value)
@@ -135,7 +135,7 @@ export default function ToolFields({
                 <InputLabel htmlFor="notes" value="Notes" />
                 <textarea
                     id="notes"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                     rows={3}
                     value={data.notes}
                     onChange={(e) => setData('notes', e.target.value)}

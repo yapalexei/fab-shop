@@ -15,6 +15,8 @@ import { formatCents, formatMoney } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { Card } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
 
 interface PlanAdvice {
     plan_key: string;
@@ -81,9 +83,9 @@ function AddonAction({
 
     if (addon.bundledInPlan) {
         return (
-            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+            <Badge variant="success">
                 Included
-            </span>
+            </Badge>
         );
     }
 
@@ -183,7 +185,7 @@ export default function Index({
                     {bannerAdvice && (
                         <div
                             role="status"
-                            className="mb-4 flex flex-wrap items-center justify-between gap-3 border-l-4 border-amber-400 bg-amber-50 p-4 shadow sm:rounded-lg"
+                            className="mb-4 flex flex-wrap items-center justify-between gap-3 border-l-4 border-amber-400 bg-amber-50 p-4 shadow-sm sm:rounded-lg"
                         >
                             <div className="text-sm text-amber-900">
                                 <div className="mb-1 font-semibold">
@@ -199,7 +201,7 @@ export default function Index({
                             </PrimaryButton>
                         </div>
                     )}
-                    <div className="divide-y divide-gray-200 bg-white shadow sm:rounded-lg">
+                    <Card className="divide-y divide-gray-200">
                         {addons.map((addon) => (
                             <div
                                 key={addon.feature}
@@ -231,7 +233,7 @@ export default function Index({
                                 />
                             </div>
                         ))}
-                    </div>
+                    </Card>
                 </div>
             </div>
 

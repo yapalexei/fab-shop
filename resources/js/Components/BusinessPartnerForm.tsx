@@ -106,7 +106,7 @@ export default function BusinessPartnerForm({
                     <InputLabel htmlFor="address" value="Address" />
                     <textarea
                         id="address"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         rows={3}
                         value={data.address}
                         onChange={(e) => setData('address', e.target.value)}
@@ -161,7 +161,7 @@ export default function BusinessPartnerForm({
                     <InputLabel htmlFor="notes" value="Notes" />
                     <textarea
                         id="notes"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
                         rows={3}
                         value={data.notes}
                         onChange={(e) => setData('notes', e.target.value)}

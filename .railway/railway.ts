@@ -1,4 +1,4 @@
-import { bucket, defineRailway, github, postgres, preserve, project, redis, ref, service } from 'railway/iac';
+import { bucket, defineRailway, github, postgres, preserve, project, redis, service } from 'railway/iac';
 
 // Whole Railway project as code. `railway config plan` previews the diff
 // against the live environment, `railway config apply` (or the GitHub Action
@@ -31,13 +31,15 @@ export default defineRailway((ctx) => {
         CACHE_STORE: 'database',
         SESSION_DRIVER: 'database',
 
+        // AWS_* below are Railway references to the bucket (${{uploads.AWS_...}}), set
+        // by hand: IaC's own bucket refs applied as empty strings. See docs/deploy-railway.md.
         FILESYSTEM_DISK: 's3',
         MEDIA_DISK: 's3',
-        AWS_ACCESS_KEY_ID: ref(storage, 'AWS_ACCESS_KEY_ID'),
-        AWS_SECRET_ACCESS_KEY: ref(storage, 'AWS_SECRET_ACCESS_KEY'),
-        AWS_DEFAULT_REGION: ref(storage, 'AWS_DEFAULT_REGION'),
-        AWS_BUCKET: ref(storage, 'AWS_S3_BUCKET_NAME'),
-        AWS_ENDPOINT: ref(storage, 'AWS_ENDPOINT_URL'),
+        AWS_ACCESS_KEY_ID: preserve(),
+        AWS_SECRET_ACCESS_KEY: preserve(),
+        AWS_DEFAULT_REGION: preserve(),
+        AWS_BUCKET: preserve(),
+        AWS_ENDPOINT: preserve(),
         AWS_USE_PATH_STYLE_ENDPOINT: 'false', // Railway buckets use virtual-host URLs,
 
         MAIL_MAILER: 'resend',

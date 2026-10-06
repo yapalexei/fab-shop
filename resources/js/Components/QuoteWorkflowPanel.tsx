@@ -116,7 +116,7 @@ export default function QuoteWorkflowPanel({
                     </SecondaryButton>
                     <a
                         href={route('quotes.preview', quoteId)}
-                        className="text-sm text-indigo-600 hover:text-indigo-900"
+                        className="text-sm text-indigo-600 hover:underline"
                         target="_blank"
                         rel="noreferrer"
                     >
@@ -126,7 +126,7 @@ export default function QuoteWorkflowPanel({
                         <button
                             type="button"
                             onClick={() => setSkipping(true)}
-                            className="text-sm text-indigo-600 hover:text-indigo-900"
+                            className="text-sm text-indigo-600 hover:underline"
                         >
                             Skip sending
                         </button>
@@ -172,7 +172,7 @@ export default function QuoteWorkflowPanel({
                                 <button
                                     type="button"
                                     onClick={() => setSkipping(false)}
-                                    className="text-sm text-gray-500 hover:text-gray-700"
+                                    className="text-sm text-gray-500 hover:text-foreground"
                                 >
                                     Cancel
                                 </button>
@@ -210,7 +210,7 @@ export default function QuoteWorkflowPanel({
                     {emailedAt && (
                         <a
                             href={route('quotes.pdf', quoteId)}
-                            className="text-sm text-indigo-600 hover:text-indigo-900"
+                            className="text-sm text-indigo-600 hover:underline"
                             target="_blank"
                             rel="noreferrer"
                         >
@@ -222,7 +222,7 @@ export default function QuoteWorkflowPanel({
                 jobId ? (
                     <Link
                         href={route('jobs.show', jobId)}
-                        className="text-sm text-indigo-600 hover:text-indigo-900"
+                        className="text-sm text-indigo-600 hover:underline"
                     >
                         View job
                     </Link>
@@ -270,7 +270,7 @@ export default function QuoteWorkflowPanel({
                     <p className="text-sm">
                         <a
                             href={route('quotes.preview', quoteId)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="text-indigo-600 hover:underline"
                             target="_blank"
                             rel="noreferrer"
                         >

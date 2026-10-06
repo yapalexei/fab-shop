@@ -1,4 +1,4 @@
-import Checkbox from '@/Components/Checkbox';
+import { Checkbox } from '@/Components/ui/checkbox';
 import Modal from '@/Components/Modal';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
@@ -123,14 +123,14 @@ export default function SampleDataDialog({
                                         true,
                                     )
                                 }
-                                className="font-medium text-indigo-600 hover:text-indigo-900"
+                                className="font-medium text-indigo-600 hover:underline"
                             >
                                 Select all
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setSelected(new Set())}
-                                className="font-medium text-indigo-600 hover:text-indigo-900"
+                                className="font-medium text-indigo-600 hover:underline"
                             >
                                 Deselect all
                             </button>
@@ -160,12 +160,12 @@ export default function SampleDataDialog({
                                                         groupAddable.length ===
                                                         0
                                                     }
-                                                    onChange={(e) =>
+                                                    onCheckedChange={(v) =>
                                                         toggle(
                                                             groupAddable.map(
                                                                 (i) => i.name,
                                                             ),
-                                                            e.target.checked,
+                                                            v === true,
                                                         )
                                                     }
                                                 />
@@ -187,11 +187,10 @@ export default function SampleDataDialog({
                                                             disabled={
                                                                 item.exists
                                                             }
-                                                            onChange={(e) =>
+                                                            onCheckedChange={(v) =>
                                                                 toggle(
                                                                     [item.name],
-                                                                    e.target
-                                                                        .checked,
+                                                                    v === true,
                                                                 )
                                                             }
                                                         />

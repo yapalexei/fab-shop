@@ -9,6 +9,7 @@ use App\Models\JobQualificationRecord;
 use App\Models\JobStage;
 use App\Models\Material;
 use App\Models\Procedure;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -44,6 +45,7 @@ class JobController extends Controller
             // records already sends for its own member dropdown.
             'members' => Auth::user()->currentShop->members()->orderBy('name')->get(['users.id', 'users.name']),
             'canAssign' => Gate::allows('jobs.update'),
+            'today' => Auth::user()->currentShop->localNow()->toDateString(),
         ]);
     }
 
@@ -77,6 +79,9 @@ class JobController extends Controller
                 'stage' => (string) $job->job_stage_id,
                 'stage_label' => $job->jobStage->name,
                 'cancelled' => $job->isCancelled(),
+                'due_date' => $job->due_date?->toDateString(),
+                'overdue' => $job->isOverdue($shop->localNow()),
+                'can_edit' => Gate::allows('jobs.update'),
                 'available_transitions' => $this->mapTransitions($job),
                 'total' => $job->total,
                 'customer' => [
@@ -191,7 +196,20 @@ class JobController extends Controller
             'available_transitions' => $this->mapTransitions($job),
             'assigned_to' => $job->assigned_to,
             'assignee' => $job->assignedTo?->name,
+            // Calendar days on the shop's wall clock (not UTC instants), so
+            // the client can lay out spans without any timezone math. Null
+            // started_on = not started, so it has no place on a calendar;
+            // null ended_on = still in progress.
+            'started_on' => $this->shopDate($job->started_at),
+            'ended_on' => $this->shopDate($job->finished_at),
+            'due_date' => $job->due_date?->toDateString(),
+            'overdue' => $job->isOverdue(Auth::user()->currentShop->localNow()),
         ];
+    }
+
+    private function shopDate(?CarbonInterface $moment): ?string
+    {
+        return $moment?->copy()->setTimezone(Auth::user()->currentShop->localTimezone())->toDateString();
     }
 
     /**
