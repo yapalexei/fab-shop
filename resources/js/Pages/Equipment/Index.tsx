@@ -1,9 +1,11 @@
 import CsvImportDialog from '@/Components/CsvImportDialog';
+import ListSearch from '@/Components/ListSearch';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SampleDataDialog from '@/Components/SampleDataDialog';
 import SampleDataPrompt from '@/Components/SampleDataPrompt';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useListSearch } from '@/lib/listSearch';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { useState } from 'react';
@@ -33,6 +35,8 @@ export default function Index({
             router.delete(route('equipment.destroy', item.id));
         }
     };
+
+    const search = useListSearch(equipment, (r) => [r.name, r.billing_method]);
 
     return (
         <AuthenticatedLayout
@@ -66,7 +70,14 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="flex justify-end gap-3">
+                    <div className="flex items-center justify-end gap-3">
+                        {equipment.length > 0 && (
+                            <ListSearch
+                                search={search}
+                                placeholder="Search equipment..."
+                                className="me-auto"
+                            />
+                        )}
                         {auth.isOwner && (
                             <CsvImportDialog
                                 resource="equipment"
@@ -119,7 +130,17 @@ export default function Index({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y bg-white">
-                                    {equipment.map((item) => (
+                                    {search.visible.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={99}
+                                                className="px-6 py-4 text-sm text-muted-foreground"
+                                            >
+                                                No equipment match “{search.query}”.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {search.visible.map((item) => (
                                         <tr key={item.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                                                 {item.name}

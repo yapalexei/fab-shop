@@ -39,9 +39,12 @@ export function actionLabel(action: string): string {
 export default function PermissionGrid({
     resources,
     renderCell,
+    rows = false,
 }: {
     resources: ResourceOption[];
     renderCell: (action: ResourceAction) => ReactNode;
+    /** On phones, lay cells out as table rows (title left, control right). */
+    rows?: boolean;
 }) {
     return (
         <ul className="divide-y rounded-md border border-gray-200">
@@ -68,9 +71,17 @@ export default function PermissionGrid({
                             ))}
                         </ul>
                     </div>
-                    <div className="flex flex-1 flex-wrap gap-2">
+                    <div
+                        className={
+                            rows
+                                ? 'flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3'
+                                : 'flex flex-1 flex-wrap gap-2'
+                        }
+                    >
                         {resource.actions.map((action) => (
-                            <div key={action.permission}>
+                            <div
+                                key={action.permission}
+                            >
                                 {renderCell(action)}
                             </div>
                         ))}

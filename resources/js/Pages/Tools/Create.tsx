@@ -20,11 +20,15 @@ export default function Create({
         cost: '',
         unit: 'each',
         notes: '',
+        image: null,
+        remove_image: false,
+        model: null,
+        remove_model: false,
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('tools.store'));
+        post(route('tools.store'), { forceFormData: true });
     };
 
     return (

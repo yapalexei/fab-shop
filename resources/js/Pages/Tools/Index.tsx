@@ -1,8 +1,11 @@
+import { SquareImage } from '@/Components/Avatar';
 import CsvImportDialog from '@/Components/CsvImportDialog';
+import ListSearch from '@/Components/ListSearch';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import { MaterialOption } from '@/Components/ToolFields';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useListSearch } from '@/lib/listSearch';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
@@ -16,6 +19,7 @@ interface ToolRow {
     cuts: number[];
     cost: number;
     unit: string;
+    image_url: string | null;
 }
 
 const currency = new Intl.NumberFormat('en-US', {
@@ -37,9 +41,11 @@ export default function Index({
 
     const labelFor = (value: number) =>
         materialOptions.find((m) => m.value === value)?.label ?? value;
-    const visible = material
-        ? tools.filter((tool) => tool.cuts.includes(material))
-        : tools;
+    const search = useListSearch(
+        material ? tools.filter((tool) => tool.cuts.includes(material)) : tools,
+        (tool) => [tool.name, tool.unit],
+    );
+    const visible = search.visible;
 
     const destroy = (tool: ToolRow) => {
         if (
@@ -79,6 +85,12 @@ export default function Index({
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-wrap items-center justify-between gap-4">
+                        {tools.length > 0 && (
+                            <ListSearch
+                                search={search}
+                                placeholder="Search tooling..."
+                            />
+                        )}
                         <div
                             className="flex flex-wrap gap-2"
                             aria-label="Filter by material"
@@ -136,8 +148,13 @@ export default function Index({
                                 </div>
                             ) : (
                                 <div className="p-6 text-gray-500">
-                                    No tooling rated for{' '}
-                                    {labelFor(material ?? 0)}.
+                                    {search.active
+                                        ? `No tooling matches “${search.query}”`
+                                        : 'No tooling'}
+                                    {material
+                                        ? ` rated for ${labelFor(material)}`
+                                        : ''}
+                                    .
                                 </div>
                             )
                         ) : (
@@ -160,7 +177,13 @@ export default function Index({
                                     {visible.map((tool) => (
                                         <tr key={tool.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                                                {tool.name}
+                                                <span className="flex items-center gap-3">
+                                                    <SquareImage
+                                                        src={tool.image_url}
+                                                        className="size-10"
+                                                    />
+                                                    {tool.name}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">

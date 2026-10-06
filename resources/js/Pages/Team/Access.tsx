@@ -5,6 +5,7 @@ import PermissionGrid, {
     isDestructive,
     ResourceOption,
 } from '@/Components/PermissionGrid';
+import PermissionToggle from '@/Components/PermissionToggle';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { RoleGrants } from '@/Pages/Permissions/Edit';
@@ -153,6 +154,7 @@ export default function Access({
 
                         <PermissionGrid
                             resources={resources}
+                            rows
                             renderCell={(action) => {
                                 const index = data.overrides.findIndex(
                                     (row) =>
@@ -170,41 +172,53 @@ export default function Access({
                                 return (
                                     <div
                                         className={cn(
-                                            'rounded-md border px-2 py-1.5',
+                                            'rounded-md border-2 px-3 py-2 sm:px-2 sm:py-1.5',
                                             effective
-                                                ? isDestructive(action.action)
-                                                    ? 'border-destructive/60 bg-destructive/10'
-                                                    : 'border-primary/60 bg-primary/10'
-                                                : 'border-border',
+                                                ? 'border-green-600/70 bg-green-600/5'
+                                                : 'border-red-600/70 bg-red-600/5',
                                         )}
                                     >
-                                        <label className="block text-xs font-medium text-gray-700">
-                                            {actionLabel(action.action)}
-                                            <SearchableSelect
+                                        <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-start sm:gap-1">
+                                            <span
+                                                className={cn(
+                                                    'text-sm font-medium sm:text-xs',
+                                                    isDestructive(action.action)
+                                                        ? 'text-red-600'
+                                                        : 'text-gray-700',
+                                                )}
+                                            >
+                                                {actionLabel(action.action)}
+                                                <span className="sr-only">
+                                                    {' '}
+                                                    (role default:{' '}
+                                                    {inherited ? 'yes' : 'no'})
+                                                </span>
+                                            </span>
+                                            <PermissionToggle
                                                 ariaLabel={`${member.name}: ${action.permission}`}
-                                                wrapperClassName="mt-1"
-                                                className="rounded-sm border-gray-300 py-1 text-xs focus:border-indigo-500 focus:ring-indigo-500"
+                                                name={action.permission}
                                                 value={
-                                                    override === null ? 'inherit' : override ? 'allow' : 'deny'
+                                                    override === null
+                                                        ? 'inherit'
+                                                        : override
+                                                          ? 'allow'
+                                                          : 'deny'
+                                                }
+                                                disabledChoices={
+                                                    canAllow ? [] : ['allow']
                                                 }
                                                 onChange={(value) =>
                                                     setOverride(
                                                         action.permission,
-                                                        value === 'inherit' ? null : value === 'allow',
+                                                        value === 'inherit'
+                                                            ? null
+                                                            : value === 'allow',
                                                     )
                                                 }
-                                                options={[
-                                                    {
-                                                        value: 'inherit',
-                                                        label: `Role default (${inherited ? 'yes' : 'no'})`,
-                                                    },
-                                                    { value: 'allow', label: 'Allow', disabled: !canAllow },
-                                                    { value: 'deny', label: 'Deny' },
-                                                ]}
                                             />
-                                        </label>
+                                        </div>
                                         {error && (
-                                            <p className="mt-1 max-w-40 text-xs text-red-600">
+                                            <p className="mt-1 text-xs text-red-600 sm:max-w-40">
                                                 {error}
                                             </p>
                                         )}

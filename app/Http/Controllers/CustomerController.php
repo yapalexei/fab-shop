@@ -59,6 +59,7 @@ class CustomerController extends Controller implements HasMiddleware
     {
         return Inertia::render('Customers/Edit', [
             'customer' => [...$customer->toArray(), 'logo_url' => $customer->logoUrl()],
+            'businessPartnerId' => $customer->businessPartner?->id,
         ]);
     }
 

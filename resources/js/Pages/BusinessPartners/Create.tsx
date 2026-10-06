@@ -1,5 +1,5 @@
 import Breadcrumbs from '@/Components/Breadcrumbs';
-import BusinessPartnerForm from '@/Components/BusinessPartnerForm';
+import BusinessPartnerForm, { TypeOption } from '@/Components/BusinessPartnerForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
@@ -8,9 +8,11 @@ import { Card } from '@/Components/ui/card';
 export default function Create({
     materials,
     services,
+    typeOptions,
 }: PageProps<{
     materials: { id: number; name: string; unit: string | null }[];
     services: { id: number; name: string }[];
+    typeOptions: TypeOption[];
 }>) {
     return (
         <AuthenticatedLayout
@@ -31,10 +33,12 @@ export default function Create({
                         <BusinessPartnerForm
                             materialOptions={materials}
                             serviceOptions={services}
+                            typeOptions={typeOptions}
                             submitUrl={route('business-partners.store')}
                             method="post"
                             initialData={{
                                 name: '',
+                                type: 'supplier',
                                 email: '',
                                 phone: '',
                                 address: '',

@@ -11,8 +11,14 @@ import TextInput from '@/Components/TextInput';
 import { Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
+export interface TypeOption {
+    value: string;
+    label: string;
+}
+
 export interface BusinessPartnerFormData {
     name: string;
+    type: string;
     email: string;
     phone: string;
     address: string;
@@ -27,6 +33,7 @@ export interface BusinessPartnerFormData {
 export default function BusinessPartnerForm({
     materialOptions,
     serviceOptions,
+    typeOptions,
     initialData,
     submitUrl,
     method,
@@ -35,6 +42,7 @@ export default function BusinessPartnerForm({
 }: {
     materialOptions: { id: number; name: string }[];
     serviceOptions: { id: number; name: string }[];
+    typeOptions: TypeOption[];
     initialData: BusinessPartnerFormData;
     submitUrl: string;
     method: 'post' | 'put';
@@ -101,6 +109,27 @@ export default function BusinessPartnerForm({
                         required
                     />
                     <InputError message={errors.name} className="mt-2" />
+                </div>
+
+                <div className="mt-4">
+                    <InputLabel htmlFor="type" value="Type" />
+                    <select
+                        id="type"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-indigo-500 focus:ring-indigo-500"
+                        value={data.type}
+                        onChange={(e) => setData('type', e.target.value)}
+                    >
+                        {typeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Suppliers sell you materials; service providers do work
+                        for you (anodizing, powder coating, laser cutting...).
+                    </p>
+                    <InputError message={errors.type} className="mt-2" />
                 </div>
 
                 <div className="mt-4">

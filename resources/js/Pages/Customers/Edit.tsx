@@ -7,7 +7,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 import { Card } from '@/Components/ui/card';
 
@@ -21,7 +21,14 @@ interface Customer {
     logo_url: string | null;
 }
 
-export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
+export default function Edit({
+    customer,
+    businessPartnerId,
+}: PageProps<{
+    customer: Customer;
+    /** Set when this business is also a business partner. */
+    businessPartnerId: number | null;
+}>) {
     const can = useCan();
     const readOnly = !can('customers.update');
 
@@ -57,7 +64,28 @@ export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
             <Head title="Edit customer" />
 
             <div className="py-12">
-                <div className="mx-auto max-w-3xl sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-3xl space-y-6 sm:px-6 lg:px-8">
+                    {businessPartnerId && (
+                        <Card className="flex items-center justify-between gap-4 p-4 text-sm">
+                            <span>
+                                This business is also one of your business
+                                partners. Its name and contact details are kept
+                                the same in both places.
+                            </span>
+                            {can('business-partners.view') && (
+                                <Link
+                                    href={route(
+                                        'business-partners.edit',
+                                        businessPartnerId,
+                                    )}
+                                    className="shrink-0 font-medium underline"
+                                >
+                                    View business partner
+                                </Link>
+                            )}
+                        </Card>
+                    )}
+
                     <Card className="p-4 sm:p-8">
                         <form onSubmit={submit}>
                             <fieldset disabled={readOnly}>

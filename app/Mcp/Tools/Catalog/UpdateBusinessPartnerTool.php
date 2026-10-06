@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools\Catalog;
 
+use App\Enums\BusinessPartnerType;
 use App\Models\BusinessPartner;
 use App\Models\Shop;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -37,7 +38,7 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
 
     protected function attributes(): array
     {
-        return ['name', 'email', 'phone', 'address', 'notes'];
+        return ['name', 'email', 'phone', 'address', 'notes', 'type'];
     }
 
     protected function fields(JsonSchema $schema): array
@@ -48,6 +49,7 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
             'phone' => $schema->string(),
             'address' => $schema->string(),
             'notes' => $schema->string(),
+            'type' => $schema->string()->enum(array_column(BusinessPartnerType::cases(), 'value'))->description('supplier (materials), service_provider (anodizing, powder coat, etc.) or both. Defaults to supplier.'),
             'materials' => $schema->array()->items($schema->object([
                 'material_id' => $schema->integer()->description('A catalog material id.')->required(),
                 'price' => $schema->number()->description('Their price for it, in dollars.')->required(),
@@ -68,6 +70,7 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
             'phone' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'type' => [Rule::enum(BusinessPartnerType::class)],
             'materials' => ['nullable', 'array'],
             'materials.*.material_id' => ['required', Rule::exists('materials', 'id')->where('shop_id', $shop->id)],
             'materials.*.dimension' => ['nullable', 'string', 'max:100'],
@@ -82,6 +85,7 @@ class UpdateBusinessPartnerTool extends CatalogUpdateTool
     {
         return [
             ...$record->only(['id', 'name', 'email', 'phone', 'address', 'notes']),
+            'type' => $record->type->value,
             'materials' => $record->materials()->get()->map(fn ($m) => ['material_id' => $m->id, 'name' => $m->name, 'dimension' => $m->pivot->dimension, 'price' => (float) $m->pivot->price])->all(),
             'services' => $record->services()->get()->map(fn ($s) => ['service_id' => $s->id, 'name' => $s->name, 'price' => (float) $s->pivot->price])->all(),
         ];

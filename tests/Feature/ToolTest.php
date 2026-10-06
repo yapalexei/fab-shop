@@ -7,6 +7,8 @@ use App\Models\Plan;
 use App\Models\Quote;
 use App\Models\Shop;
 use App\Models\Tool;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Ids of the named material types in $shop.
@@ -195,4 +197,59 @@ test('the quote builder receives tooling with its ratings and a tooling markup d
             ->where('tools.0.cuts', 'Carbon steel, Stainless steel')
             ->where('tools.0.cut_type_ids', fn ($ids) => collect($ids)->sort()->values()->all() === collect(typeIds($shop, 'Carbon steel', 'Stainless steel'))->sort()->values()->all())
             ->where('markupDefaults.tooling', 30));
+});
+
+test('a tool can carry a photo and a 3D file, replaced and removed on update', function () {
+    Storage::fake('public');
+    $user = actingAsShopMember(Shop::factory()->create());
+    $cuts = MaterialType::pluck('id')->take(1)->all();
+
+    $this->actingAs($user)->post(route('tools.store'), [
+        'name' => '1/4 bit', 'cuts' => $cuts, 'cost' => 5, 'unit' => 'hole',
+        'image' => UploadedFile::fake()->image('bit.png'),
+        'model' => UploadedFile::fake()->create('bit.stl', 100),
+    ])->assertSessionHasNoErrors();
+
+    $tool = Tool::sole();
+    expect($tool->imageUrl())->not->toBeNull();
+    $this->actingAs($user)->get($tool->imageUrl())->assertOk();
+    $this->actingAs($user)->get(route('tools.model', $tool))->assertOk();
+
+    $this->actingAs($user)->post(route('tools.update', $tool), [
+        '_method' => 'put', 'name' => '1/4 bit', 'cuts' => $cuts, 'cost' => 5, 'unit' => 'hole',
+        'model' => UploadedFile::fake()->create('new.step', 100),
+    ])->assertSessionHasNoErrors();
+
+    expect(Tool::sole()->getFirstMedia('model')->file_name)->toBe('new.step')
+        ->and(Tool::sole()->imageUrl())->not->toBeNull();
+
+    $this->actingAs($user)->put(route('tools.update', $tool), [
+        'name' => '1/4 bit', 'cuts' => $cuts, 'cost' => 5, 'unit' => 'hole',
+        'remove_image' => true, 'remove_model' => true,
+    ])->assertSessionHasNoErrors();
+
+    expect(Tool::sole()->imageUrl())->toBeNull()
+        ->and(Tool::sole()->getMedia('model'))->toHaveCount(0);
+});
+
+test('tool files are validated and never served across shops', function () {
+    Storage::fake('public');
+    $user = actingAsShopMember(Shop::factory()->create());
+    $cuts = MaterialType::pluck('id')->take(1)->all();
+    $base = ['name' => 'Bit', 'cuts' => $cuts, 'cost' => 5, 'unit' => 'hole'];
+
+    $this->actingAs($user)->post(route('tools.store'), $base + [
+        'model' => UploadedFile::fake()->create('evil.html', 10),
+    ])->assertSessionHasErrors('model');
+    $this->actingAs($user)->post(route('tools.store'), $base + [
+        'image' => UploadedFile::fake()->create('bit.pdf', 10, 'application/pdf'),
+    ])->assertSessionHasErrors('image');
+
+    $this->actingAs($user)->post(route('tools.store'), $base + [
+        'model' => UploadedFile::fake()->create('bit.stl', 10),
+    ]);
+    $tool = Tool::sole();
+
+    $other = actingAsShopMember(Shop::factory()->create());
+    $this->actingAs($other)->get(route('tools.model', $tool))->assertNotFound();
 });

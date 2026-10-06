@@ -1,6 +1,12 @@
+import { Row } from '@/Components/Attachments';
+import { SquareImage } from '@/Components/Avatar';
+import ImageField, { MAX_IMAGE_MB } from '@/Components/ImageField';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
+import { Button } from '@/Components/ui/button';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { useRef } from 'react';
 
 /** One of the shop's material types (built-in or custom). */
 export interface MaterialOption {
@@ -14,7 +20,24 @@ export interface ToolFormData {
     cost: string;
     unit: string;
     notes: string;
+    /** A newly chosen photo, or null to keep the current one. */
+    image: File | null;
+    remove_image: boolean;
+    /** A newly chosen 3D/CAD file, or null to keep the current one. */
+    model: File | null;
+    remove_model: boolean;
 }
+
+/** The saved 3D file, as `ToolModels::props()` sends it. */
+export interface ToolModelFile {
+    name: string;
+    size: number;
+    kind: string;
+    file_path: string;
+}
+
+export const MAX_MODEL_MB = 30;
+const MODEL_ACCEPT = '.step,.stp,.stl,.3mf,.obj,.dxf,.dwg';
 
 const commonUnits = ['each', 'hole', 'ft', 'in', 'cut', 'min'];
 
@@ -23,6 +46,8 @@ export default function ToolFields({
     setData,
     errors,
     materialOptions,
+    currentImage,
+    currentModel,
 }: {
     data: ToolFormData;
     setData: <K extends keyof ToolFormData>(
@@ -31,7 +56,30 @@ export default function ToolFields({
     ) => void;
     errors: Partial<Record<string, string>>;
     materialOptions: MaterialOption[];
+    /** The photo already saved for this tool (edit page). */
+    currentImage?: string | null;
+    /** The 3D file already saved for this tool (edit page). */
+    currentModel?: ToolModelFile | null;
 }) {
+    const modelInput = useRef<HTMLInputElement>(null);
+    const savedModel = data.remove_model ? null : (currentModel ?? null);
+    const hasModel = !!data.model || !!savedModel;
+
+    const pickModel = (file: File | null) => {
+        if (file && file.size > MAX_MODEL_MB * 1024 * 1024) {
+            if (modelInput.current) modelInput.current.value = '';
+            return;
+        }
+        setData('model', file);
+        setData('remove_model', false);
+    };
+
+    const clearModel = () => {
+        if (modelInput.current) modelInput.current.value = '';
+        setData('model', null);
+        setData('remove_model', !!currentModel);
+    };
+
     const toggleMaterial = (value: number) =>
         setData(
             'cuts',
@@ -42,7 +90,21 @@ export default function ToolFields({
 
     return (
         <>
-            <div>
+            <ImageField
+                label="Photo"
+                preview={(src) => (
+                    <SquareImage src={src} className="size-24" />
+                )}
+                current={currentImage}
+                file={data.image}
+                removed={data.remove_image}
+                onChange={(file) => setData('image', file)}
+                onRemove={(removed) => setData('remove_image', removed)}
+                error={errors.image}
+                hint={`JPG, PNG, GIF or WebP, up to ${MAX_IMAGE_MB} MB. It's cropped to a square from the centre.`}
+            />
+
+            <div className="mt-4">
                 <InputLabel htmlFor="name" value="Name" />
                 <TextInput
                     id="name"
@@ -72,13 +134,11 @@ export default function ToolFields({
                         return (
                             <label
                                 key={option.value}
-                                className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${checked ? 'border-indigo-300 bg-indigo-50 text-indigo-900' : 'border-gray-200 text-gray-600 hover:bg-accent'}`}
+                                className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${checked ? 'border-primary/40 bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent'}`}
                             >
-                                <input
-                                    type="checkbox"
-                                    className="rounded-sm border-gray-300 text-indigo-600 shadow-xs focus:ring-indigo-500"
+                                <Checkbox
                                     checked={checked}
-                                    onChange={() =>
+                                    onCheckedChange={() =>
                                         toggleMaterial(option.value)
                                     }
                                 />
@@ -92,6 +152,53 @@ export default function ToolFields({
                     className="mt-2"
                 />
             </fieldset>
+
+            <div className="mt-4">
+                <InputLabel htmlFor="model" value="3D file" />
+                <p className="text-xs text-muted-foreground">
+                    Optional. STEP, STL, 3MF, OBJ, DXF or DWG, up to{' '}
+                    {MAX_MODEL_MB} MB. STL, OBJ and 3MF can be previewed in
+                    the browser.
+                </p>
+                {data.model ? (
+                    <ul className="mt-2">
+                        <Row
+                            name={data.model.name}
+                            size={data.model.size}
+                            onRemove={clearModel}
+                        />
+                    </ul>
+                ) : savedModel ? (
+                    <ul className="mt-2">
+                        <Row
+                            name={savedModel.name}
+                            size={savedModel.size}
+                            kind={savedModel.kind}
+                            href={savedModel.file_path}
+                            onRemove={clearModel}
+                        />
+                    </ul>
+                ) : null}
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => modelInput.current?.click()}
+                >
+                    {hasModel ? 'Replace file' : 'Upload file'}
+                </Button>
+                <input
+                    ref={modelInput}
+                    id="model"
+                    type="file"
+                    accept={MODEL_ACCEPT}
+                    className="sr-only"
+                    tabIndex={-1}
+                    onChange={(e) => pickModel(e.target.files?.[0] ?? null)}
+                />
+                <InputError message={errors.model} className="mt-2" />
+            </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>

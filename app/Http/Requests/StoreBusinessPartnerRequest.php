@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\BusinessPartnerType;
 use App\Support\Images;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -26,6 +27,7 @@ class StoreBusinessPartnerRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'type' => ['sometimes', Rule::enum(BusinessPartnerType::class)],
             'logo' => Images::rules(),
             'remove_logo' => ['nullable', 'boolean'],
             'materials' => ['nullable', 'array'],

@@ -228,6 +228,10 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->except('show')
         ->middleware('feature:quote-builder');
 
+    Route::post('business-partners/{business_partner}/make-customer', [BusinessPartnerController::class, 'makeCustomer'])
+        ->middleware(['feature:customers', 'can:customers.create', 'can:business-partners.view'])
+        ->name('business-partners.make-customer');
+
     Route::resource('business-partners', BusinessPartnerController::class)
         ->except('show')
         ->middleware('feature:quote-builder');
@@ -236,6 +240,8 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         ->except('show')
         ->middleware('feature:quote-builder');
 
+    Route::get('tools/{tool}/image', [ToolController::class, 'image'])->name('tools.image');
+    Route::get('tools/{tool}/model', [ToolController::class, 'model'])->name('tools.model');
     Route::resource('tools', ToolController::class)
         ->except('show')
         ->middleware('feature:quote-builder');

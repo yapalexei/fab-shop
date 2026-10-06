@@ -1,7 +1,9 @@
 import { LogoAvatar } from '@/Components/Avatar';
+import ListSearch from '@/Components/ListSearch';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useListSearch } from '@/lib/listSearch';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
@@ -36,6 +38,8 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
         }
     };
 
+    const search = useListSearch(quotes, (r) => [r.customer, r.status]);
+
     return (
         <AuthenticatedLayout
             header={
@@ -64,7 +68,14 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
                     {can('quotes.create') && (
-                        <div className="flex justify-end">
+                        <div className="flex items-center justify-end gap-3">
+                            {quotes.length > 0 && (
+                                <ListSearch
+                                    search={search}
+                                    placeholder="Search quotes..."
+                                    className="me-auto"
+                                />
+                            )}
                             <Link href={route('quotes.create')}>
                                 <PrimaryButton>New quote</PrimaryButton>
                             </Link>
@@ -105,7 +116,17 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y bg-white">
-                                    {quotes.map((quote) => (
+                                    {search.visible.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={99}
+                                                className="px-6 py-4 text-sm text-muted-foreground"
+                                            >
+                                                No quotes match “{search.query}”.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {search.visible.map((quote) => (
                                         <tr key={quote.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                                                 <span className="flex items-center gap-3">

@@ -1,6 +1,8 @@
+import ListSearch from '@/Components/ListSearch';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useListSearch } from '@/lib/listSearch';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
@@ -30,6 +32,8 @@ export default function Index({
         }
     };
 
+    const search = useListSearch(certifications, (r) => [r.user, r.procedure, r.cert_number, r.issuing_body]);
+
     return (
         <AuthenticatedLayout
             header={
@@ -58,7 +62,14 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="flex justify-end gap-3">
+                    <div className="flex items-center justify-end gap-3">
+                        {certifications.length > 0 && (
+                            <ListSearch
+                                search={search}
+                                placeholder="Search certifications..."
+                                className="me-auto"
+                            />
+                        )}
                         {can('certifications.create') && (
                             <Link href={route('certifications.create')}>
                                 <PrimaryButton>Add certification</PrimaryButton>
@@ -108,7 +119,17 @@ export default function Index({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y bg-white">
-                                    {certifications.map((certification) => (
+                                    {search.visible.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={99}
+                                                className="px-6 py-4 text-sm text-muted-foreground"
+                                            >
+                                                No certifications match “{search.query}”.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {search.visible.map((certification) => (
                                         <tr key={certification.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                                                 {certification.user}

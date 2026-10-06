@@ -4,6 +4,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import ToolFields, {
     MaterialOption,
     ToolFormData,
+    ToolModelFile,
 } from '@/Components/ToolFields';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
@@ -19,6 +20,8 @@ interface Tool {
     cost: number;
     unit: string;
     notes: string | null;
+    image_url: string | null;
+    model: ToolModelFile | null;
 }
 
 export default function Edit({
@@ -27,17 +30,25 @@ export default function Edit({
 }: PageProps<{ tool: Tool; materialOptions: MaterialOption[] }>) {
     const readOnly = !useCan()('tooling.update');
 
-    const { data, setData, put, processing, errors } = useForm<ToolFormData>({
+    // Updates are a POST spoofing PUT so the multipart body (files) is parsed.
+    const { data, setData, post, processing, errors } = useForm<
+        ToolFormData & { _method: 'put' }
+    >({
+        _method: 'put',
         name: tool.name,
         cuts: tool.cuts,
         cost: tool.cost.toString(),
         unit: tool.unit,
         notes: tool.notes ?? '',
+        image: null,
+        remove_image: false,
+        model: null,
+        remove_model: false,
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        put(route('tools.update', tool.id));
+        post(route('tools.update', tool.id), { forceFormData: true });
     };
 
     return (
@@ -67,6 +78,8 @@ export default function Edit({
                                     setData={setData}
                                     errors={errors}
                                     materialOptions={materialOptions}
+                                    currentImage={tool.image_url}
+                                    currentModel={tool.model}
                                 />
                             </fieldset>
 

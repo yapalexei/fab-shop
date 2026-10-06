@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Images;
+use App\Support\ToolModels;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -30,6 +32,10 @@ class StoreToolRequest extends FormRequest
             'cost' => ['required', 'numeric', 'min:0'],
             'unit' => ['required', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'image' => Images::rules(),
+            'remove_image' => ['nullable', 'boolean'],
+            'model' => ToolModels::rules(),
+            'remove_model' => ['nullable', 'boolean'],
         ];
     }
 
@@ -41,6 +47,7 @@ class StoreToolRequest extends FormRequest
         return [
             'cuts.required' => 'Pick at least one material this tool can cut.',
             'cuts.min' => 'Pick at least one material this tool can cut.',
+            'model.extensions' => 'The 3D file must be STEP, STL, 3MF, OBJ, DXF or DWG.',
         ];
     }
 }
