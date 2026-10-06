@@ -1,4 +1,5 @@
 import Breadcrumbs from '@/Components/Breadcrumbs';
+import { AiStatus } from '@/Components/AiQuoteDraftPanel';
 import CsvImportDialog from '@/Components/CsvImportDialog';
 import BusinessPartnerForm, { TypeOption } from '@/Components/BusinessPartnerForm';
 import { Button } from '@/Components/ui/button';
@@ -35,11 +36,13 @@ export default function Edit({
     services,
     typeOptions,
     customerId,
+    ai,
 }: PageProps<{
     businessPartner: BusinessPartnerDetail;
     materials: { id: number; name: string; unit: string | null }[];
     services: { id: number; name: string }[];
     typeOptions: TypeOption[];
+    ai: AiStatus;
     /** Set when this business is also a customer. */
     customerId: number | null;
 }>) {
@@ -129,6 +132,7 @@ export default function Edit({
                             // when an import changes the saved prices -
                             // otherwise saving would put the old ones back.
                             key={JSON.stringify(businessPartner.materials)}
+                            ai={ai}
                             materialOptions={materials}
                             serviceOptions={services}
                             typeOptions={typeOptions}

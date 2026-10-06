@@ -9,7 +9,13 @@ class DraftCatalogItemWithAiRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return Gate::allows($this->route('kind') === 'tools' ? 'tooling.create' : 'materials.create');
+        return match ($this->route('kind')) {
+            'tools' => Gate::allows('tooling.create'),
+            'materials' => Gate::allows('materials.create'),
+            // A price row is added while creating or editing a supplier.
+            'supplier-prices' => Gate::any(['business-partners.create', 'business-partners.update']),
+            default => false,
+        };
     }
 
     /**

@@ -138,7 +138,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     // check like the quote drafter; the create permission is checked in the
     // request, since it depends on which kind.
     Route::post('catalog/{kind}/ai-draft', CatalogAiDraftController::class)
-        ->whereIn('kind', ['tools', 'materials'])
+        ->whereIn('kind', ['tools', 'materials', 'supplier-prices'])
         ->name('catalog.ai-draft')
         ->middleware(['feature:quote-builder', 'feature:ai-assist']);
 

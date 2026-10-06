@@ -30,13 +30,14 @@ export default function AiCatalogDraftPanel<F extends object>({
     withLink = false,
     onDraft,
 }: {
-    kind: 'tools' | 'materials';
-    /** "tool" / "material", for the copy. */
+    kind: 'tools' | 'materials' | 'supplier-prices';
+    /** "tool" / "material" / "price", for the copy. */
     noun: string;
     ai: AiStatus;
     /** Offer a link box that is handed back untouched (the AI never sees it). */
     withLink?: boolean;
-    onDraft: (fields: F) => void;
+    /** Fill the form; return false when nothing could be applied. */
+    onDraft: (fields: F) => boolean | void;
 }) {
     const { auth } = usePage<PageProps>().props;
     const [open, setOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function AiCatalogDraftPanel<F extends object>({
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<{
         found: boolean;
+        applied: boolean;
         checks: string[];
     } | null>(null);
 
@@ -81,9 +83,13 @@ export default function AiCatalogDraftPanel<F extends object>({
                 source_url: url.trim() || null,
             })
             .then(({ data }) => {
-                if (data.found) onDraft(data.fields);
-                setResult({ found: data.found, checks: data.checks });
-                if (data.found) setText('');
+                const applied = data.found && onDraft(data.fields) !== false;
+                setResult({
+                    found: data.found,
+                    applied,
+                    checks: data.checks,
+                });
+                if (applied) setText('');
             })
             .catch((e) => {
                 const errors = e.response?.data?.errors;
@@ -142,6 +148,11 @@ export default function AiCatalogDraftPanel<F extends object>({
                                 placeholder="https://"
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
+                                // This panel can sit inside a form: Enter
+                                // here must not save it.
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') e.preventDefault();
+                                }}
                                 disabled={busy}
                             />
                             <p className="mt-1 text-xs text-muted-foreground">
@@ -160,9 +171,11 @@ export default function AiCatalogDraftPanel<F extends object>({
                     {result && (
                         <div className="space-y-1 text-sm" role="status">
                             <p>
-                                {result.found
-                                    ? `Filled in what the page stated - review the form below.`
-                                    : `That didn't look like a single product, so nothing was filled in.`}
+                                {result.applied
+                                    ? 'Filled in what the page stated - review the form.'
+                                    : result.found
+                                      ? 'Read the product, but nothing could be added - see below.'
+                                      : "That didn't look like a single product, so nothing was filled in."}
                             </p>
                             {result.checks.length > 0 && (
                                 <ul className="list-disc pl-5 text-muted-foreground">

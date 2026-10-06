@@ -1,3 +1,5 @@
+import AiCatalogDraftPanel from '@/Components/AiCatalogDraftPanel';
+import { AiStatus } from '@/Components/AiQuoteDraftPanel';
 import { LogoAvatar } from '@/Components/Avatar';
 import ImageField from '@/Components/ImageField';
 import CapabilityPriceTable, {
@@ -30,6 +32,15 @@ export interface BusinessPartnerFormData {
     services: CapabilityRow[];
 }
 
+interface PriceDraft {
+    material_id: number | null;
+    name: string | null;
+    dimension: string | null;
+    price: number | null;
+    part_number: string | null;
+    source_url: string | null;
+}
+
 export default function BusinessPartnerForm({
     materialOptions,
     serviceOptions,
@@ -39,6 +50,7 @@ export default function BusinessPartnerForm({
     method,
     readOnly = false,
     currentLogo,
+    ai,
 }: {
     materialOptions: { id: number; name: string }[];
     serviceOptions: { id: number; name: string }[];
@@ -50,6 +62,8 @@ export default function BusinessPartnerForm({
     readOnly?: boolean;
     /** The logo already saved for this partner (edit page). */
     currentLogo?: string | null;
+    /** Whether "Fill from a supplier page" is available (absent = hide it). */
+    ai?: AiStatus;
 }) {
     const { data, setData, post, processing, errors, transform } =
         useForm<BusinessPartnerFormData>(initialData);
@@ -77,6 +91,51 @@ export default function BusinessPartnerForm({
             price: row.price,
         })),
     }));
+
+    // A drafted price becomes (or updates) a row in the materials table; it
+    // is saved with the rest of the form. Nothing without a matching catalog
+    // material can be added - a row needs one.
+    const addDraftedPrice = (f: PriceDraft) => {
+        if (f.material_id === null) return false;
+
+        const dimension = (f.dimension ?? '').trim();
+        const fields = {
+            price: f.price !== null ? String(f.price) : '',
+            part_number: f.part_number ?? '',
+            source_url: f.source_url ?? '',
+        };
+        const index = data.materials.findIndex(
+            (row) =>
+                Number(row.itemId) === f.material_id &&
+                (row.dimension ?? '').trim().toLowerCase() ===
+                    dimension.toLowerCase(),
+        );
+
+        if (index >= 0) {
+            // Same material and size: refresh it. A blank leaves what's there.
+            setData(
+                'materials',
+                data.materials.map((row, i) =>
+                    i === index
+                        ? {
+                              ...row,
+                              price: fields.price || row.price,
+                              part_number: fields.part_number || row.part_number,
+                              source_url: fields.source_url || row.source_url,
+                              mark_checked: fields.price !== '',
+                          }
+                        : row,
+                ),
+            );
+        } else {
+            setData('materials', [
+                ...data.materials,
+                { itemId: f.material_id, dimension, ...fields },
+            ]);
+        }
+
+        return true;
+    };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -169,6 +228,18 @@ export default function BusinessPartnerForm({
                     />
                     <InputError message={errors.address} className="mt-2" />
                 </div>
+
+                {ai && !readOnly && (
+                    <div className="mt-6">
+                        <AiCatalogDraftPanel<PriceDraft>
+                            kind="supplier-prices"
+                            noun="price"
+                            ai={ai}
+                            withLink
+                            onDraft={addDraftedPrice}
+                        />
+                    </div>
+                )}
 
                 <CapabilityPriceTable
                     title="Materials supplied"

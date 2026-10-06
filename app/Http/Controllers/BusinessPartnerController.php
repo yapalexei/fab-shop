@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BusinessPartnerType;
+use App\Enums\Feature;
 use App\Enums\ShopResource;
 use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreBusinessPartnerRequest;
@@ -51,6 +52,7 @@ class BusinessPartnerController extends Controller implements HasMiddleware
             'typeOptions' => BusinessPartnerType::options(),
             'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'unit']),
             'services' => Service::query()->orderBy('name')->get(['id', 'name']),
+            'ai' => $this->aiStatus(),
         ]);
     }
 
@@ -100,6 +102,7 @@ class BusinessPartnerController extends Controller implements HasMiddleware
             ],
             'materials' => Material::query()->orderBy('name')->get(['id', 'name', 'unit']),
             'services' => Service::query()->orderBy('name')->get(['id', 'name']),
+            'ai' => $this->aiStatus(),
         ]);
     }
 
@@ -161,6 +164,22 @@ class BusinessPartnerController extends Controller implements HasMiddleware
         return redirect()->route('customers.edit', $customer)->with('status', $existing
             ? "Linked {$businessPartner->name} to the existing customer of the same name."
             : "{$businessPartner->name} is now also a customer.");
+    }
+
+    /**
+     * Whether "Fill from a supplier page" can work right now: entitled
+     * (trial/plan) and a key saved.
+     *
+     * @return array{available: bool, configured: bool}
+     */
+    private function aiStatus(): array
+    {
+        $shop = auth()->user()->currentShop;
+
+        return [
+            'available' => $shop->hasFeature(Feature::AiAssist),
+            'configured' => (bool) $shop->aiSetting?->hasKey(),
+        ];
     }
 
     /**

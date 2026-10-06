@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\AiRequest;
+use App\Models\BusinessPartner;
+use App\Models\Material;
 use App\Models\MaterialType;
 use App\Models\Plan;
 use App\Models\Shop;
@@ -203,4 +205,81 @@ test('the create pages are told whether AI is available and configured', functio
 
     $this->actingAs($owner->fresh())->get(route('tools.create'))
         ->assertInertia(fn ($page) => $page->where('ai.available', true)->where('ai.configured', false));
+});
+
+// --- supplier prices (a row on a business partner's price table) ----------------------
+
+function priceFields(array $overrides = []): array
+{
+    return array_merge([
+        'name' => '1/4in A36 steel plate', 'material_id' => null, 'dimension' => '4 x 8 ft',
+        'price' => 1210.5, 'part_number' => '8910K12',
+    ], $overrides);
+}
+
+test('a price draft matches the shop\'s own material and returns the owner\'s link', function () {
+    [$shop, $owner] = catalogAiShop();
+    $plate = Material::factory()->create(['shop_id' => $shop->id, 'name' => '1/4in A36 plate']);
+    $foreign = Material::factory()->create(['shop_id' => Shop::factory()->create()->id, 'name' => 'Rival Plate']);
+    Http::fake(['api.anthropic.com/*' => Http::response(catalogAnswer(priceFields(['material_id' => $plate->id])))]);
+
+    $this->actingAs($owner)->postJson(route('catalog.ai-draft', 'supplier-prices'), [
+        'text' => PAGE_TEXT, 'source_url' => 'https://www.mcmaster.com/8910K12/',
+    ])->assertOk()
+        ->assertJsonPath('found', true)
+        ->assertJsonPath('fields.material_id', $plate->id)
+        ->assertJsonPath('fields.dimension', '4 x 8 ft')
+        ->assertJsonPath('fields.price', 1210.5)
+        ->assertJsonPath('fields.part_number', '8910K12')
+        ->assertJsonPath('fields.source_url', 'https://www.mcmaster.com/8910K12/')
+        ->assertJsonPath('checks', fn ($checks) => count($checks) === 1 && str_contains($checks[0], 'Check the price'));
+
+    // Only this shop's materials (names and ids) go to the provider, and never the link.
+    Http::assertSent(fn (Request $r) => str_contains($r['messages'][0]['content'], '1/4in A36 plate')
+        && ! str_contains($r['messages'][0]['content'], 'Rival Plate')
+        && ! str_contains(json_encode($r->data()), 'mcmaster.com'));
+});
+
+test('a material id the model invents or takes from another shop is dropped, with a pointer to add it', function () {
+    [, $owner] = catalogAiShop();
+    $foreign = Material::factory()->create(['shop_id' => Shop::factory()->create()->id]);
+    Http::fake(['api.anthropic.com/*' => Http::response(catalogAnswer(priceFields(['material_id' => $foreign->id])))]);
+
+    $this->actingAs($owner)->postJson(route('catalog.ai-draft', 'supplier-prices'), ['text' => PAGE_TEXT])
+        ->assertOk()
+        ->assertJsonPath('fields.material_id', null)
+        ->assertJsonPath('checks', fn ($checks) => collect($checks)->contains(fn ($c) => str_contains($c, 'add it under Materials')));
+});
+
+test('a missing price on a price draft is reported, not invented', function () {
+    [, $owner] = catalogAiShop();
+    Http::fake(['api.anthropic.com/*' => Http::response(catalogAnswer(priceFields(['price' => null])))]);
+
+    $this->actingAs($owner)->postJson(route('catalog.ai-draft', 'supplier-prices'), ['text' => PAGE_TEXT])
+        ->assertOk()
+        ->assertJsonPath('fields.price', null)
+        ->assertJsonPath('checks', fn ($checks) => collect($checks)->contains(fn ($c) => str_contains($c, 'No price found')));
+});
+
+test('drafting a supplier price needs a business-partners permission', function () {
+    [$shop] = catalogAiShop();
+    $staff = actingAsShopRole($shop, 'Staff');
+    Http::fake(['api.anthropic.com/*' => Http::response(catalogAnswer(priceFields()))]);
+
+    $this->actingAs($staff)->postJson(route('catalog.ai-draft', 'supplier-prices'), ['text' => PAGE_TEXT])->assertForbidden();
+
+    DB::table('shop_user')->where(['shop_id' => $shop->id, 'user_id' => $staff->id])
+        ->update(['permission_overrides' => json_encode(['business-partners.update' => true])]);
+
+    $this->actingAs($staff->fresh())->postJson(route('catalog.ai-draft', 'supplier-prices'), ['text' => PAGE_TEXT])->assertOk();
+});
+
+test('the supplier pages are told whether AI is available and configured', function () {
+    [$shop, $owner] = catalogAiShop();
+    $partner = BusinessPartner::factory()->for($shop)->create();
+
+    foreach ([route('business-partners.create'), route('business-partners.edit', $partner)] as $url) {
+        $this->actingAs($owner)->get($url)
+            ->assertInertia(fn ($page) => $page->where('ai.available', true)->where('ai.configured', true));
+    }
 });

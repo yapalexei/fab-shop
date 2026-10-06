@@ -21,15 +21,18 @@ class CatalogItemDrafter
 
     public const MATERIAL = 'material';
 
+    /** A material price for one supplier's price table (matched to the shop's own materials). */
+    public const PRICE = 'supplier-price';
+
     public function __construct(private readonly AiManager $ai) {}
 
     /**
-     * @param  array<int, array{id: int, name: string}>  $types  The shop's material types.
+     * @param  array<int, array<string, mixed>>  $context  What the model may choose from: the shop's material types (tool, material) or its materials (supplier price) - id and name only.
      * @return array<string, mixed>
      *
      * @throws AiException
      */
-    public function draft(Shop $shop, ?int $userId, string $kind, string $text, array $types): array
+    public function draft(Shop $shop, ?int $userId, string $kind, string $text, array $context): array
     {
         $model = $this->ai->textModelFor($shop);
         $setting = $shop->aiSetting;
@@ -37,8 +40,12 @@ class CatalogItemDrafter
 
         try {
             $response = $model->complete(
-                $kind === self::TOOL ? self::TOOL_SYSTEM : self::MATERIAL_SYSTEM,
-                $this->prompt($text, $types),
+                match ($kind) {
+                    self::TOOL => self::TOOL_SYSTEM,
+                    self::PRICE => self::PRICE_SYSTEM,
+                    default => self::MATERIAL_SYSTEM,
+                },
+                $this->prompt($kind, $text, $context),
                 self::schema($kind),
             );
         } catch (AiException $e) {
@@ -49,7 +56,7 @@ class CatalogItemDrafter
 
         AiUsage::record($shop, $userId, 'catalog-intake', $setting->provider, $response->model, $response, $started, 'ok');
 
-        return $this->clean($kind, $response->data ?? [], $types);
+        return $this->clean($kind, $response->data ?? [], $context);
     }
 
     /**
@@ -66,6 +73,36 @@ class CatalogItemDrafter
 
         $name = $text('name', 255);
         $checks = [];
+
+        if ($kind === self::PRICE) {
+            $materialId = $data['material_id'] ?? null;
+            $materialId = is_int($materialId) && in_array($materialId, $typeIds, true) ? $materialId : null;
+
+            $price = $data['price'] ?? null;
+            $price = is_numeric($price) && $price >= 0 && $price < 10_000_000 ? round((float) $price, 2) : null;
+
+            if ($name !== null) {
+                $checks[] = $price === null
+                    ? 'No price found - enter it.'
+                    : 'Check the price against the page - it was read from the text you pasted.';
+
+                if ($materialId === null) {
+                    $checks[] = 'No matching material in your catalog - add it under Materials first, then add its price here.';
+                }
+            }
+
+            return [
+                'found' => $name !== null,
+                'fields' => [
+                    'material_id' => $materialId,
+                    'name' => $name,
+                    'dimension' => $text('dimension', 100),
+                    'price' => $price,
+                    'part_number' => $text('part_number', 100),
+                ],
+                'checks' => $checks,
+            ];
+        }
 
         if ($kind === self::MATERIAL) {
             $typeId = $data['material_type_id'] ?? null;
@@ -118,12 +155,14 @@ class CatalogItemDrafter
     }
 
     /**
-     * @param  array<int, array{id: int, name: string}>  $types
+     * @param  array<int, array<string, mixed>>  $context
      */
-    private function prompt(string $text, array $types): string
+    private function prompt(string $kind, string $text, array $context): string
     {
-        return "The shop's material types (use these ids; never invent one):\n"
-            .json_encode($types, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        $what = $kind === self::PRICE ? "The shop's materials" : "The shop's material types";
+
+        return "{$what} (use these ids; never invent one):\n"
+            .json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
             ."\n\n<supplier_page>\n".$text."\n</supplier_page>";
     }
 
@@ -137,7 +176,17 @@ class CatalogItemDrafter
     {
         $string = ['anyOf' => [['type' => 'string'], ['type' => 'null']]];
 
-        $properties = $kind === self::TOOL
+        $number = ['anyOf' => [['type' => 'number'], ['type' => 'null']]];
+
+        $properties = $kind === self::PRICE
+            ? [
+                'name' => $string,
+                'material_id' => ['anyOf' => [['type' => 'integer'], ['type' => 'null']]],
+                'dimension' => $string,
+                'price' => $number,
+                'part_number' => $string,
+            ]
+            : ($kind === self::TOOL
             ? [
                 'name' => $string,
                 'cost' => ['anyOf' => [['type' => 'number'], ['type' => 'null']]],
@@ -151,7 +200,7 @@ class CatalogItemDrafter
                 'unit' => $string,
                 'material_type_id' => ['anyOf' => [['type' => 'integer'], ['type' => 'null']]],
                 'notes' => $string,
-            ];
+            ]);
 
         return [
             'type' => 'object',
@@ -193,5 +242,19 @@ Fields:
 - unit: how the shop would count it - "sheet", "ft", "bar", "lb"... only if the page indicates it.
 - material_type_id: the id from the material type list that fits, or null if none clearly does.
 - notes: one or two short lines of useful specs (alloy, temper, finish, tolerance). No marketing copy, and no prices.
+PROMPT;
+
+    private const PRICE_SYSTEM = <<<'PROMPT'
+You help a small metal fabrication shop record a supplier's price for a stock material, from the supplier's product page.
+
+PROMPT.self::COMMON.<<<'PROMPT'
+
+
+Fields:
+- name: what the page calls the product, short, keeping grade and size.
+- material_id: the id of the shop's own material that is clearly the same product, or null. Never invent an id; when unsure, null.
+- dimension: the size or length this price is for (e.g. "4 ft", "48 x 96 in"), only if the page states it. Otherwise null.
+- price: the price for that one size as a number in dollars, only if the page shows one. Otherwise null.
+- part_number: the supplier's part or item number, exactly as written.
 PROMPT;
 }

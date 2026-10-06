@@ -1,4 +1,5 @@
 import Breadcrumbs from '@/Components/Breadcrumbs';
+import { AiStatus } from '@/Components/AiQuoteDraftPanel';
 import BusinessPartnerForm, { TypeOption } from '@/Components/BusinessPartnerForm';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
@@ -9,10 +10,12 @@ export default function Create({
     materials,
     services,
     typeOptions,
+    ai,
 }: PageProps<{
     materials: { id: number; name: string; unit: string | null }[];
     services: { id: number; name: string }[];
     typeOptions: TypeOption[];
+    ai: AiStatus;
 }>) {
     return (
         <AuthenticatedLayout
@@ -34,6 +37,7 @@ export default function Create({
                             materialOptions={materials}
                             serviceOptions={services}
                             typeOptions={typeOptions}
+                            ai={ai}
                             submitUrl={route('business-partners.store')}
                             method="post"
                             initialData={{
