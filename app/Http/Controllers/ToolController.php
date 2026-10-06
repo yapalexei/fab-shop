@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\ShopResource;
 use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreToolRequest;
@@ -53,8 +54,15 @@ class ToolController extends Controller implements HasMiddleware
 
     public function create(): Response
     {
+        $shop = auth()->user()->currentShop;
+
         return Inertia::render('Tools/Create', [
             'materialOptions' => $this->materialOptions(),
+            // Whether "Fill from a supplier page" can work right now.
+            'ai' => [
+                'available' => $shop->hasFeature(Feature::AiAssist),
+                'configured' => (bool) $shop->aiSetting?->hasKey(),
+            ],
         ]);
     }
 

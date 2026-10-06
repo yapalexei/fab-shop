@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\ShopResource;
 use App\Http\Controllers\Concerns\AuthorizesShopResource;
 use App\Http\Requests\StoreMaterialRequest;
@@ -39,8 +40,15 @@ class MaterialController extends Controller implements HasMiddleware
 
     public function create(): Response
     {
+        $shop = auth()->user()->currentShop;
+
         return Inertia::render('Materials/Create', [
             'materialTypes' => $this->materialTypeOptions(),
+            // Whether "Fill from a supplier page" can work right now.
+            'ai' => [
+                'available' => $shop->hasFeature(Feature::AiAssist),
+                'configured' => (bool) $shop->aiSetting?->hasKey(),
+            ],
         ]);
     }
 

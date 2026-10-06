@@ -2,6 +2,7 @@
 
 use App\Enums\Feature;
 use App\Http\Controllers\BusinessPartnerController;
+use App\Http\Controllers\CatalogAiDraftController;
 use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\CertificationDocumentController;
 use App\Http\Controllers\CsvImportController;
@@ -132,6 +133,14 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::post('quotes/ai-draft', QuoteAiDraftController::class)
         ->name('quotes.ai-draft')
         ->middleware(['feature:quote-builder', 'feature:ai-assist', 'can:quotes.create']);
+
+    // Fill a new tool or material from pasted supplier-page text. Strict AI
+    // check like the quote drafter; the create permission is checked in the
+    // request, since it depends on which kind.
+    Route::post('catalog/{kind}/ai-draft', CatalogAiDraftController::class)
+        ->whereIn('kind', ['tools', 'materials'])
+        ->name('catalog.ai-draft')
+        ->middleware(['feature:quote-builder', 'feature:ai-assist']);
 
     Route::post('quotes/{quote}/ai-follow-up', QuoteFollowUpController::class)
         ->name('quotes.ai-follow-up')
