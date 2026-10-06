@@ -6,6 +6,7 @@ use App\Http\Controllers\CertificationController;
 use App\Http\Controllers\CsvImportController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EntityImageController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\FeatureSettingController;
 use App\Http\Controllers\InvitationController;
@@ -115,6 +116,9 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::post('/current-shop/{shop}', [ShopSwitchController::class, 'update'])->name('current-shop.update');
 
     Route::resource('customers', CustomerController::class)
+    Route::get('customers/{customer}/logo', [EntityImageController::class, 'customerLogo'])->name('customers.logo');
+    Route::get('business-partners/{business_partner}/logo', [EntityImageController::class, 'businessPartnerLogo'])->name('business-partners.logo');
+
         ->except('show')
         ->middleware('feature:customers');
 

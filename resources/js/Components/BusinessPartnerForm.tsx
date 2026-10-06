@@ -1,3 +1,5 @@
+import { LogoAvatar } from '@/Components/Avatar';
+import ImageField from '@/Components/ImageField';
 import CapabilityPriceTable, {
     CapabilityRow,
 } from '@/Components/CapabilityPriceTable';
@@ -15,6 +17,9 @@ export interface BusinessPartnerFormData {
     phone: string;
     address: string;
     notes: string;
+    /** A newly chosen logo, or null to keep the current one. */
+    logo: File | null;
+    remove_logo: boolean;
     materials: CapabilityRow[];
     services: CapabilityRow[];
 }
@@ -26,6 +31,7 @@ export default function BusinessPartnerForm({
     submitUrl,
     method,
     readOnly = false,
+    currentLogo,
 }: {
     materialOptions: { id: number; name: string }[];
     serviceOptions: { id: number; name: string }[];
@@ -34,8 +40,10 @@ export default function BusinessPartnerForm({
     method: 'post' | 'put';
     /** View-only (no update permission): every field disabled, no save. */
     readOnly?: boolean;
+    /** The logo already saved for this partner (edit page). */
+    currentLogo?: string | null;
 }) {
-    const { data, setData, post, put, processing, errors, transform } =
+    const { data, setData, post, processing, errors, transform } =
         useForm<BusinessPartnerFormData>(initialData);
 
     const errorMap = errors as Record<string, string>;
@@ -45,6 +53,9 @@ export default function BusinessPartnerForm({
     // field name the backend actually validates just before submitting.
     transform((form) => ({
         ...form,
+        // Files can't travel in a PUT body, so an update is a POST that
+        // spoofs PUT.
+        ...(method === 'put' ? { _method: 'put' } : {}),
         materials: form.materials.map((row) => ({
             material_id: row.itemId,
             dimension: row.dimension ?? '',
@@ -58,7 +69,7 @@ export default function BusinessPartnerForm({
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        (method === 'post' ? post : put)(submitUrl);
+        post(submitUrl, { forceFormData: true });
     };
 
     return (
@@ -66,7 +77,20 @@ export default function BusinessPartnerForm({
             <fieldset disabled={readOnly}>
                 <FormErrorSummary errors={errorMap} />
 
-                <div>
+                <ImageField
+                    label="Logo"
+                    preview={(src) => (
+                        <LogoAvatar src={src} className="size-16" />
+                    )}
+                    current={currentLogo}
+                    file={data.logo}
+                    removed={data.remove_logo}
+                    onChange={(file) => setData('logo', file)}
+                    onRemove={(removed) => setData('remove_logo', removed)}
+                    error={errors.logo}
+                />
+
+                <div className="mt-4">
                     <InputLabel htmlFor="name" value="Name" />
                     <TextInput
                         id="name"

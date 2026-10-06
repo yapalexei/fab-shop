@@ -1,3 +1,4 @@
+import { LogoAvatar } from '@/Components/Avatar';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -10,6 +11,7 @@ import { Badge } from '@/Components/ui/badge';
 interface QuoteRow {
     id: number;
     customer: string;
+    customer_logo_url: string | null;
     status: string;
     total: number;
 }
@@ -106,7 +108,12 @@ export default function Index({ quotes }: PageProps<{ quotes: QuoteRow[] }>) {
                                     {quotes.map((quote) => (
                                         <tr key={quote.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                                                {quote.customer}
+                                                <span className="flex items-center gap-3">
+                                                    <LogoAvatar
+                                                        src={quote.customer_logo_url}
+                                                    />
+                                                    {quote.customer}
+                                                </span>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4">
                                                 <Badge

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Images;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,6 +26,8 @@ class StoreBusinessPartnerRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'logo' => Images::rules(),
+            'remove_logo' => ['nullable', 'boolean'],
             'materials' => ['nullable', 'array'],
             'materials.*.material_id' => [
                 'required',

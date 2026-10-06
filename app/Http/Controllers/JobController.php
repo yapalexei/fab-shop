@@ -24,7 +24,7 @@ class JobController extends Controller
     {
         return Inertia::render('Jobs/Index', [
             'jobs' => Job::query()
-                ->with('customer:id,name', 'jobStage', 'assignedTo:id,name', 'assignedTo.media')
+                ->with('customer:id,name', 'customer.media', 'jobStage', 'assignedTo:id,name', 'assignedTo.media')
                 // id as a tiebreaker, not just created_at: several jobs can
                 // share the same timestamp (bulk-seeded, or converted in the
                 // same request), and an unstable order between requests
@@ -55,7 +55,7 @@ class JobController extends Controller
 
     public function show(Job $job): Response
     {
-        $job->load('quote.lineItems', 'customer', 'jobStage', 'assignedTo.media', 'activitiesAsSubject.causer');
+        $job->load('quote.lineItems', 'customer.media', 'jobStage', 'assignedTo.media', 'activitiesAsSubject.causer');
 
         $shop = Auth::user()->currentShop;
         // Entitled shops get the panel; a shop that lost the feature (trial
@@ -96,6 +96,7 @@ class JobController extends Controller
                 'customer' => [
                     'name' => $job->customer->name,
                     'email' => $job->customer->email,
+                    'logo_url' => $job->customer->logoUrl(),
                 ],
                 'line_items' => $job->quote->lineItems->map(fn ($item) => [
                     'id' => $item->id,
@@ -199,6 +200,7 @@ class JobController extends Controller
             'id' => $job->id,
             'job_number' => $job->job_number,
             'customer' => $job->customer->name,
+            'customer_logo_url' => $job->customer->logoUrl(),
             'stage' => (string) $job->job_stage_id,
             'stage_label' => $job->jobStage->name,
             'cancelled' => $job->isCancelled(),

@@ -39,6 +39,8 @@ export default function Create({
                                 phone: '',
                                 address: '',
                                 notes: '',
+                                logo: null,
+                                remove_logo: false,
                                 materials: [],
                                 services: [],
                             }}

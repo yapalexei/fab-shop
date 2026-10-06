@@ -1,3 +1,4 @@
+import { LogoAvatar } from '@/Components/Avatar';
 import CsvImportDialog from '@/Components/CsvImportDialog';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -12,6 +13,7 @@ interface BusinessPartnerRow {
     name: string;
     email: string | null;
     phone: string | null;
+    logo_url: string | null;
 }
 
 export default function Index({
@@ -113,7 +115,12 @@ export default function Index({
                                     {businessPartners.map((partner) => (
                                         <tr key={partner.id}>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                                                {partner.name}
+                                                <span className="flex items-center gap-3">
+                                                    <LogoAvatar
+                                                        src={partner.logo_url}
+                                                    />
+                                                    {partner.name}
+                                                </span>
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                                 {partner.email}

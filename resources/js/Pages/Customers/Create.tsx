@@ -17,11 +17,13 @@ export default function Create() {
             phone: '',
             address: '',
             notes: '',
+            logo: null,
+            remove_logo: false,
         });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('customers.store'));
+        post(route('customers.store'), { forceFormData: true });
     };
 
     return (

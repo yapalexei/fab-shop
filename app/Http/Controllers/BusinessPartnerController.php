@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateBusinessPartnerRequest;
 use App\Models\BusinessPartner;
 use App\Models\Material;
 use App\Models\Service;
+use App\Support\Images;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,14 @@ class BusinessPartnerController extends Controller implements HasMiddleware
     public function index(): Response
     {
         return Inertia::render('BusinessPartners/Index', [
-            'businessPartners' => BusinessPartner::query()->orderBy('name')->get(['id', 'name', 'email', 'phone']),
+            'businessPartners' => BusinessPartner::query()->with('media')->orderBy('name')->get(['id', 'name', 'email', 'phone'])
+                ->map(fn (BusinessPartner $partner) => [
+                    'id' => $partner->id,
+                    'name' => $partner->name,
+                    'email' => $partner->email,
+                    'phone' => $partner->phone,
+                    'logo_url' => $partner->logoUrl(),
+                ]),
         ]);
     }
 
@@ -46,6 +54,8 @@ class BusinessPartnerController extends Controller implements HasMiddleware
 
             $this->syncCapabilities($partner, $request->validated('materials', []), $request->validated('services', []));
 
+            Images::sync($partner, $request, 'logo', 'logo');
+
             return $partner;
         });
 
@@ -62,6 +72,7 @@ class BusinessPartnerController extends Controller implements HasMiddleware
                 'phone' => $businessPartner->phone,
                 'address' => $businessPartner->address,
                 'notes' => $businessPartner->notes,
+                'logo_url' => $businessPartner->logoUrl(),
                 'materials' => $businessPartner->materials->map(fn (Material $material) => [
                     'material_id' => $material->id,
                     'name' => $material->name,
@@ -85,6 +96,8 @@ class BusinessPartnerController extends Controller implements HasMiddleware
             $businessPartner->update($request->safe()->only(['name', 'email', 'phone', 'address', 'notes']));
 
             $this->syncCapabilities($businessPartner, $request->validated('materials', []), $request->validated('services', []));
+
+            Images::sync($businessPartner, $request, 'logo', 'logo');
         });
 
         return redirect()->route('business-partners.edit', $businessPartner);

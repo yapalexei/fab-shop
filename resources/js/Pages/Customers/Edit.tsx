@@ -18,24 +18,29 @@ interface Customer {
     phone: string | null;
     address: string | null;
     notes: string | null;
+    logo_url: string | null;
 }
 
 export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
     const can = useCan();
     const readOnly = !can('customers.update');
 
-    const { data, setData, put, processing, errors } =
+    const { data, setData, post, processing, errors } =
         useForm<CustomerFormData>({
+            _method: 'put',
             name: customer.name,
             email: customer.email ?? '',
             phone: customer.phone ?? '',
             address: customer.address ?? '',
             notes: customer.notes ?? '',
+            logo: null,
+            remove_logo: false,
         });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        put(route('customers.update', customer.id));
+        // Files can't travel in a PUT body, so it's a POST spoofing PUT.
+        post(route('customers.update', customer.id), { forceFormData: true });
     };
 
     return (
@@ -62,6 +67,7 @@ export default function Edit({ customer }: PageProps<{ customer: Customer }>) {
                                     data={data}
                                     setData={setData}
                                     errors={errors}
+                                    currentLogo={customer.logo_url}
                                 />
                             </fieldset>
 

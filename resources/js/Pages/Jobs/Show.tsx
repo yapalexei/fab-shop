@@ -1,4 +1,4 @@
-import { UserAvatar } from '@/Components/Avatar';
+import { LogoAvatar, UserAvatar } from '@/Components/Avatar';
 import { Attachment, JobAttachments } from '@/Components/Attachments';
 import Breadcrumbs from '@/Components/Breadcrumbs';
 import JobMaterialTracking, {
@@ -52,7 +52,11 @@ interface JobDetail {
     total: number;
     quote_id: number;
     can_view_quote: boolean;
-    customer: { name: string; email: string | null };
+    customer: {
+        name: string;
+        email: string | null;
+        logo_url: string | null;
+    };
     line_items: JobLineItem[];
     history: HistoryEntry[];
     photos: JobPhoto[];
@@ -110,7 +114,11 @@ export default function Show({
                                 <dt className="text-sm text-gray-500">
                                     Customer
                                 </dt>
-                                <dd className="text-sm font-medium text-gray-900">
+                                <dd className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                    <LogoAvatar
+                                        src={job.customer.logo_url}
+                                        className="size-6"
+                                    />
                                     {job.customer.name}
                                 </dd>
                             </div>

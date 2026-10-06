@@ -13,6 +13,7 @@ interface BusinessPartnerDetail {
     phone: string | null;
     address: string | null;
     notes: string | null;
+    logo_url: string | null;
     materials: {
         material_id: number;
         name: string;
@@ -57,6 +58,7 @@ export default function Edit({
                                 businessPartner.id,
                             )}
                             method="put"
+                            currentLogo={businessPartner.logo_url}
                             readOnly={!can('business-partners.update')}
                             initialData={{
                                 name: businessPartner.name,
@@ -64,6 +66,8 @@ export default function Edit({
                                 phone: businessPartner.phone ?? '',
                                 address: businessPartner.address ?? '',
                                 notes: businessPartner.notes ?? '',
+                                logo: null,
+                                remove_logo: false,
                                 materials: businessPartner.materials.map(
                                     (m) => ({
                                         itemId: m.material_id,

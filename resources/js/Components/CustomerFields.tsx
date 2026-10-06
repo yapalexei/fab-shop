@@ -1,3 +1,5 @@
+import { LogoAvatar } from '@/Components/Avatar';
+import ImageField from '@/Components/ImageField';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -8,21 +10,43 @@ export interface CustomerFormData {
     phone: string;
     address: string;
     notes: string;
-    [key: string]: string;
+    /** A newly chosen logo, or null to keep the current one. */
+    logo: File | null;
+    remove_logo: boolean;
+    [key: string]: string | boolean | File | null;
 }
 
 export default function CustomerFields({
     data,
     setData,
     errors,
+    currentLogo,
 }: {
     data: CustomerFormData;
-    setData: (field: keyof CustomerFormData, value: string) => void;
+    setData: (
+        field: keyof CustomerFormData,
+        value: string | boolean | File | null,
+    ) => void;
     errors: Partial<Record<keyof CustomerFormData, string>>;
+    /** The logo already saved for this customer (edit page). */
+    currentLogo?: string | null;
 }) {
     return (
         <>
-            <div>
+            <ImageField
+                label="Logo"
+                preview={(src) => (
+                    <LogoAvatar src={src} className="size-16" />
+                )}
+                current={currentLogo}
+                file={data.logo}
+                removed={data.remove_logo}
+                onChange={(file) => setData('logo', file)}
+                onRemove={(removed) => setData('remove_logo', removed)}
+                error={errors.logo}
+            />
+
+            <div className="mt-4">
                 <InputLabel htmlFor="name" value="Name" />
                 <TextInput
                     id="name"

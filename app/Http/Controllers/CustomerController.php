@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Customer;
 use App\Models\Job;
 use App\Models\Quote;
+use App\Support\Images;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Inertia\Inertia;
@@ -27,8 +28,16 @@ class CustomerController extends Controller implements HasMiddleware
     {
         return Inertia::render('Customers/Index', [
             'customers' => Customer::query()
+                ->with('media')
                 ->orderBy('name')
-                ->get(['id', 'name', 'email', 'phone']),
+                ->get(['id', 'name', 'email', 'phone'])
+                ->map(fn (Customer $customer) => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'logo_url' => $customer->logoUrl(),
+                ]),
         ]);
     }
 
@@ -39,7 +48,9 @@ class CustomerController extends Controller implements HasMiddleware
 
     public function store(StoreCustomerRequest $request): RedirectResponse
     {
-        Customer::create($request->validated());
+        $customer = Customer::create($request->safe()->except(['logo', 'remove_logo']));
+
+        Images::sync($customer, $request, 'logo', 'logo');
 
         return redirect()->route('customers.index');
     }
@@ -47,13 +58,15 @@ class CustomerController extends Controller implements HasMiddleware
     public function edit(Customer $customer): Response
     {
         return Inertia::render('Customers/Edit', [
-            'customer' => $customer,
+            'customer' => [...$customer->toArray(), 'logo_url' => $customer->logoUrl()],
         ]);
     }
 
     public function update(UpdateCustomerRequest $request, Customer $customer): RedirectResponse
     {
-        $customer->update($request->validated());
+        $customer->update($request->safe()->except(['logo', 'remove_logo']));
+
+        Images::sync($customer, $request, 'logo', 'logo');
 
         return redirect()->route('customers.index');
     }

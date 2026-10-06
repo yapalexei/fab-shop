@@ -40,12 +40,13 @@ class QuoteController extends Controller implements HasMiddleware
     {
         return Inertia::render('Quotes/Index', [
             'quotes' => Quote::query()
-                ->with(['customer:id,name', 'lineItems'])
+                ->with(['customer:id,name', 'customer.media', 'lineItems'])
                 ->latest()
                 ->get()
                 ->map(fn (Quote $quote) => [
                     'id' => $quote->id,
                     'customer' => $quote->customer->name,
+                    'customer_logo_url' => $quote->customer->logoUrl(),
                     'status' => $quote->status->value,
                     'total' => $quote->total,
                 ]),

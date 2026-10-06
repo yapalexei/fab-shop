@@ -1,3 +1,4 @@
+import { LogoAvatar } from '@/Components/Avatar';
 import JobAssigneeSelect, { Member } from '@/Components/JobAssigneeSelect';
 import JobCalendar from '@/Components/JobCalendar';
 import JobMoveDialog from '@/Components/JobMoveDialog';
@@ -48,6 +49,7 @@ interface JobRow {
     id: number;
     job_number: string;
     customer: string;
+    customer_logo_url: string | null;
     stage: string;
     stage_label: string;
     cancelled: boolean;
@@ -213,7 +215,10 @@ function JobCardBody({ job }: { job: JobRow }) {
                     {currency.format(job.total)}
                 </span>
             </div>
-            <p className="text-sm text-gray-700">{job.customer}</p>
+            <p className="flex items-center gap-2 text-sm text-gray-700">
+                <LogoAvatar src={job.customer_logo_url} className="size-5" />
+                <span className="truncate">{job.customer}</span>
+            </p>
             {job.due_date && (
                 <p
                     className={`text-xs ${job.overdue ? 'font-semibold text-red-600' : 'text-gray-500'}`}

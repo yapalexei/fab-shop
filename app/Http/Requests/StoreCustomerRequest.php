@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Images;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -28,6 +29,8 @@ class StoreCustomerRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'logo' => Images::rules(),
+            'remove_logo' => ['nullable', 'boolean'],
         ];
     }
 }
