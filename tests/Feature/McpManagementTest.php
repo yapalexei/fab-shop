@@ -120,6 +120,10 @@ test('revoking a token disconnects that client immediately', function () {
 
     $this->withToken($secret)->postJson('/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list'])->assertOk();
 
+    // The /mcp call above leaves sanctum as the default guard for the rest of
+    // this process; the owner's browser request below is a `web` one.
+    app('auth')->shouldUse('web');
+
     $this->actingAs($owner)->delete(route('shop.ai.agent.tokens.destroy', $agent->tokens()->first()->id))->assertRedirect();
 
     app('auth')->forgetGuards();

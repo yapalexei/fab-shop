@@ -5,6 +5,9 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import OwnerSecurityControls, {
+    OwnerControls,
+} from './OwnerSecurityControls';
 import { PageProps } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
@@ -49,11 +52,13 @@ export default function Edit({
     defaults,
     timezones,
     quoteEmailingAvailable,
+    ownerControls,
 }: PageProps<{
     settings: Settings;
     defaults: Defaults;
     timezones: string[];
     quoteEmailingAvailable: boolean;
+    ownerControls: OwnerControls | null;
 }>) {
     // Blank inputs are sent as null, which means "use the default" - the
     // placeholder shows what that default currently is.
@@ -320,6 +325,10 @@ export default function Edit({
                             </PrimaryButton>
                         </div>
                     </form>
+
+                    {ownerControls && (
+                        <OwnerSecurityControls controls={ownerControls} />
+                    )}
                 </div>
             </div>
         </AuthenticatedLayout>

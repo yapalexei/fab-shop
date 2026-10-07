@@ -30,7 +30,7 @@ use Spatie\Permission\Traits\HasRoles;
 // interface is the only thing the framework's `verified` middleware and
 // EmailVerificationPromptController actually check for.
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'two_factor_last_step'])]
 class User extends Authenticatable implements HasMedia, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -48,7 +48,19 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
             'password' => 'hashed',
             'is_platform_admin' => 'boolean',
             'is_agent' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Two-factor sign-in is on only once the user has confirmed a code from
+     * their authenticator app; a started-but-unfinished setup doesn't count.
+     */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_secret !== null && $this->two_factor_confirmed_at !== null;
     }
 
     public function registerMediaCollections(): void
@@ -97,7 +109,8 @@ class User extends Authenticatable implements HasMedia, MustVerifyEmail
     {
         return $this->belongsToMany(Shop::class)
             ->using(ShopMember::class)
-            ->withPivot('hourly_rate', 'permission_overrides', 'trial_ended_dismissed_at');
+            ->withPivot('hourly_rate', 'permission_overrides', 'trial_ended_dismissed_at')
+            ->withTimestamps();
     }
 
     /**

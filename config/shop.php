@@ -47,4 +47,11 @@ return [
     // acceptable before it needs to be re-sent.
     'invitation_expiry_days' => (int) env('SHOP_INVITATION_EXPIRY_DAYS', 7),
 
+    // After the owner asks to delete the shop, everything stays (and the
+    // request can be cancelled) for this many days; then it is erased.
+    'deletion_grace_days' => (int) env('SHOP_DELETION_GRACE_DAYS', 14),
+
+    // How long a finished data export stays downloadable before it is removed.
+    'export_retention_days' => (int) env('SHOP_EXPORT_RETENTION_DAYS', 7),
+
 ];

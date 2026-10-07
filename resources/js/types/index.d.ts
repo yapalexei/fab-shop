@@ -26,6 +26,12 @@ export type PageProps<
         show_trial_ended_notice: boolean;
         plan_name: string | null;
         can_upgrade: boolean;
+        deletion_scheduled_for: string | null;
+    } | null;
+    twoFactorNotice: {
+        deadline: string;
+        days_left: number;
+        overdue: boolean;
     } | null;
     enabledFeatures: string[];
     readOnlyFeatures: string[];

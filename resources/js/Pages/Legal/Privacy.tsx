@@ -170,13 +170,35 @@ export default function Privacy({ company, appName, effectiveDate }: Props) {
                         the Service under contract and only for our purposes -
                         for example cloud hosting and storage, email delivery
                         and error and performance monitoring. Our current
-                        providers are available on request at{' '}
+                        providers are:
+                        <List>
+                            <li>
+                                <strong>Railway</strong> - application hosting,
+                                database, queue and file storage.
+                            </li>
+                            <li>
+                                <strong>Resend</strong> - delivery of email the
+                                Service sends (verification, invitations,
+                                notices).
+                            </li>
+                        </List>
+                        Questions about providers can go to{' '}
                         {company.privacy_email}.
                     </li>
                     <li>
                         <strong>With integrations you enable</strong>, such as
                         Intuit (QuickBooks Online), and only the data needed for
                         that feature.
+                    </li>
+                    <li>
+                        <strong>With an AI provider your shop chooses.</strong>{' '}
+                        If the shop owner turns on the AI assistant and adds
+                        their own key from Anthropic or OpenAI, the text a
+                        person asks the assistant to work on (for example a
+                        pasted customer email) is sent to that provider under
+                        the shop's own account with them. We do not send it
+                        anywhere else, and we do not keep the text or the
+                        answer in our logs.
                     </li>
                     <li>
                         <strong>Within your shop</strong>: other people in your
@@ -271,7 +293,8 @@ export default function Privacy({ company, appName, effectiveDate }: Props) {
                     organizational measures to protect information, including
                     encrypted connections, hashed passwords, access controls
                     that separate each shop's data from other shops, and
-                    role-based permissions within a shop. No system is perfectly
+                    role-based permissions within a shop, optional two-factor
+                    sign-in, and a log of sign-ins and changes to access. No system is perfectly
                     secure, so we cannot guarantee absolute security. Please use
                     a strong, unique password and tell us right away if you
                     suspect unauthorized access.

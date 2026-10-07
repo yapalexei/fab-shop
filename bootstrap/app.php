@@ -4,13 +4,16 @@ use App\Http\Middleware\AuthenticateMcpAgent;
 use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\EnsureShopIsActive;
 use App\Http\Middleware\EnsureShopIsOnboarded;
+use App\Http\Middleware\EnsureTwoFactorSetup;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetPermissionsTeamFromCurrentShop;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\AuthenticateSession;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,7 +31,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
+            SecurityHeaders::class,
+            // Ends a browser's session once the password has changed elsewhere.
+            AuthenticateSession::class,
             SetPermissionsTeamFromCurrentShop::class,
+            EnsureTwoFactorSetup::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

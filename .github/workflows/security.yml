@@ -1,0 +1,35 @@
+name: Dependency audit
+
+# Fails when a Composer or npm dependency has a known vulnerability, on every
+# PR and push to main, and weekly so a new advisory against an unchanged
+# lockfile is still caught. Dependabot (dependabot.yml) opens the fix PRs.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 7 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  composer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+      - run: composer audit --locked
+
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Production dependencies only: dev-tool advisories don't ship to users.
+      - run: npm audit --omit=dev --audit-level=high

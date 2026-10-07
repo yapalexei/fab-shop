@@ -3,6 +3,7 @@ import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
 import ProfilePictureForm from './Partials/ProfilePictureForm';
 import DeleteUserForm from './Partials/DeleteUserForm';
+import TwoFactorForm, { TwoFactorProps } from './Partials/TwoFactorForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 import { Card } from '@/Components/ui/card';
@@ -10,7 +11,12 @@ import { Card } from '@/Components/ui/card';
 export default function Edit({
     mustVerifyEmail,
     status,
-}: PageProps<{ mustVerifyEmail: boolean; status?: string }>) {
+    twoFactor,
+}: PageProps<{
+    mustVerifyEmail: boolean;
+    status?: string;
+    twoFactor: TwoFactorProps;
+}>) {
     return (
         <AuthenticatedLayout
             header={
@@ -37,6 +43,13 @@ export default function Edit({
 
                     <Card className="p-4 sm:p-8">
                         <UpdatePasswordForm className="max-w-xl" />
+                    </Card>
+
+                    <Card className="p-4 sm:p-8">
+                        <TwoFactorForm
+                            twoFactor={twoFactor}
+                            className="max-w-xl"
+                        />
                     </Card>
 
                     <Card className="p-4 sm:p-8">

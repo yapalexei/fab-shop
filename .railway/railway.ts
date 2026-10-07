@@ -30,6 +30,7 @@ export default defineRailway((ctx) => {
         QUEUE_CONNECTION: 'redis',
         CACHE_STORE: 'database',
         SESSION_DRIVER: 'database',
+        SESSION_SECURE_COOKIE: 'true', // https only; Railway terminates TLS at its edge
 
         // AWS_* below are Railway references to the bucket (${{uploads.AWS_...}}), set
         // by hand: IaC's own bucket refs applied as empty strings. See docs/deploy-railway.md.

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdateTeamMemberAccessRequest;
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\SecurityLog;
 use App\Support\ShopPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +67,12 @@ class TeamMemberAccessController extends Controller
 
         $shop->members()->updateExistingPivot($member->id, [
             'permission_overrides' => $overrides === [] ? null : $overrides,
+        ]);
+
+        SecurityLog::record('member access changed', Auth::user(), [
+            'member_id' => $member->id,
+            'role' => $request->validated('role'),
+            'overrides' => $overrides,
         ]);
 
         return redirect()->route('team.access.edit', $member)->with('status', "Access for {$member->name} saved.");

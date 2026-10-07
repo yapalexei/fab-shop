@@ -1,6 +1,7 @@
 import { UserAvatar } from '@/Components/Avatar';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import FlashToast from '@/Components/FlashToast';
+import SecurityNotices from '@/Components/SecurityNotices';
 import LegalLinks from '@/Components/LegalLinks';
 import NavIcon from '@/Components/NavIcon';
 import RequiresSubscription from '@/Components/RequiresSubscription';
@@ -261,17 +262,20 @@ export default function Authenticated({
             visible: can('team.view'),
         },
         {
-            label: 'Roles & permissions',
-            href: route('shop.permissions.edit'),
-            active: route().current('shop.permissions.*'),
+            label: 'Add-ons',
+            href: route('shop.addons.index'),
+            active: route().current('shop.addons.*'),
             enabled: true,
             locked: false,
             visible: auth.isOwner,
         },
         {
-            label: 'Add-ons',
-            href: route('shop.addons.index'),
-            active: route().current('shop.addons.*'),
+            label: 'Security',
+            href: route('shop.security.index'),
+            // Roles & permissions and the audit log are sub-pages of it.
+            active:
+                route().current('shop.security.*') ||
+                route().current('shop.permissions.*'),
             enabled: true,
             locked: false,
             visible: auth.isOwner,
@@ -475,6 +479,7 @@ export default function Authenticated({
 
                 <div className="shrink-0">
                     <TrialBanner />
+                    <SecurityNotices />
                 </div>
 
                 <FlashToast />

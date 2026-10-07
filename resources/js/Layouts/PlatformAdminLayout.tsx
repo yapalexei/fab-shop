@@ -1,122 +1,232 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import Dropdown from '@/Components/Dropdown';
+import { UserAvatar } from '@/Components/Avatar';
 import FlashToast from '@/Components/FlashToast';
-import NavLink from '@/Components/NavLink';
+import NavIcon from '@/Components/NavIcon';
 import ThemeToggle from '@/Components/ThemeToggle';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import { Separator } from '@/Components/ui/separator';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarHeader,
+    SidebarInset,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarProvider,
+    SidebarRail,
+    SidebarTrigger,
+    useSidebar,
+} from '@/Components/ui/sidebar';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode } from 'react';
+import { ChevronsUpDown, LayoutDashboard, LogOut } from 'lucide-react';
+import { PropsWithChildren, ReactNode, useEffect } from 'react';
+
+/** Closes the mobile drawer when navigating - the layout persists across Inertia visits. */
+function CloseMobileSidebarOnNavigate({ url }: { url: string }) {
+    const { setOpenMobile } = useSidebar();
+
+    useEffect(() => {
+        setOpenMobile(false);
+    }, [url, setOpenMobile]);
+
+    return null;
+}
 
 /**
  * Deliberately separate from AuthenticatedLayout - that layout's nav is
  * built entirely around a current shop (feature gates, shop switcher, per-
  * shop roles), none of which applies here. A platform admin may not even
- * belong to a shop.
+ * belong to a shop. It does share the look: a left sidebar, same shell.
  */
 export default function PlatformAdminLayout({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth } = usePage<PageProps>().props;
+    const page = usePage<PageProps>();
+    const { auth } = page.props;
+    const user = auth.user;
+
+    const navItems = [
+        {
+            label: 'Shop directory',
+            href: route('platform-admin.index'),
+            active: route().current('platform-admin.index') === true,
+        },
+        {
+            label: 'Feature pricing',
+            href: route('platform-admin.features.index'),
+            active: route().current('platform-admin.features.*') === true,
+        },
+        {
+            label: 'Security',
+            href: route('platform-admin.security.index'),
+            active: route().current('platform-admin.security.*') === true,
+        },
+        {
+            label: 'Plan settings',
+            href: route('platform-admin.plans.index'),
+            active: route().current('platform-admin.plans.*') === true,
+        },
+    ];
 
     return (
-        <div className="app-shell flex flex-col bg-gray-100">
-            <nav className="shrink-0 border-b border-gray-100 bg-white">
-                <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center gap-3">
-                        <Link href={route('platform-admin.index')}>
-                            <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
-                        </Link>
-                        <span className="rounded-full bg-gray-900 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-white">
-                            Platform admin
-                        </span>
+        <SidebarProvider className="app-shell min-h-0">
+            <CloseMobileSidebarOnNavigate url={page.url} />
 
-                        <div className="ms-6 flex h-16 items-center gap-6">
-                            <NavLink
-                                href={route('platform-admin.index')}
-                                active={route().current('platform-admin.index')}
+            <Sidebar collapsible="icon">
+                <SidebarHeader>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                asChild
+                                size="lg"
+                                tooltip="Platform admin"
                             >
-                                Shop directory
-                            </NavLink>
-                            <NavLink
-                                href={route('platform-admin.features.index')}
-                                active={route().current(
-                                    'platform-admin.features.*',
-                                )}
-                            >
-                                Feature pricing
-                            </NavLink>
-                            <NavLink
-                                href={route('platform-admin.plans.index')}
-                                active={route().current(
-                                    'platform-admin.plans.*',
-                                )}
-                            >
-                                Plan settings
-                            </NavLink>
-                        </div>
-                    </div>
+                                <Link href={route('platform-admin.index')}>
+                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                                        <ApplicationLogo className="size-5 fill-current" />
+                                    </div>
+                                    <div className="grid flex-1 text-start text-sm leading-tight">
+                                        <span className="truncate font-semibold">
+                                            Platform admin
+                                        </span>
+                                    </div>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarHeader>
 
-                    <div className="flex items-center gap-1">
-                        <ThemeToggle />
-
-                        <Dropdown>
-                            <Dropdown.Trigger>
-                                <button
-                                    type="button"
-                                    className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-foreground focus:outline-hidden"
-                                >
-                                    {auth.user.name}
-                                    <svg
-                                        className="-me-0.5 ms-2 h-4 w-4"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 20 20"
-                                        fill="currentColor"
+                <SidebarContent>
+                    <SidebarGroup>
+                        <SidebarMenu>
+                            {navItems.map((item) => (
+                                <SidebarMenuItem key={item.label}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={item.active}
+                                        tooltip={item.label}
+                                        className="relative data-[active=true]:bg-primary data-[active=true]:font-semibold data-[active=true]:text-primary-foreground data-[active=true]:hover:bg-primary/90 data-[active=true]:hover:text-primary-foreground"
                                     >
-                                        <path
-                                            fillRule="evenodd"
-                                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                            clipRule="evenodd"
+                                        <Link
+                                            href={item.href}
+                                            aria-current={
+                                                item.active ? 'page' : undefined
+                                            }
+                                        >
+                                            <NavIcon
+                                                label={item.label}
+                                                className="size-4"
+                                            />
+                                            <span>{item.label}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroup>
+                </SidebarContent>
+
+                <SidebarFooter>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <SidebarMenuButton
+                                        size="lg"
+                                        tooltip={user.name}
+                                    >
+                                        <UserAvatar
+                                            name={user.name}
+                                            src={user.avatar_url}
+                                            className="bg-sidebar-accent"
                                         />
-                                    </svg>
-                                </button>
-                            </Dropdown.Trigger>
-                            <Dropdown.Content align="right">
-                                {auth.user.current_shop_id && (
-                                    <Dropdown.Link href={route('dashboard')}>
-                                        Back to dashboard
-                                    </Dropdown.Link>
-                                )}
-                                <Dropdown.Link
-                                    href={route('logout')}
-                                    method="post"
-                                    as="button"
+                                        <div className="grid flex-1 text-start text-sm leading-tight">
+                                            <span className="truncate font-medium">
+                                                {user.name}
+                                            </span>
+                                            <span className="truncate text-xs text-muted-foreground">
+                                                {user.email}
+                                            </span>
+                                        </div>
+                                        <ChevronsUpDown className="ms-auto" />
+                                    </SidebarMenuButton>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    side="top"
+                                    align="start"
+                                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
                                 >
-                                    Log Out
-                                </Dropdown.Link>
-                            </Dropdown.Content>
-                        </Dropdown>
-                    </div>
+                                    {user.current_shop_id && (
+                                        <>
+                                            <DropdownMenuItem asChild>
+                                                <Link
+                                                    href={route('dashboard')}
+                                                    className="cursor-pointer"
+                                                >
+                                                    <LayoutDashboard /> Back to
+                                                    dashboard
+                                                </Link>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                        </>
+                                    )}
+                                    <DropdownMenuItem asChild>
+                                        <Link
+                                            href={route('logout')}
+                                            method="post"
+                                            as="button"
+                                            className="w-full cursor-pointer"
+                                        >
+                                            <LogOut /> Log Out
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarFooter>
+                <SidebarRail />
+            </Sidebar>
+
+            <SidebarInset className="min-h-0 overflow-hidden bg-gray-100">
+                <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-white px-4">
+                    <SidebarTrigger className="-ms-1" />
+                    <Separator orientation="vertical" className="me-2 h-4" />
+                    <div className="flex-1" />
+                    <ThemeToggle />
+                </header>
+
+                <FlashToast />
+
+                {/* The page scrolls here, not the window, so the header above
+                    stays put. `scroll-region` lets Inertia reset/preserve this
+                    scroll position on visits like it does the window's. */}
+                <div
+                    scroll-region=""
+                    className="min-h-0 flex-1 overflow-y-auto"
+                >
+                    {header && (
+                        <header className="border-b bg-white">
+                            <div className="mx-auto max-w-7xl px-4 py-4 sm:px-4 lg:px-8">
+                                {header}
+                            </div>
+                        </header>
+                    )}
+
+                    <main>{children}</main>
                 </div>
-            </nav>
-
-            <FlashToast />
-
-            {/* Same shell as AuthenticatedLayout: the nav stays put, the page scrolls here. */}
-            <div
-                scroll-region=""
-                className="app-scroll min-h-0 flex-1 overflow-y-auto"
-            >
-                {header && (
-                    <header className="bg-white shadow-xs">
-                        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                            {header}
-                        </div>
-                    </header>
-                )}
-
-                <main>{children}</main>
-            </div>
-        </div>
+            </SidebarInset>
+        </SidebarProvider>
     );
 }

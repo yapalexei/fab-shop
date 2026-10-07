@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                 'trial_ends_at' => $shop->trial_ends_at?->toIso8601String(),
                 'show_trial_ended_notice' => $request->user() ? $shop->showsTrialEndedNoticeTo($request->user()) : false,
                 'plan_name' => $shop->plan?->name,
+                'deletion_scheduled_for' => $shop->deletion_scheduled_for?->toIso8601String(),
                 // Only the owner can change the plan, so only they get the button.
                 'can_upgrade' => Gate::allows('manage-shop') && $shop->canUpgrade(),
             ] : null,
@@ -66,6 +67,16 @@ class HandleInertiaRequests extends Middleware
             'availableShops' => $request->user()
                 ? $request->user()->shops()->orderBy('name')->get(['shops.id', 'shops.name'])
                 : [],
+            // Set by EnsureTwoFactorSetup: present only while the signed-in
+            // person still owes two-factor setup (before the deadline - after
+            // it they're held on the profile page instead).
+            'twoFactorNotice' => ($requirement = $request->attributes->get('two_factor_requirement'))
+                ? [
+                    'deadline' => $requirement['deadline']->toIso8601String(),
+                    'days_left' => $requirement['days_left'],
+                    'overdue' => $requirement['overdue'],
+                ]
+                : null,
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
                 'error' => fn () => $request->session()->get('error'),

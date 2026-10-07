@@ -5,6 +5,7 @@ import PermissionGrid, {
 } from '@/Components/PermissionGrid';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
+import { BackLink } from '@/Components/SubPageLinks';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -73,6 +74,10 @@ export default function Edit({
 
             <div className="py-12">
                 <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                    <BackLink
+                        href={route('shop.security.index')}
+                        label="Security"
+                    />
                     <form
                         onSubmit={submit}
                         className="space-y-6 bg-white p-4 shadow-sm sm:rounded-lg sm:p-8"

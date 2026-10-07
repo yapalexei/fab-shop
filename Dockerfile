@@ -6,7 +6,7 @@
 FROM serversideup/php:8.4-fpm-nginx AS base
 USER root
 # gd: intervention/image (job photo thumbnails) + dompdf (quote PDFs); exif: spatie/medialibrary.
-RUN install-php-extensions gd exif
+RUN install-php-extensions gd exif zip
 USER www-data
 
 # ---- Composer dependencies --------------------------------------------------

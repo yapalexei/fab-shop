@@ -30,6 +30,7 @@ use App\Http\Controllers\MaterialTypeController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PlanSettingController;
 use App\Http\Controllers\PlatformAdminController;
+use App\Http\Controllers\PlatformSecurityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuickBooksConnectionController;
@@ -43,9 +44,11 @@ use App\Http\Controllers\SampleDataController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ShopAiAgentController;
 use App\Http\Controllers\ShopAiSettingsController;
+use App\Http\Controllers\ShopDataController;
 use App\Http\Controllers\ShopFeatureSubscriptionController;
 use App\Http\Controllers\ShopPlanController;
 use App\Http\Controllers\ShopSeatController;
+use App\Http\Controllers\ShopSecurityController;
 use App\Http\Controllers\ShopSettingsController;
 use App\Http\Controllers\ShopSuspendedController;
 use App\Http\Controllers\ShopSwitchController;
@@ -53,6 +56,7 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeamMemberAccessController;
 use App\Http\Controllers\ToolController;
 use App\Http\Controllers\TrialEndedNoticeController;
+use App\Http\Controllers\TwoFactorSettingsController;
 use App\Http\Controllers\UserAvatarController;
 use Illuminate\Support\Facades\Route;
 
@@ -103,6 +107,11 @@ Route::middleware(['auth', 'verified', 'can:platform-admin'])->prefix('platform-
     Route::patch('/shops/{shop}/subscription/extend', [PlatformAdminController::class, 'extendSubscription'])->name('shops.subscription.extend');
     Route::get('/features', [FeatureSettingController::class, 'index'])->name('features.index');
     Route::patch('/features', [FeatureSettingController::class, 'update'])->name('features.update');
+    // Security is an index; the two-factor default and the log are sub-pages.
+    Route::get('/security', [PlatformSecurityController::class, 'index'])->name('security.index');
+    Route::get('/security/two-factor', [PlatformSecurityController::class, 'policy'])->name('security.policy');
+    Route::put('/security/two-factor', [PlatformSecurityController::class, 'updatePolicy'])->name('security.two-factor');
+    Route::get('/security/log', [PlatformSecurityController::class, 'log'])->name('security.log');
     Route::get('/plans', [PlanSettingController::class, 'index'])->name('plans.index');
     Route::patch('/plans', [PlanSettingController::class, 'update'])->name('plans.update');
 });
@@ -111,6 +120,10 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('/profile/two-factor', [TwoFactorSettingsController::class, 'store'])->name('two-factor.enable');
+    Route::post('/profile/two-factor/confirm', [TwoFactorSettingsController::class, 'confirm'])->name('two-factor.confirm');
+    Route::post('/profile/two-factor/recovery-codes', [TwoFactorSettingsController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes');
+    Route::delete('/profile/two-factor', [TwoFactorSettingsController::class, 'destroy'])->name('two-factor.disable');
     Route::post('/profile/avatar', [UserAvatarController::class, 'store'])->name('profile.avatar.store');
     Route::delete('/profile/avatar', [UserAvatarController::class, 'destroy'])->name('profile.avatar.destroy');
     Route::get('/users/{user}/avatar', [UserAvatarController::class, 'show'])->name('users.avatar');
@@ -306,8 +319,18 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         });
 
         Route::middleware('can:manage-shop')->group(function () {
-            Route::get('/permissions', [RolePermissionController::class, 'edit'])->name('shop.permissions.edit');
-            Route::put('/permissions', [RolePermissionController::class, 'update'])->name('shop.permissions.update');
+            // Security is an index; roles & permissions and the audit log
+            // are sub-pages of it.
+            Route::get('/security', [ShopSecurityController::class, 'index'])->name('shop.security.index');
+            Route::get('/security/log', [ShopSecurityController::class, 'log'])->name('shop.security.log');
+            Route::get('/security/permissions', [RolePermissionController::class, 'edit'])->name('shop.permissions.edit');
+            Route::put('/security/permissions', [RolePermissionController::class, 'update'])->name('shop.permissions.update');
+            Route::get('/security/two-factor', [ShopSecurityController::class, 'twoFactor'])->name('shop.security.policy');
+            Route::put('/security/two-factor', [ShopSecurityController::class, 'updatePolicy'])->name('shop.security.two-factor');
+            Route::post('/data/export', [ShopDataController::class, 'export'])->name('shop.data.export');
+            Route::get('/data/export/{export}', [ShopDataController::class, 'download'])->name('shop.data.download');
+            Route::post('/data/deletion', [ShopDataController::class, 'requestDeletion'])->name('shop.data.deletion');
+            Route::delete('/data/deletion', [ShopDataController::class, 'cancelDeletion'])->name('shop.data.deletion.cancel');
         });
 
         // The page is viewable after a trial ends (it explains that AI is

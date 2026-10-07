@@ -9,10 +9,12 @@ use App\Http\Requests\UpdateShopSeatLimitRequest;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
 use App\Models\Shop;
+use App\Support\SecurityLog;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -80,6 +82,22 @@ class PlatformAdminController extends Controller
      * useful question for a platform admin is "which of these need my
      * attention soon," not a precise window.
      */
+    /**
+     * Platform staff act across tenants, so every change they make to a shop
+     * goes in the security log with the shop it touched (their own current
+     * shop, which SecurityLog records, is usually a different one).
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    private function audit(string $what, Shop $shop, array $properties = []): void
+    {
+        SecurityLog::record("platform admin: {$what}", Auth::user(), [
+            ...$properties,
+            'target_shop_id' => $shop->id,
+            'target_shop' => $shop->name,
+        ]);
+    }
+
     private function filtered(Request $request): Builder
     {
         $query = Shop::query();
@@ -125,6 +143,7 @@ class PlatformAdminController extends Controller
     public function suspend(Shop $shop): RedirectResponse
     {
         $shop->forceFill(['suspended_at' => now()])->save();
+        $this->audit('shop suspended', $shop);
 
         return back()->with('status', "Suspended {$shop->name}.");
     }
@@ -132,6 +151,7 @@ class PlatformAdminController extends Controller
     public function unsuspend(Shop $shop): RedirectResponse
     {
         $shop->forceFill(['suspended_at' => null])->save();
+        $this->audit('shop unsuspended', $shop);
 
         return back()->with('status', "Unsuspended {$shop->name}.");
     }
@@ -154,6 +174,7 @@ class PlatformAdminController extends Controller
             'trial_baseline_days' => $shop->trial_baseline_days ?? PlatformSetting::defaultTrialDays(),
             'trial_ends_at' => $base->copy()->addDays($days),
         ]);
+        $this->audit('trial extended', $shop, ['days' => $days]);
 
         return back()->with('status', "Extended {$shop->name}'s trial by {$days} day(s), to {$shop->trial_ends_at->toDateString()}.");
     }
@@ -168,6 +189,7 @@ class PlatformAdminController extends Controller
     public function expireTrial(Shop $shop): RedirectResponse
     {
         $shop->update(['trial_ends_at' => now()->subSecond()]);
+        $this->audit('trial ended', $shop);
 
         return back()->with('status', "Ended {$shop->name}'s trial.");
     }
@@ -183,6 +205,7 @@ class PlatformAdminController extends Controller
         $base = $shop->subscription_renews_at?->isFuture() ? $shop->subscription_renews_at : now();
 
         $shop->update(['subscription_renews_at' => $base->copy()->addDays($days)]);
+        $this->audit('subscription extended', $shop, ['days' => $days]);
 
         return back()->with('status', "Marked {$shop->name} paid through {$shop->subscription_renews_at->toDateString()}.");
     }
@@ -190,6 +213,7 @@ class PlatformAdminController extends Controller
     public function updatePlan(UpdateShopPlanRequest $request, Shop $shop): RedirectResponse
     {
         $shop->update(['plan_id' => $request->validated('plan_id')]);
+        $this->audit('plan changed', $shop, ['plan_id' => $request->validated('plan_id')]);
 
         // A feature the shop was individually paying for as an add-on may
         // now be included in the new plan - cancel it so it's never billed
@@ -212,6 +236,7 @@ class PlatformAdminController extends Controller
     public function updateSeatLimit(UpdateShopSeatLimitRequest $request, Shop $shop): RedirectResponse
     {
         $shop->update(['seat_limit_override' => $request->validated('seat_limit')]);
+        $this->audit('seat limit changed', $shop, ['seat_limit' => $request->validated('seat_limit')]);
 
         return back()->with('status', "Updated {$shop->name}'s seat limit.");
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ShopResource;
 use App\Http\Requests\UpdateRolePermissionsRequest;
+use App\Support\SecurityLog;
 use App\Support\ShopPermissions;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -33,6 +34,10 @@ class RolePermissionController extends Controller
         foreach (ShopPermissions::EDITABLE_ROLES as $roleName) {
             Role::findOrCreate($roleName)->syncPermissions($request->validated("grants.{$roleName}", []));
         }
+
+        SecurityLog::record('role permissions changed', $request->user(), [
+            'grants' => $request->validated('grants', []),
+        ]);
 
         return back()->with('status', 'Role permissions saved.');
     }

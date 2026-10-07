@@ -7,6 +7,7 @@ use App\Http\Requests\SendTeamInvitationRequest;
 use App\Http\Requests\UpdateTeamMemberRateRequest;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Support\SecurityLog;
 use App\Support\ShopPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -77,6 +78,11 @@ class TeamController extends Controller
         $shop = Auth::user()->currentShop;
 
         $invitation = $sendInvitation($shop, $request->validated('email'), $request->validated('role'), Auth::user());
+
+        SecurityLog::record('member invited', Auth::user(), [
+            'invited_email' => $invitation->email,
+            'role' => $request->validated('role'),
+        ]);
 
         return redirect()->route('team.index')->with('status', "Invited {$invitation->email}.");
     }

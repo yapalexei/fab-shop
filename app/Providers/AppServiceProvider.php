@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Listeners\LogAuthenticationEvents;
 use App\Models\User;
 use App\Support\ShopPermissions;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
@@ -30,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
         // able to starve another's, and clients share IPs behind proxies.
         RateLimiter::for('mcp', fn (Request $request) => Limit::perMinute((int) config('ai.mcp_requests_per_minute'))
             ->by($request->user()?->id ?: $request->ip()));
+
+        Event::subscribe(LogAuthenticationEvents::class);
 
         Vite::prefetch(concurrency: 3);
 

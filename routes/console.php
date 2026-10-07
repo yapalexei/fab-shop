@@ -11,3 +11,9 @@ Artisan::command('inspire', function () {
 // Hourly rather than daily: a trial ends 14 x 24h after signup, at whatever
 // time of day that was, so a once-a-day run would notify up to a day late.
 Schedule::command('app:notify-expired-trials')->hourly();
+
+// A shop's owner-requested deletion runs once its grace period has ended;
+// hourly so it isn't up to a day late.
+Schedule::command('app:purge-deleted-shops')->hourly();
+
+Schedule::command('app:prune-data-exports')->daily();

@@ -8,68 +8,17 @@ use App\Mcp\Tools\GetQuoteTool;
 use App\Mcp\Tools\ListJobsTool;
 use App\Mcp\Tools\ListQuotesTool;
 use App\Mcp\Tools\SearchCustomersTool;
-use App\Models\Customer;
 use App\Models\McpRequest;
 use App\Models\Plan;
-use App\Models\Quote;
-use App\Models\QuoteLineItem;
-use App\Models\Shop;
 use App\Models\User;
 use App\Support\AgentAccess;
-use Database\Seeders\PlanSeeder;
 use Illuminate\Support\Facades\DB;
 use Laravel\Mcp\Request;
 
-/** A Pro shop (AI agent access included), its owner, and its agent. */
-function mcpShop(array $shopOverrides = []): array
-{
-    test()->seed(PlanSeeder::class);
-    $shop = Shop::factory()->create([
-        'plan_id' => Plan::where('key', 'pro')->value('id'),
-        'trial_ends_at' => now()->subDay(),
-        ...$shopOverrides,
-    ]);
+// mcpShop() / mcpToken() / mcpGrant() / mcpCall() live in tests/Pest.php (the
+// MCP write-tool tests use them too).
 
-    return [$shop, actingAsShopMember($shop), (new CreateShopAgent)($shop)];
-}
-
-function mcpToken(User $agent, array $abilities = ['mcp']): string
-{
-    return $agent->createToken('test', $abilities)->plainTextToken;
-}
-
-/** Replace what the agent may do (permission names, e.g. ['quotes.view', 'quotes.create']). */
-function mcpGrant(Shop $shop, User $agent, array $permissions): void
-{
-    $shop->agents()->updateExistingPivot($agent->id, ['permission_overrides' => AgentAccess::overridesFor($permissions)]);
-}
-
-function mcpCall(string $token, string $method, array $params = [])
-{
-    // One app instance serves every request in a test, and the token guard
-    // remembers who it authenticated - a real client's requests don't share
-    // that, so start each call clean.
-    app('auth')->forgetGuards();
-
-    return test()->withToken($token)->postJson('/mcp', [
-        'jsonrpc' => '2.0', 'id' => 1, 'method' => $method, 'params' => (object) $params,
-    ]);
-}
-
-function sentQuote(Shop $shop, array $overrides = []): Quote
-{
-    $customer = Customer::factory()->create(['shop_id' => $shop->id]);
-    $quote = Quote::factory()->create([
-        'shop_id' => $shop->id,
-        'customer_id' => $customer->id,
-        'status' => QuoteStatus::Sent,
-        'sent_at' => now()->subDays(10),
-        ...$overrides,
-    ]);
-    QuoteLineItem::factory()->create(['quote_id' => $quote->id, 'quantity' => 2, 'unit_cost' => 50, 'markup_percent' => 0]);
-
-    return $quote;
-}
+// sentQuote() lives in tests/Pest.php (shared with other MCP test files).
 
 // --- the agent identity ------------------------------------------------------
 

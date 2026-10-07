@@ -84,6 +84,11 @@ const ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
     QuickBooks: BookOpenIcon,
     'Add-ons': PuzzlePieceIcon,
     'AI assistant': SparklesIcon,
+    // Platform admin console
+    'Shop directory': BuildingOffice2Icon,
+    'Feature pricing': TagIcon,
+    Security: ShieldCheckIcon,
+    'Plan settings': Cog6ToothIcon,
 };
 
 /** Icon for a menu item, looked up by its label; renders nothing if unknown. */

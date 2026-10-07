@@ -39,7 +39,7 @@ return [
     // Effective date doubles as the version string recorded with each consent.
     'versions' => [
         'terms' => '2026-10-01',
-        'privacy' => '2026-10-01',
+        'privacy' => '2026-10-06',
         'sms' => '2026-10-01',
     ],
 

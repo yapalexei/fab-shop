@@ -6,6 +6,7 @@ use App\Actions\CreateShopAgent;
 use App\Http\Requests\StoreShopAiAgentTokenRequest;
 use App\Http\Requests\UpdateShopAiAgentRequest;
 use App\Support\AgentAccess;
+use App\Support\SecurityLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,7 @@ class ShopAiAgentController extends Controller
     public function store(CreateShopAgent $createAgent): RedirectResponse
     {
         $createAgent(Auth::user()->currentShop);
+        SecurityLog::record('AI connection turned on', Auth::user());
 
         return back()->with('status', 'AI connection turned on. Create a token to connect your AI.');
     }
@@ -31,6 +33,10 @@ class ShopAiAgentController extends Controller
 
         $shop->agents()->updateExistingPivot($agent->id, [
             'permission_overrides' => AgentAccess::overridesFor($request->validated('permissions')),
+        ]);
+
+        SecurityLog::record('AI connection access changed', $request->user(), [
+            'permissions' => $request->validated('permissions'),
         ]);
 
         return back()->with('status', 'What your AI can do has been updated.');
@@ -52,6 +58,8 @@ class ShopAiAgentController extends Controller
             }
         });
 
+        SecurityLog::record('AI connection turned off', Auth::user());
+
         return back()->with('status', 'AI connection turned off and all its tokens removed.');
     }
 
@@ -64,6 +72,11 @@ class ShopAiAgentController extends Controller
         // very next page load, never stored (Sanctum keeps only a hash).
         $token = $agent->createToken($request->validated('name'), ['mcp'], now()->addDays($days));
 
+        SecurityLog::record('AI token created', $request->user(), [
+            'token_name' => $request->validated('name'),
+            'expires_in_days' => $days,
+        ]);
+
         return back()->with('new_token', $token->plainTextToken);
     }
 
@@ -74,6 +87,8 @@ class ShopAiAgentController extends Controller
         // Looked up through this shop's own agent, so another shop's token
         // id simply isn't found.
         $agent->tokens()->whereKey($token)->firstOrFail()->delete();
+
+        SecurityLog::record('AI token revoked', Auth::user(), ['token_id' => $token]);
 
         return back()->with('status', 'Token revoked. Anything using it is now disconnected.');
     }

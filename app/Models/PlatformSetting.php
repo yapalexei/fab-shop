@@ -21,12 +21,17 @@ class PlatformSetting extends Model
 
     private const CACHE_KEY = 'platform-setting.default-trial-days';
 
+    // The two-factor policy columns are written only by the platform admin
+    // security page (forceFill), together with their set-at timestamp.
     protected $fillable = ['default_trial_days'];
 
     protected function casts(): array
     {
         return [
             'default_trial_days' => 'integer',
+            'two_factor_required_roles' => 'array',
+            'two_factor_grace_days' => 'integer',
+            'two_factor_policy_set_at' => 'datetime',
         ];
     }
 

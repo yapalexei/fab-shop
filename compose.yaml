@@ -103,6 +103,10 @@ services:
         entrypoint: ['php', '/var/www/html/artisan', 'reverb:start']
     pgsql:
         image: 'postgres:18-alpine'
+        # `sail test --parallel` rebuilds the whole schema in every worker's
+        # own database inside one transaction; the default (64) runs out of
+        # lock slots with ~80 tables plus indexes.
+        command: ['postgres', '-c', 'max_locks_per_transaction=256']
         ports:
             - '${FORWARD_DB_PORT:-5432}:5432'
         environment:

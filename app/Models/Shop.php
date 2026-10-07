@@ -53,6 +53,11 @@ class Shop extends Model
             'billing_interval' => BillingInterval::class,
             'onboarded_at' => 'datetime',
             'suspended_at' => 'datetime',
+            'two_factor_required_roles' => 'array',
+            'two_factor_grace_days' => 'integer',
+            'two_factor_policy_set_at' => 'datetime',
+            'deletion_requested_at' => 'datetime',
+            'deletion_scheduled_for' => 'datetime',
             'stale_quote_days' => 'integer',
             'win_rate_window_days' => 'integer',
             'job_board_drag_enabled' => 'boolean',
@@ -75,6 +80,9 @@ class Shop extends Model
         return $this->belongsToMany(User::class)
             ->using(ShopMember::class)
             ->withPivot('hourly_rate', 'permission_overrides', 'trial_ended_dismissed_at')
+            // Records when someone joined - the two-factor grace period for a
+            // new teammate counts from here (TwoFactorPolicy).
+            ->withTimestamps()
             ->where('users.is_agent', false);
     }
 
@@ -88,6 +96,7 @@ class Shop extends Model
         return $this->belongsToMany(User::class)
             ->using(ShopMember::class)
             ->withPivot('permission_overrides')
+            ->withTimestamps()
             ->where('users.is_agent', true);
     }
 
