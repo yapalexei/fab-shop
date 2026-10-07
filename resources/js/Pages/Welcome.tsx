@@ -1,5 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import AnimatedBoard from '@/Components/marketing/AnimatedBoard';
+import ProductGlimpse from '@/Components/marketing/ProductGlimpse';
 import FloatingParts from '@/Components/marketing/FloatingParts';
 import Reveal from '@/Components/marketing/Reveal';
 import LegalLinks from '@/Components/LegalLinks';
@@ -322,7 +322,7 @@ export default function Welcome({
                             className="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-linear-to-b from-indigo-100/70 to-transparent dark:from-indigo-950/60"
                         />
                         <FloatingParts />
-                        <div className="mx-auto max-w-5xl px-4 pb-16 pt-20 text-center sm:px-6 sm:pt-28 lg:px-8">
+                        <div className="mx-auto max-w-6xl px-4 pb-16 pt-20 text-center sm:px-6 sm:pt-28 lg:px-8">
                             <Badge variant="secondary" className="mb-6">
                                 For custom, ornamental and mobile fab shops
                             </Badge>
@@ -358,7 +358,7 @@ export default function Welcome({
                                 No card required.
                             </p>
 
-                            <AnimatedBoard />
+                            <ProductGlimpse />
                         </div>
                     </section>
 
