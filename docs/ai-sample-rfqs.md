@@ -123,6 +123,60 @@ Tests line count, ordering and both finishes.
 
 **Expect:** roughly 8-10 lines covering Powder Coating and Anodizing, the plasma table, a drill bit, and an unmatched labor line for the gate. Flags land on the guesses.
 
+## Automating the rest with your own AI (MCP)
+
+The RFQs above test the in-app draft panel. The shop's own AI (Claude Desktop/Code or any MCP client) can go further and do the surrounding work through the MCP connection. Set it up at **Settings > AI > AI agent connection**: turn it on, tick what it may create and update, and make a token.
+
+The AI should call `get-access` first; it reports what this connection can do. Everything below needs the matching grant, and a tool that's missing means the grant is off.
+
+### Prompts to try
+
+Paste an RFQ after each of these, using the same ten emails above.
+
+**RFQ to draft quote, end to end** (customers + quotes create)
+
+> Here's an RFQ email. Find the customer in our shop, or create them if they're new (check for a same-named one first). Then create a draft quote for them using only items from our catalog. If something isn't in the catalog, add it as a line with no cost and tell me. List your open questions at the end. Don't invent prices.
+
+**Fix up a draft** (quotes update)
+
+> Open the newest draft quote for Ridgeline Ranch Supply. Change the plate to 8 sheets, add a line for powder coating, and leave the rest alone. Tell me what the total is now.
+
+**Morning briefing** (read-only)
+
+> List every job that's in progress and anything due this week. Group by stage, and flag anything that looks stuck or late.
+
+**Move work along** (jobs update)
+
+> The gate frame for Ridgeline is finished and shipped. Move it to Shipped. Then show me everything that's now ready to invoice.
+
+**Assign work by name** (jobs update)
+
+> Assign the three jobs in Cutting to Sam, and set their due dates to next Friday.
+
+**Chase stale quotes** (quotes view)
+
+> Which quotes have been sent but not answered for more than two weeks? Write a short, friendly follow-up for each, ready to copy. Don't send anything.
+
+**Grow the catalog from a supplier sheet** (materials / business partners create + update)
+
+> Here is a price list from our steel supplier. Add any materials we don't have, and update the supplier's prices for the ones we do. List what you changed.
+
+### What the AI can't do
+
+These are refused whatever the prompt says, so it's worth testing that it explains rather than tries:
+
+- Send or email a quote, mark one won or lost, archive it, or turn it into a job.
+- Cancel a job, or delete anything.
+- Touch team members, roles, billing, settings, markup defaults, QuickBooks, procedures or certifications.
+- Assign a job to another AI agent.
+
+Two safety rules to check in the results:
+
+- **Quotes are always drafts.** Whatever it was asked, the new quote is a draft, and `update-quote` won't edit one that has been archived or has become a job.
+- **Prices come from the catalog.** Line costs and markup are filled in from the shop's own data. Without `financials.view` the AI sees no amounts at all, in reads or in its own write results.
+
+Every change the AI makes is recorded in the job or quote history with the agent as its author, so you can see exactly what it did.
+
 ## Tuning
 
 When a draft is wrong, the levers are the system prompt in `app/Services/Ai/QuoteDrafter.php` (`SYSTEM`), the confidence threshold (`ai.confidence_threshold`), and the model chosen in Settings > AI. Re-run all ten after any change, since fixing one case can break another.
