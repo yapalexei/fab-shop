@@ -33,6 +33,7 @@ use App\Models\Shop;
 use App\Models\Tool;
 use App\Models\User;
 use App\Support\AgentAccess;
+use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 use Spatie\Activitylog\Models\Activity;
 
 /** A shop whose agent has been granted exactly these permissions (view is implied by any write). */
@@ -380,7 +381,7 @@ test('update-job unassigns when the client sends an empty string, and advertises
         ->assertOk()->assertSee('Unassigned from Jamie Chen');
     expect($job->fresh()->assigned_to)->toBeNull();
 
-    $schema = (new UpdateJobTool)->schema(new Illuminate\JsonSchema\JsonSchemaTypeFactory)['assignee']->toArray();
+    $schema = (new UpdateJobTool)->schema(new JsonSchemaTypeFactory)['assignee']->toArray();
     expect(json_encode($schema))->toContain('null');
 });
 
@@ -413,18 +414,22 @@ test('move-job moves along the board like a person would, starts the job, and lo
     expect($job->fresh()->started_at)->toBeNull();
 });
 
-test('move-job can never move a job into Shipped or Invoiced, or touch a cancelled job', function () {
+test('move-job can move a job into Shipped and Invoiced, but not touch a cancelled job', function () {
     [$shop, , $agent] = writeShop(ALL_WRITES);
     $job = jobForShop($shop);
 
-    foreach (['shipped', 'invoiced'] as $key) {
-        ShopServer::actingAs($agent)->tool(MoveJobTool::class, ['id' => $job->id, 'stage_id' => resolveJobStage($shop, $key)->id])
-            ->assertOk()->assertSee('"moved":false')->assertSee('not available to the AI');
-    }
-    expect($job->fresh()->job_stage_id)->toBe(resolveJobStage($shop, 'not_started')->id)->and($job->fresh()->invoiced_at)->toBeNull();
+    ShopServer::actingAs($agent)->tool(MoveJobTool::class, ['id' => $job->id, 'stage_id' => resolveJobStage($shop, 'shipped')->id])
+        ->assertOk()->assertSee('"moved":true');
+    expect($job->fresh()->job_stage_id)->toBe(resolveJobStage($shop, 'shipped')->id)->and($job->fresh()->finished_at)->not->toBeNull();
 
-    $job->forceFill(['cancelled_at' => now()])->save();
-    ShopServer::actingAs($agent)->tool(MoveJobTool::class, ['id' => $job->id, 'stage_id' => resolveJobStage($shop, 'in_progress')->id])->assertSee('cancelled');
+    ShopServer::actingAs($agent)->tool(MoveJobTool::class, ['id' => $job->id, 'stage_id' => resolveJobStage($shop, 'invoiced')->id])
+        ->assertOk()->assertSee('"moved":true');
+    expect($job->fresh()->invoiced_at)->not->toBeNull();
+
+    loggedOut();
+    $cancelled = jobForShop($shop);
+    $cancelled->forceFill(['cancelled_at' => now()])->save();
+    ShopServer::actingAs($agent)->tool(MoveJobTool::class, ['id' => $cancelled->id, 'stage_id' => resolveJobStage($shop, 'in_progress')->id])->assertSee('cancelled');
 });
 
 test('move-job respects the board\'s rules: no moving back once shipped, no foreign jobs or stages', function () {
@@ -441,14 +446,13 @@ test('move-job respects the board\'s rules: no moving back once shipped, no fore
     ShopServer::actingAs($agent)->tool(MoveJobTool::class, ['id' => 999999, 'stage_id' => resolveJobStage($shop, 'in_progress')->id])->assertSee('No job with that id');
 });
 
-test('list-job-stages shows ids and which stages the AI may not move into', function () {
+test('list-job-stages shows stage ids and roles', function () {
     [$shop, , $agent] = writeShop(ALL_WRITES);
 
-    $stages = collect(json_decode(mcpCall(mcpToken($agent), 'tools/call', ['name' => 'list-job-stages', 'arguments' => (object) []])->json('result.structuredContent') ? json_encode(mcpCall(mcpToken($agent), 'tools/call', ['name' => 'list-job-stages', 'arguments' => (object) []])->json('result.structuredContent.stages')) : '[]', true));
+    $stages = collect(mcpCall(mcpToken($agent), 'tools/call', ['name' => 'list-job-stages', 'arguments' => (object) []])->json('result.structuredContent.stages'));
 
-    expect($stages->firstWhere('role', 'shipped')['ai_can_move_into'])->toBeFalse()
-        ->and($stages->firstWhere('role', 'invoiced')['ai_can_move_into'])->toBeFalse()
-        ->and($stages->firstWhere('role', 'not_started')['ai_can_move_into'])->toBeTrue();
+    expect($stages->pluck('role')->all())->toContain('not_started', 'shipped', 'invoiced')
+        ->and($stages->firstWhere('role', 'shipped'))->toHaveKeys(['id', 'name', 'position']);
 });
 
 // --- catalog -----------------------------------------------------------------

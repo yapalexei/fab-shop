@@ -3,7 +3,6 @@
 namespace App\Mcp\Tools;
 
 use App\Actions\MoveJobToStage;
-use App\Enums\JobStageRole;
 use App\Models\Job;
 use App\Models\JobStage;
 use App\Models\Shop;
@@ -17,7 +16,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[Name('move-job')]
-#[Description('Move a job to another stage on the board (stage ids come from list-job-stages). Follows the board\'s rules: forward to any later stage, backward only before it has shipped. It can never move a job into the Shipped or Invoiced stages - those trigger invoicing and are done by a person - and cannot touch cancelled jobs.')]
+#[Description('Move a job to another stage on the board (stage ids come from list-job-stages). Follows the board\'s rules: forward to any later stage, backward only before it has shipped. Any stage is allowed, including Shipped (flags the job ready to invoice) and Invoiced (marks it invoiced); a job that has shipped can\'t be moved back. It cannot touch cancelled jobs.')]
 #[IsReadOnly(false)]
 #[IsDestructive(false)]
 #[IsIdempotent]
@@ -57,10 +56,6 @@ class MoveJobTool extends McpTool
 
         if ($job->isCancelled()) {
             return ['moved' => false, 'reason' => 'This job is cancelled, so it can\'t be moved.'];
-        }
-
-        if (in_array($target->role, [JobStageRole::Shipped, JobStageRole::Invoiced], true)) {
-            return ['moved' => false, 'reason' => "Moving a job into {$target->name} is not available to the AI connection - it triggers invoicing, so a person does it from the job board."];
         }
 
         if (! $job->canTransitionTo($target)) {

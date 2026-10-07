@@ -22,7 +22,7 @@ class GetAccessTool extends McpTool
     private const NEVER = [
         'Delete anything.',
         'Send, email or share a quote; mark a quote won, lost or archived; turn a quote into a job.',
-        'Move a job into the Shipped or Invoiced stage, or cancel a job (these trigger invoicing and are done by a person).',
+        'Cancel a job.',
         'See or change team members, roles and permissions, shop settings, billing, add-ons, QuickBooks, default markups, procedures or certifications.',
     ];
 

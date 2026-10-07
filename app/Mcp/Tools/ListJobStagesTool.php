@@ -2,7 +2,6 @@
 
 namespace App\Mcp\Tools;
 
-use App\Enums\JobStageRole;
 use App\Models\JobStage;
 use App\Models\Shop;
 use App\Models\User;
@@ -31,8 +30,6 @@ class ListJobStagesTool extends McpTool
                 'name' => $stage->name,
                 'position' => $stage->position,
                 'role' => $stage->role?->value,
-                // Shipped and Invoiced trigger invoicing, so only a person moves a job there.
-                'ai_can_move_into' => ! in_array($stage->role, [JobStageRole::Shipped, JobStageRole::Invoiced], true),
             ])->all(),
         ];
     }
