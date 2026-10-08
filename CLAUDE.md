@@ -134,6 +134,10 @@ Processing is queued (`ProcessCsvImport`) - the upload endpoint returns the new 
 
 Console/queue context has no authenticated user, so - like the demo commands and `NotifyExpiredTrials` - every query inside `ProcessCsvImport` filters by shop_id explicitly; the tenant global scope is a no-op there. Watch for the same silent-mass-assignment trap `Invitation::accepted_at` hit: `Import`'s count/error columns must be in its `$fillable` list, or `$import->update([...])` on them does nothing and the row's `status` field is the only thing that visibly changes.
 
+## robots.txt and sitemap.xml
+
+Both are generated from the route table by `App\Support\Seo` (served by `SeoController`), not static files - **there must be no `public/robots.txt`**, the web server would serve it before Laravel. Two Route macros (`AppServiceProvider`) are the whole interface: `->sitemap('config.key.holding.a.date')` lists a parameterless GET route in `sitemap.xml` (the optional config key becomes `<lastmod>`; the legal pages use `legal.versions.*`), and `->noindex()` keeps a public route out (invitation links). `robots.txt` disallows the first path segment of every route behind `auth`/`guest` middleware plus `noindex` ones, so new private pages are hidden automatically. Anything outside production gets `Disallow: /`. A new public marketing/legal page = add `->sitemap()`; `SeoTest` fails if a sitemap page ends up blocked by robots.
+
 ## Frontend formatting
 
 `.prettierrc` matches the repo's style (single quotes, 4 spaces). Much of the existing code was hand-formatted rather than Prettier output, so format only files you create or substantially rewrite - running Prettier over the whole tree reflows lines in files you never touched.

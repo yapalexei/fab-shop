@@ -41,6 +41,7 @@ use App\Http\Controllers\QuoteFollowUpController;
 use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SampleDataController;
+use App\Http\Controllers\SeoController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ShopAiAgentController;
 use App\Http\Controllers\ShopAiSettingsController;
@@ -60,18 +61,23 @@ use App\Http\Controllers\TwoFactorSettingsController;
 use App\Http\Controllers\UserAvatarController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', MarketingController::class)->name('marketing');
+Route::get('/', MarketingController::class)->name('marketing')->sitemap();
+
+// Generated from the route table - mark a public page ->sitemap() to list it,
+// or ->noindex() to keep a public-but-private-ish URL out (see App\Support\Seo).
+Route::get('/robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
+Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap');
 
 // Public legal pages - linked from the marketing page, sign-in/registration,
 // emails and the app footer.
-Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
-Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
-Route::get('/sms-terms', [LegalController::class, 'sms'])->name('legal.sms');
+Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms')->sitemap('legal.versions.terms');
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy')->sitemap('legal.versions.privacy');
+Route::get('/sms-terms', [LegalController::class, 'sms'])->name('legal.sms')->sitemap('legal.versions.sms');
 
 // No auth/guest middleware - the visitor may have no account yet, an
 // account under a different email, or already be exactly who's invited.
 // InvitationController sorts out which of those it is.
-Route::get('/invitations/{token}', [InvitationController::class, 'show'])->name('invitations.show');
+Route::get('/invitations/{token}', [InvitationController::class, 'show'])->name('invitations.show')->noindex();
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])
     ->middleware('throttle:6,1')
     ->name('invitations.accept');

@@ -14,31 +14,31 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
+        ->name('register')->sitemap();
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])->sitemap();
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
-        ->name('login');
+        ->name('login')->sitemap();
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])->sitemap();
 
     Route::get('two-factor-challenge', [TwoFactorChallengeController::class, 'create'])
-        ->name('two-factor.login');
+        ->name('two-factor.login')->sitemap();
 
-    Route::post('two-factor-challenge', [TwoFactorChallengeController::class, 'store']);
+    Route::post('two-factor-challenge', [TwoFactorChallengeController::class, 'store'])->sitemap();
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
-        ->name('password.request');
+        ->name('password.request')->sitemap();
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->name('password.email');
+        ->name('password.email')->sitemap();
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
-        ->name('password.reset');
+        ->name('password.reset')->sitemap();
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
-        ->name('password.store');
+        ->name('password.store')->sitemap();
 });
 
 Route::middleware('auth')->group(function () {
