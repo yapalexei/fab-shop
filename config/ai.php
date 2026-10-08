@@ -57,6 +57,10 @@ return [
     // Tool calls per minute one shop's connected AI may make over MCP.
     'mcp_requests_per_minute' => (int) env('AI_MCP_REQUESTS_PER_MINUTE', 120),
 
+    // Changes (create/update tool calls) one shop's connected AI may make per
+    // hour. Bounds what a hijacked session can do before anyone notices.
+    'mcp_writes_per_hour' => (int) env('AI_MCP_WRITES_PER_HOUR', 60),
+
     // How long an MCP token lives unless the owner picks otherwise, in days.
     'mcp_token_days' => (int) env('AI_MCP_TOKEN_DAYS', 90),
 

@@ -34,6 +34,7 @@ use App\Models\Tool;
 use App\Models\User;
 use App\Support\AgentAccess;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
+use Laravel\Sanctum\TransientToken;
 use Spatie\Activitylog\Models\Activity;
 
 /** A shop whose agent has been granted exactly these permissions (view is implied by any write). */
@@ -42,7 +43,10 @@ function writeShop(array $permissions): array
     [$shop, $owner, $agent] = mcpShop();
     mcpGrant($shop, $agent, $permissions);
 
-    return [$shop, $owner, $agent->fresh()];
+    // Called directly (not over HTTP) the agent has no token, so give it the
+    // kind the owner makes by ticking "allow changes" - read-only tokens are
+    // covered by McpSecurityTest.
+    return [$shop, $owner, $agent->fresh()->withAccessToken(new TransientToken)];
 }
 
 /**
@@ -83,7 +87,7 @@ test('a write permission brings its view along', function () {
 
 test('the server offers no tool that deletes, sends, archives or cancels', function () {
     [, , $agent] = writeShop(ALL_WRITES);
-    $names = collect(mcpCall(mcpToken($agent), 'tools/list')->assertOk()->json('result.tools'))->pluck('name');
+    $names = collect(mcpCall(mcpWriteToken($agent), 'tools/list')->assertOk()->json('result.tools'))->pluck('name');
 
     expect($names)->toContain('create-quote', 'update-quote', 'move-job', 'create-business-partner')
         ->and($names->filter(fn ($name) => preg_match('/delete|remove|send|email|archive|cancel|won|lost|convert|invoice/', $name)))->toBeEmpty();
@@ -91,7 +95,7 @@ test('the server offers no tool that deletes, sends, archives or cancels', funct
 
 test('write tools are offered only when their permission is granted', function () {
     [$shop, , $agent] = writeShop(['customers.create']);
-    $names = fn () => collect(mcpCall(mcpToken($agent), 'tools/list')->json('result.tools'))->pluck('name')->all();
+    $names = fn () => collect(mcpCall(mcpWriteToken($agent), 'tools/list')->json('result.tools'))->pluck('name')->all();
 
     expect($names())->toContain('create-customer')->not->toContain('update-customer')->not->toContain('create-quote');
 
@@ -101,7 +105,7 @@ test('write tools are offered only when their permission is granted', function (
 
 test('write tools carry honest annotations: not read-only, never destructive', function () {
     [, , $agent] = writeShop(ALL_WRITES);
-    $tools = collect(mcpCall(mcpToken($agent), 'tools/list')->json('result.tools'))->keyBy('name');
+    $tools = collect(mcpCall(mcpWriteToken($agent), 'tools/list')->json('result.tools'))->keyBy('name');
 
     foreach (['create-customer', 'update-quote', 'move-job', 'update-tool'] as $name) {
         expect($tools[$name]['annotations']['readOnlyHint'] ?? null)->toBeFalse()
@@ -118,7 +122,7 @@ test('get-access tells a read-only connection it cannot change anything', functi
     $response = ShopServer::actingAs($agent)->tool(GetAccessTool::class, [])->assertOk();
 
     $response->assertSee('read-only')->assertSee('"sees_money":false')->assertSee('Delete anything.');
-    $writes = collect(mcpCall(mcpToken($agent), 'tools/list')->json('result.tools'))->pluck('name')->filter(fn ($n) => str_starts_with($n, 'create-') || str_starts_with($n, 'update-'));
+    $writes = collect(mcpCall(mcpWriteToken($agent), 'tools/list')->json('result.tools'))->pluck('name')->filter(fn ($n) => str_starts_with($n, 'create-') || str_starts_with($n, 'update-'));
     expect($writes)->toBeEmpty();
 });
 
@@ -135,7 +139,7 @@ test('get-access lists exactly what was granted, tool by tool', function () {
 test('get-access reports per resource what is granted and what the owner could still grant', function () {
     [, , $agent] = writeShop(['customers.create']);
 
-    $response = mcpCall(mcpToken($agent), 'tools/call', ['name' => 'get-access', 'arguments' => (object) []])->assertOk();
+    $response = mcpCall(mcpWriteToken($agent), 'tools/call', ['name' => 'get-access', 'arguments' => (object) []])->assertOk();
     $report = $response->json('result.structuredContent');
 
     $customers = collect($report['resources'])->firstWhere('resource', 'customers');
@@ -150,7 +154,7 @@ test('get-access reports per resource what is granted and what the owner could s
 test('the server instructions point the AI at get-access first', function () {
     [, , $agent] = mcpShop();
 
-    $init = mcpCall(mcpToken($agent), 'initialize', ['protocolVersion' => '2025-06-18', 'capabilities' => (object) [], 'clientInfo' => ['name' => 't', 'version' => '1']])->assertOk();
+    $init = mcpCall(mcpWriteToken($agent), 'initialize', ['protocolVersion' => '2025-06-18', 'capabilities' => (object) [], 'clientInfo' => ['name' => 't', 'version' => '1']])->assertOk();
 
     expect($init->json('result.instructions'))->toContain('get-access');
 });
@@ -449,7 +453,7 @@ test('move-job respects the board\'s rules: no moving back once shipped, no fore
 test('list-job-stages shows stage ids and roles', function () {
     [$shop, , $agent] = writeShop(ALL_WRITES);
 
-    $stages = collect(mcpCall(mcpToken($agent), 'tools/call', ['name' => 'list-job-stages', 'arguments' => (object) []])->json('result.structuredContent.stages'));
+    $stages = collect(mcpCall(mcpWriteToken($agent), 'tools/call', ['name' => 'list-job-stages', 'arguments' => (object) []])->json('result.structuredContent.stages'));
 
     expect($stages->pluck('role')->all())->toContain('not_started', 'shipped', 'invoiced')
         ->and($stages->firstWhere('role', 'shipped'))->toHaveKeys(['id', 'name', 'position']);
@@ -599,7 +603,7 @@ test('search-catalog only ever sees the agent\'s own shop', function () {
 test('a write made over the real endpoint with a real token works and is attributed', function () {
     [$shop, , $agent] = writeShop(['customers.create']);
 
-    $response = mcpCall(mcpToken($agent), 'tools/call', ['name' => 'create-customer', 'arguments' => ['name' => 'Wire Customer']])->assertOk();
+    $response = mcpCall(mcpWriteToken($agent), 'tools/call', ['name' => 'create-customer', 'arguments' => ['name' => 'Wire Customer']])->assertOk();
 
     expect($response->json('result.isError') ?? false)->toBeFalse();
     expect(Customer::withoutGlobalScopes()->where('shop_id', $shop->id)->where('name', 'Wire Customer')->exists())->toBeTrue()
@@ -609,14 +613,14 @@ test('a write made over the real endpoint with a real token works and is attribu
 test('calling a write tool without its permission over the wire is refused and writes nothing', function () {
     [$shop, , $agent] = writeShop(['customers.view']);
 
-    mcpCall(mcpToken($agent), 'tools/call', ['name' => 'create-customer', 'arguments' => ['name' => 'Nope']]);
+    mcpCall(mcpWriteToken($agent), 'tools/call', ['name' => 'create-customer', 'arguments' => ['name' => 'Nope']]);
 
     expect(Customer::withoutGlobalScopes()->where('shop_id', $shop->id)->count())->toBe(0);
 });
 
 test('when ai access lapses even a fully-granted agent can write nothing', function () {
     [$shop, , $agent] = writeShop(ALL_WRITES);
-    $token = mcpToken($agent);
+    $token = mcpWriteToken($agent);
     $shop->update(['plan_id' => Plan::where('key', 'free')->value('id')]);
 
     mcpCall($token, 'tools/call', ['name' => 'create-customer', 'arguments' => ['name' => 'Too late']])->assertForbidden();
@@ -627,7 +631,7 @@ test('when ai access lapses even a fully-granted agent can write nothing', funct
 test('write tools are covered by the per-minute limit', function () {
     [, , $agent] = writeShop(['customers.create']);
     config(['ai.mcp_requests_per_minute' => 3]);
-    $token = mcpToken($agent);
+    $token = mcpWriteToken($agent);
 
     foreach (range(1, 3) as $i) {
         mcpCall($token, 'tools/call', ['name' => 'create-customer', 'arguments' => ['name' => "Rate {$i}"]])->assertOk();

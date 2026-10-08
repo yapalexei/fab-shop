@@ -28,7 +28,9 @@ class QuoteFollowUpController extends Controller
         }
 
         $user = $request->user();
-        $quote->load('customer:id,name,email', 'lineItems');
+        // ai_touched_at must be loaded: the check below reads it, and a column left
+        // out of the select would silently read as "nothing to review".
+        $quote->load('customer:id,name,email,ai_touched_at', 'lineItems');
 
         try {
             $draft = $drafter->draft(
@@ -42,6 +44,18 @@ class QuoteFollowUpController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json([...$draft, 'to' => $quote->customer->email]);
+        // If the AI connection set this customer's details and nobody has
+        // checked them, don't hand over the address to mail - that's exactly the
+        // field an injected instruction would change.
+        $unreviewed = $quote->customer->needsAiReview();
+
+        return response()->json([
+            ...$draft,
+            'to' => $unreviewed ? null : $quote->customer->email,
+            'warnings' => [
+                ...$draft['warnings'],
+                ...($unreviewed ? ['The customer\'s details were set by your AI connection and haven\'t been reviewed, so the address is left blank. Check the customer first.'] : []),
+            ],
+        ]);
     }
 }

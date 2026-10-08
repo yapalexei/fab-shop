@@ -22,6 +22,8 @@ class StoreShopAiAgentTokenRequest extends FormRequest
             'name' => ['required', 'string', 'max:60'],
             // Blank = the default lifetime; there is deliberately no "never".
             'expires_in_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            // Read-only unless this is ticked - see McpTool::WRITE_ABILITY.
+            'allow_changes' => ['nullable', 'boolean'],
         ];
     }
 }

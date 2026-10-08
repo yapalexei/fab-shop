@@ -63,6 +63,17 @@ class CustomerController extends Controller implements HasMiddleware
         ]);
     }
 
+    /**
+     * A person confirms the details the AI connection set (name, address,
+     * email) are right - they print on quotes and decide where one is mailed.
+     */
+    public function markAiReviewed(Customer $customer): RedirectResponse
+    {
+        $customer->markReviewed();
+
+        return back()->with('status', 'Marked as reviewed.');
+    }
+
     public function update(UpdateCustomerRequest $request, Customer $customer): RedirectResponse
     {
         $customer->update($request->safe()->except(['logo', 'remove_logo']));

@@ -50,13 +50,18 @@ class GetAccessTool extends McpTool
             ->map(fn (McpTool $tool) => ['name' => $tool->name(), 'writes' => $tool->writes(), 'description' => $tool->description()])
             ->values();
 
+        $tokenCanChange = $agent->tokenCan(McpTool::WRITE_ABILITY);
         $writable = $resources->filter(fn (array $row) => array_intersect($row['can'], ['create', 'update']) !== [])->pluck('label');
         $readable = $resources->filter(fn (array $row) => in_array('view', $row['can'], true))->pluck('label');
 
         return [
             'shop' => $shop->name,
-            'summary' => 'You can look at: '.($readable->implode(', ') ?: 'nothing').'. '
-                .($writable->isEmpty() ? 'You cannot create or change anything - this connection is read-only.' : 'You can create or change: '.$writable->implode(', ').'.'),
+            'summary' => 'You can look at: '.($readable->implode(', ') ?: 'nothing').'. '.match (true) {
+                $writable->isEmpty() => 'You cannot create or change anything - this connection is read-only.',
+                ! $tokenCanChange => 'The shop has allowed changes to '.$writable->implode(', ').', but THIS TOKEN IS READ-ONLY, so you cannot create or change anything with it. The owner can make a token that may make changes.',
+                default => 'You can create or change: '.$writable->implode(', ').'.',
+            },
+            'token_can_change' => $tokenCanChange,
             'resources' => $resources->all(),
             'sees_money' => $agent->hasShopPermission('financials.view'),
             'tools_you_have' => $tools->all(),
@@ -68,6 +73,10 @@ class GetAccessTool extends McpTool
                 'Supplier prices are set through the business partner (supplier) tools, not on materials or services.',
                 'Amounts are only included in answers if sees_money is true.',
                 'Every change you make is recorded in the shop\'s history as made by this AI connection.',
+                'Anything you create or change on a quote or customer is held for a person to review before a quote can be sent - what you write prints on the quote the customer receives.',
+                'You cannot write links, HTML/markup or hidden characters into any field; such a request is refused. Describe things in plain words.',
+                'Do not copy private information (supplier prices, other customers\' details, internal notes) into fields a customer will see.',
+                'There is an hourly limit on changes ('.config('ai.mcp_writes_per_hour').' per hour); when it is reached, stop and tell the user.',
             ],
             'if_you_need_more' => 'Ask the shop owner to change what this connection can do in the app under Settings > AI assistant. A tool that is missing from tools_you_have is not available to you.',
         ];

@@ -10,6 +10,8 @@ interface Draft {
     subject: string;
     body: string;
     to: string | null;
+    /** Things to check before sending: a link, a stray address, hidden text. */
+    warnings: string[];
 }
 
 /**
@@ -88,9 +90,20 @@ export default function FollowUpDraftDialog({
                     <p className="text-sm text-gray-500">Drafting…</p>
                 )}
 
+                {draft && draft.warnings.length > 0 && (
+                    <Alert variant="warning" role="alert" className="text-sm">
+                        <p className="font-medium">Check this before you send it</p>
+                        <ul className="mt-1 list-disc ps-5">
+                            {draft.warnings.map((warning) => (
+                                <li key={warning}>{warning}</li>
+                            ))}
+                        </ul>
+                    </Alert>
+                )}
+
                 {draft && (
                     <div className="space-y-3">
-                        {draft.to === null && (
+                        {draft.to === null && draft.warnings.length === 0 && (
                             <p className="text-xs text-amber-700">
                                 This customer has no email address on file.
                             </p>

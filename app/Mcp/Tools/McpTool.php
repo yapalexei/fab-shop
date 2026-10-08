@@ -5,7 +5,9 @@ namespace App\Mcp\Tools;
 use App\Models\McpRequest;
 use App\Models\Shop;
 use App\Models\User;
+use App\Support\UntrustedText;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -23,12 +25,25 @@ use Throwable;
  *
  * Everything returned is data from the shop's own records, some of it typed
  * by customers or staff: a client must treat it as data, never instructions.
- * That is why no tool here can send, change or delete anything. (PHP
- * attributes aren't inherited, so each concrete tool carries its own
+ *
+ * Defences that live here, so every tool - including ones added later - gets
+ * them without remembering to (see "Prompt injection" in CLAUDE.md):
+ *  - a write needs a token that was created with permission to change things
+ *    (ability mcp:write), so a client that also reads the web or an inbox can
+ *    be given a read-only token and never hold all three legs of the "lethal
+ *    trifecta" (private data + untrusted content + a way to send it out);
+ *  - writes are capped per hour, to bound what a hijacked session can do;
+ *  - text an AI writes may not contain links, markup or hidden characters
+ *    (the usual way to smuggle data into something a person later sends);
+ *  - everything returned has hidden characters stripped and is length-capped.
+ * (PHP attributes aren't inherited, so each concrete tool carries its own
  * #[Name], #[IsReadOnly] and #[IsIdempotent].)
  */
 abstract class McpTool extends Tool
 {
+    /** The token ability that lets a connection change things, not just read. */
+    public const WRITE_ABILITY = 'mcp:write';
+
     /**
      * The permission the agent must hold, e.g. "quotes.view". Null for a tool
      * that is always available (the access report) or that checks per call
@@ -53,8 +68,14 @@ abstract class McpTool extends Tool
     public function shouldRegister(Request $request): bool
     {
         $permission = $this->permission();
+        $agent = $request->user();
 
-        return $permission === null || ($request->user()?->hasShopPermission($permission) ?? false);
+        if ($permission !== null && ! ($agent?->hasShopPermission($permission) ?? false)) {
+            return false;
+        }
+
+        // A read-only token is never even offered the tools that change things.
+        return ! $this->writes() || ($agent?->tokenCan(self::WRITE_ABILITY) ?? false);
     }
 
     public function handle(Request $request): Response|ResponseFactory
@@ -69,6 +90,32 @@ abstract class McpTool extends Tool
             $this->log($shop, $agent, $started, 'denied');
 
             return Response::error('Permission denied: this connection has not been given access to that part of the shop.');
+        }
+
+        if ($this->writes()) {
+            if (! $agent->tokenCan(self::WRITE_ABILITY)) {
+                $this->log($shop, $agent, $started, 'denied');
+
+                return Response::error('This connection\'s token is read-only. The shop owner can create a token that is allowed to make changes in Settings > AI assistant.');
+            }
+
+            $key = 'mcp-writes:'.$agent->id;
+
+            if (RateLimiter::tooManyAttempts($key, (int) config('ai.mcp_writes_per_hour'))) {
+                $this->log($shop, $agent, $started, 'throttled');
+
+                return Response::error('Too many changes in the last hour. This limit protects your shop data - ask the owner, or try again later.');
+            }
+
+            RateLimiter::hit($key, 3600);
+
+            // Anything that looks like an attempt to smuggle a link, markup or
+            // hidden text into a record is refused outright (and logged).
+            if ($found = UntrustedText::firstProblem($request->all())) {
+                $this->log($shop, $agent, $started, 'blocked');
+
+                return Response::error("The field \"{$found['path']}\" contains {$found['reason']}, which the AI connection isn't allowed to write. Describe it in plain words instead, or ask the shop owner to add it in the app.");
+            }
         }
 
         try {
@@ -86,7 +133,9 @@ abstract class McpTool extends Tool
 
         $this->log($shop, $agent, $started, 'ok');
 
-        return Response::structured($data);
+        // What goes back to the AI is stripped of hidden characters and capped
+        // in length, so a record can't carry an invisible or enormous payload.
+        return Response::structured(UntrustedText::cleanDeep($data));
     }
 
     /**

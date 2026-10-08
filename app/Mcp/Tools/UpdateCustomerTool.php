@@ -71,6 +71,13 @@ class UpdateCustomerTool extends McpTool
         }
 
         $customer->save();
+
+        // The fields that print on a quote or decide where it is emailed need a
+        // person's eyes before anything goes out; notes stay internal.
+        if (array_intersect($changed, ['name', 'email', 'phone', 'address'])) {
+            $customer->markTouchedByAi();
+        }
+
         $this->audit($customer, $agent, "Updated customer {$customer->name} (".implode(', ', $changed).')');
 
         return ['updated' => true, 'changed' => $changed, 'customer' => $customer->only(['id', ...self::FIELDS])];

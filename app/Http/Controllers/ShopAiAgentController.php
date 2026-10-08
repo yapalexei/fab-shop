@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\CreateShopAgent;
 use App\Http\Requests\StoreShopAiAgentTokenRequest;
 use App\Http\Requests\UpdateShopAiAgentRequest;
+use App\Mcp\Tools\McpTool;
 use App\Support\AgentAccess;
 use App\Support\SecurityLog;
 use Illuminate\Http\RedirectResponse;
@@ -70,7 +71,13 @@ class ShopAiAgentController extends Controller
 
         // The one place the secret exists in the clear: flashed once to the
         // very next page load, never stored (Sanctum keeps only a hash).
-        $token = $agent->createToken($request->validated('name'), ['mcp'], now()->addDays($days));
+        // Read-only by default: a token only carries the right to change
+        // things when the owner ticks the box. Which clients get that is the
+        // main lever against the "lethal trifecta" - an AI that can read
+        // private data, read untrusted text and act on both.
+        $abilities = $request->boolean('allow_changes') ? ['mcp', McpTool::WRITE_ABILITY] : ['mcp'];
+
+        $token = $agent->createToken($request->validated('name'), $abilities, now()->addDays($days));
 
         SecurityLog::record('AI token created', $request->user(), [
             'token_name' => $request->validated('name'),

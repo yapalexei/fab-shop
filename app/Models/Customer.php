@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToShop;
+use App\Models\Concerns\NeedsAiReview;
 use App\Models\Concerns\SharesBusinessIdentity;
 use App\Support\Images;
 use Database\Factories\CustomerFactory;
@@ -17,9 +18,14 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Customer extends Model implements HasMedia
 {
     /** @use HasFactory<CustomerFactory> */
-    use BelongsToShop, HasFactory, InteractsWithMedia, SharesBusinessIdentity;
+    use BelongsToShop, HasFactory, InteractsWithMedia, NeedsAiReview, SharesBusinessIdentity;
 
     protected $fillable = ['name', 'email', 'phone', 'address', 'notes'];
+
+    protected function casts(): array
+    {
+        return ['ai_touched_at' => 'datetime'];
+    }
 
     public function registerMediaCollections(): void
     {

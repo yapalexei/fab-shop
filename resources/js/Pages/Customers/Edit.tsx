@@ -1,6 +1,7 @@
 import CustomerFields, {
     CustomerFormData,
 } from '@/Components/CustomerFields';
+import AiReviewBanner from '@/Components/AiReviewBanner';
 import Breadcrumbs from '@/Components/Breadcrumbs';
 import FormErrorSummary from '@/Components/FormErrorSummary';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -19,6 +20,8 @@ interface Customer {
     address: string | null;
     notes: string | null;
     logo_url: string | null;
+    /** Set while the AI connection's changes to this customer are unreviewed. */
+    ai_touched_at: string | null;
 }
 
 export default function Edit({
@@ -65,6 +68,20 @@ export default function Edit({
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl space-y-6 sm:px-6 lg:px-8">
+                    {customer.ai_touched_at && !readOnly && (
+                        <AiReviewBanner
+                            confirmUrl={route('customers.ai-review', customer.id)}
+                        >
+                            <strong>
+                                Your AI connection created or changed this
+                                customer.
+                            </strong>{' '}
+                            Check the name, address and email address below.
+                            They print on quotes and decide where a quote is
+                            emailed, so no quote can be sent to this customer
+                            until you mark it as reviewed.
+                        </AiReviewBanner>
+                    )}
                     {businessPartnerId && (
                         <Card className="flex items-center justify-between gap-4 p-4 text-sm">
                             <span>

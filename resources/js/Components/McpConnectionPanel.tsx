@@ -10,6 +10,8 @@ import { useState } from 'react';
 export interface McpToken {
     id: number;
     name: string;
+    /** Whether this token may make changes, or only read. */
+    can_change: boolean;
     last_used_at: string | null;
     expires_at: string | null;
     created_at: string;
@@ -23,6 +25,10 @@ export interface McpData {
     /** What it has been given now, as "resource.action" (e.g. "quotes.create"). */
     permissions: string[];
     tokens: McpToken[];
+    /** What the connected AI has done lately, newest first. */
+    recent_activity: { id: number; description: string; created_at: string }[];
+    /** Attempts the safety checks stopped in the last 7 days. */
+    refused_last_week: number;
     /** The secret of a token created a moment ago - shown once, then gone. */
     new_token: string | null;
     default_token_days: number;
@@ -186,7 +192,12 @@ export default function McpConnectionPanel({
     const [changesOpen, setChangesOpen] = useState(
         mcp.permissions.some((p) => !p.endsWith('.view')),
     );
-    const tokenForm = useForm({ name: '', expires_in_days: '' });
+    const tokenForm = useForm({
+        name: '',
+        expires_in_days: '',
+        // Off unless ticked: a new token can only read.
+        allow_changes: false,
+    });
 
     const has = (permission: string) => selected.includes(permission);
 
@@ -282,6 +293,36 @@ export default function McpConnectionPanel({
                     read-only: it cannot send, change or delete anything. You
                     choose what it can see, and you can cut it off at any time.
                 </p>
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                    <p className="font-semibold">How this stays safe</p>
+                    <p className="mt-1">
+                        An AI can be tricked by text it reads - a customer
+                        email or a note can contain instructions aimed at it. It
+                        is risky when one AI can (1) see your private data, (2)
+                        read text from outside, and (3) send things out or
+                        change records. So:
+                    </p>
+                    <ul className="mt-1 list-disc space-y-0.5 ps-5">
+                        <li>
+                            Tokens are <strong>read-only</strong> unless you
+                            tick the box. Use a read-only token for any AI that
+                            also browses the web or reads your email.
+                        </li>
+                        <li>
+                            Quotes and customers the AI writes are{' '}
+                            <strong>held for your review</strong> - a quote
+                            can&apos;t be sent until you&apos;ve read it.
+                        </li>
+                        <li>
+                            It can&apos;t put links, markup or hidden text into
+                            a record, and it can&apos;t delete or send anything.
+                        </li>
+                        <li>
+                            Changes are capped per hour, and everything it does
+                            is listed under Recent AI activity.
+                        </li>
+                    </ul>
+                </div>
                 <p className="mt-2 text-xs text-gray-500">
                     What it reads is sent to whichever AI service you connect.
                     Notes and descriptions in your records were typed by staff
@@ -401,13 +442,7 @@ export default function McpConnectionPanel({
                                                             {resource ===
                                                                 'jobs' && (
                                                                 <span className="block text-xs text-gray-500">
-                                                                    Due date,
-                                                                    assignee and
-                                                                    moving
-                                                                    between
-                                                                    stages (not
-                                                                    Shipped or
-                                                                    Invoiced)
+                                                                    Due date, assignee and moving between stages - including Shipped and Invoiced, which mark the job shipped or invoiced
                                                                 </span>
                                                             )}
                                                             {resource ===
@@ -461,8 +496,7 @@ export default function McpConnectionPanel({
                                     Never allowed, whatever you choose:
                                     deleting anything, sending or emailing
                                     quotes, marking quotes won or lost,
-                                    cancelling jobs, moving jobs to Shipped or
-                                    Invoiced, and anything to do with your team,
+                                    cancelling jobs, and anything to do with your team,
                                     roles, billing, add-ons or shop settings.
                                 </p>
                             </div>
@@ -546,6 +580,29 @@ export default function McpConnectionPanel({
                                 />
                             </div>
                         </div>
+                        <label className="flex items-start gap-2 text-sm">
+                            <Checkbox
+                                checked={tokenForm.data.allow_changes}
+                                onCheckedChange={(checked) =>
+                                    tokenForm.setData(
+                                        'allow_changes',
+                                        checked === true,
+                                    )
+                                }
+                                className="mt-0.5"
+                            />
+                            <span>
+                                Allow this token to make changes
+                                <span className="block text-xs text-gray-500">
+                                    Without this the token can only read - even
+                                    if you have allowed changes above. Give a
+                                    changes-allowed token only to an AI you
+                                    trust with nothing else to read, like your
+                                    inbox or the web: that combination is what
+                                    makes an AI easy to trick.
+                                </span>
+                            </span>
+                        </label>
                         <PrimaryButton disabled={tokenForm.processing}>
                             Create token
                         </PrimaryButton>
@@ -560,6 +617,9 @@ export default function McpConnectionPanel({
                                             Name
                                         </th>
                                         <th className="py-1 pr-4 font-medium">
+                                            Access
+                                        </th>
+                                        <th className="py-1 pr-4 font-medium">
                                             Last used
                                         </th>
                                         <th className="py-1 pr-4 font-medium">
@@ -572,6 +632,17 @@ export default function McpConnectionPanel({
                                     {mcp.tokens.map((t) => (
                                         <tr key={t.id} className="border-t">
                                             <td className="py-2 pr-4">{t.name}</td>
+                                            <td className="py-2 pr-4">
+                                                {t.can_change ? (
+                                                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">
+                                                        Can make changes
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-600">
+                                                        Read-only
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className="py-2 pr-4">
                                                 {t.last_used_at
                                                     ? date(t.last_used_at)
@@ -605,6 +676,50 @@ export default function McpConnectionPanel({
                             </table>
                         </div>
                     )}
+
+                    <details className="rounded-md border">
+                        <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-gray-900">
+                            Recent AI activity
+                            <span className="ms-2 text-xs font-normal text-gray-500">
+                                {mcp.refused_last_week > 0
+                                    ? `${mcp.refused_last_week} attempt${mcp.refused_last_week === 1 ? '' : 's'} blocked this week`
+                                    : 'Nothing blocked this week'}
+                            </span>
+                        </summary>
+                        <div className="border-t px-3 py-3">
+                            {mcp.recent_activity.length === 0 ? (
+                                <p className="text-sm text-gray-500">
+                                    Your AI hasn&apos;t changed anything yet.
+                                </p>
+                            ) : (
+                                <ul className="divide-y text-sm">
+                                    {mcp.recent_activity.map((entry) => (
+                                        <li
+                                            key={entry.id}
+                                            className="flex justify-between gap-3 py-1.5"
+                                        >
+                                            <span>{entry.description}</span>
+                                            <span className="shrink-0 text-xs text-gray-500">
+                                                {new Date(
+                                                    entry.created_at,
+                                                ).toLocaleString()}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            {mcp.refused_last_week > 0 && (
+                                <p className="mt-2 text-xs text-amber-800">
+                                    Blocked attempts are things like trying to
+                                    write a link into a record, using a
+                                    read-only token to make a change, or hitting
+                                    the hourly limit. A few can be an honest
+                                    mistake; a steady stream is worth looking
+                                    into - revoke the token if in doubt.
+                                </p>
+                            )}
+                        </div>
+                    </details>
 
                     <div className="space-y-3">
                         <p className="text-sm font-medium text-gray-900">

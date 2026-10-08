@@ -92,6 +92,8 @@ class QuoteController extends Controller implements HasMiddleware
                 'customer_id' => $quote->customer_id,
                 'status' => $quote->status->value,
                 'is_archived' => $quote->is_archived,
+                'ai_review_pending' => $quote->needsAiReview(),
+                'customer_ai_review_pending' => $quote->customer->needsAiReview(),
                 'job_id' => $quote->job?->id,
                 'customer_email' => $quote->customer->email,
                 'emailed_at' => $quote->emailed_at?->toIso8601String(),

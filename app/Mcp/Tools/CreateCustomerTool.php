@@ -60,6 +60,9 @@ class CreateCustomerTool extends McpTool
 
         $customer = Customer::create(collect($data)->except('allow_duplicate')->all());
 
+        // Its name, address and email can end up on a quote that is sent to
+        // someone, so a person has to look at it first.
+        $customer->markTouchedByAi();
         $this->audit($customer, $agent, "Created customer {$customer->name}");
 
         return ['created' => true, 'customer' => $this->present($customer)];

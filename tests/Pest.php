@@ -143,9 +143,16 @@ function mcpShop(array $shopOverrides = []): array
     return [$shop, actingAsShopMember($shop), (new CreateShopAgent)($shop)];
 }
 
+/** A read-only token, which is what every new token is unless the owner ticks "allow changes". */
 function mcpToken(User $agent, array $abilities = ['mcp']): string
 {
     return $agent->createToken('test', $abilities)->plainTextToken;
+}
+
+/** The kind of token the owner makes by ticking "allow changes". */
+function mcpWriteToken(User $agent): string
+{
+    return mcpToken($agent, ['mcp', 'mcp:write']);
 }
 
 /** Replace what the agent may do (permission names, e.g. ['quotes.view', 'quotes.create']). */

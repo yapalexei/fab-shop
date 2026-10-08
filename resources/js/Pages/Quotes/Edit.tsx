@@ -15,6 +15,7 @@ import QuoteWorkflowPanel from '@/Components/QuoteWorkflowPanel';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useCan } from '@/lib/permissions';
 import { PageProps } from '@/types';
+import AiReviewBanner from '@/Components/AiReviewBanner';
 import { Head } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 
@@ -23,6 +24,10 @@ interface QuoteDetail {
     customer_id: number;
     status: string;
     is_archived: boolean;
+    /** The AI connection wrote this quote and no one has reviewed it yet. */
+    ai_review_pending: boolean;
+    /** The same, for the customer's name, address or email. */
+    customer_ai_review_pending: boolean;
     job_id: number | null;
     customer_email: string | null;
     emailed_at: string | null;
@@ -77,6 +82,31 @@ export default function Edit({
             <div className="py-12">
                 <div className="mx-auto max-w-5xl sm:px-6 lg:px-8">
                     <Card className="p-4 sm:p-8">
+                        {quote.ai_review_pending && can('quotes.update') && (
+                            <AiReviewBanner
+                                confirmUrl={route('quotes.ai-review', quote.id)}
+                            >
+                                <strong>Your AI connection wrote or changed this quote.</strong>{' '}
+                                Read the notes and every line item below
+                                before it goes to the customer - they print on
+                                the quote. It can&apos;t be sent until you mark
+                                it as reviewed.
+                            </AiReviewBanner>
+                        )}
+                        {quote.customer_ai_review_pending && (
+                            <AiReviewBanner
+                                reviewHref={route('customers.edit', quote.customer_id)}
+                                reviewLabel="Review the customer"
+                            >
+                                <strong>
+                                    This customer&apos;s details were set by
+                                    your AI connection.
+                                </strong>{' '}
+                                Check their name, address and email address
+                                before sending them a quote - the quote is
+                                emailed to that address.
+                            </AiReviewBanner>
+                        )}
                         <QuoteWorkflowPanel
                             quoteId={quote.id}
                             status={quote.status}

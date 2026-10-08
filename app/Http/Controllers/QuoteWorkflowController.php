@@ -33,6 +33,7 @@ class QuoteWorkflowController extends Controller
     public function send(Quote $quote): RedirectResponse
     {
         $this->guardEmailingEnabled();
+        $this->guardReviewed($quote);
         $this->guard($quote->status === QuoteStatus::Draft && ! $quote->is_archived, 'This quote has already been sent.');
         $this->guard($quote->lineItems->isNotEmpty(), 'A quote needs at least one line item before it can be sent.');
         $this->guard(filled($quote->customer->email), 'This customer has no email address on file.');
@@ -52,6 +53,7 @@ class QuoteWorkflowController extends Controller
      */
     public function skipSend(Request $request, Quote $quote): RedirectResponse
     {
+        $this->guardReviewed($quote);
         $this->guard($quote->status === QuoteStatus::Draft && ! $quote->is_archived, 'This quote has already been sent.');
         $this->guard($quote->lineItems->isNotEmpty(), 'A quote needs at least one line item before it can be marked as sent.');
 
@@ -79,6 +81,7 @@ class QuoteWorkflowController extends Controller
     public function resend(Quote $quote): RedirectResponse
     {
         $this->guardEmailingEnabled();
+        $this->guardReviewed($quote);
         $this->guard($quote->status === QuoteStatus::Sent && ! $quote->is_archived, 'Only a sent quote that is still awaiting an answer can be emailed.');
         $this->guard(filled($quote->customer->email), 'This customer has no email address on file.');
 
@@ -107,6 +110,12 @@ class QuoteWorkflowController extends Controller
                 'status' => QuoteStatus::Draft,
             ]);
 
+            // The AI's words come along with the copy, so the review does too -
+            // duplicating must not be a way round it.
+            if ($quote->needsAiReview()) {
+                $copy->forceFill(['ai_touched_at' => $quote->ai_touched_at])->save();
+            }
+
             $copy->lineItems()->saveMany($quote->lineItems->map->replicate());
 
             return $copy;
@@ -116,6 +125,19 @@ class QuoteWorkflowController extends Controller
         QuoteHistory::log($quote, 'duplicated', "Duplicated as quote #{$copy->id}");
 
         return redirect()->route('quotes.edit', $copy)->with('status', 'Quote duplicated as a new draft.');
+    }
+
+    /**
+     * A person confirms they have read what the AI connection wrote on this
+     * quote (its notes and line descriptions print on the quote the customer
+     * receives). Only this clears the flag; nothing an AI sends can.
+     */
+    public function markAiReviewed(Quote $quote): RedirectResponse
+    {
+        $quote->markReviewed();
+        QuoteHistory::log($quote, 'ai_reviewed', 'Content from the AI connection marked as reviewed');
+
+        return back()->with('status', 'Marked as reviewed. This quote can now be sent.');
     }
 
     public function markWon(Quote $quote): RedirectResponse
@@ -231,6 +253,24 @@ class QuoteWorkflowController extends Controller
     private function guardEmailingEnabled(): void
     {
         $this->guard(Auth::user()->currentShop->quoteEmailingEnabled(), 'Emailing quotes is turned off for this shop. You can turn it on in Shop settings.');
+    }
+
+    /**
+     * A quote prints text the AI connection may have written (notes, line
+     * descriptions, the customer's name, address and email) and is mailed to an
+     * address the AI may have set - so while either the quote or its customer
+     * is waiting for review, it can't go out by any route.
+     */
+    private function guardReviewed(Quote $quote): void
+    {
+        $this->guard(
+            ! $quote->needsAiReview(),
+            'This quote was created or changed by your AI connection. Read it through, then click "Mark as reviewed" before sending it.',
+        );
+        $this->guard(
+            ! $quote->customer->needsAiReview(),
+            "{$quote->customer->name}'s details were created or changed by your AI connection. Check the name, address and email on the customer, then click \"Mark as reviewed\" there before sending a quote to them.",
+        );
     }
 
     /**

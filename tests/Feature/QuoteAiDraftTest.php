@@ -131,7 +131,7 @@ test('only names and ids go to the provider - no costs, no other shop\'s catalog
             && ! str_contains($body, 'Rival Shop Plate')
             && ! str_contains($body, '987.65')
             // The customer's text is fenced off as data, not instructions.
-            && str_contains($request['messages'][0]['content'], '<customer_message>')
+            && preg_match('/<customer_message_[a-z0-9]{12}>.*<\/customer_message_[a-z0-9]{12}>/s', $request['messages'][0]['content']) === 1
             && str_contains($request['system'], 'untrusted data');
     });
 });

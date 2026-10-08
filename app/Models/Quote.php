@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\QuoteStatus;
 use App\Models\Concerns\BelongsToShop;
+use App\Models\Concerns\NeedsAiReview;
 use App\Support\Attachments;
 use Database\Factories\QuoteFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,7 +22,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Quote extends Model implements HasMedia
 {
     /** @use HasFactory<QuoteFactory> */
-    use BelongsToShop, HasFactory, InteractsWithMedia;
+    use BelongsToShop, HasFactory, InteractsWithMedia, NeedsAiReview;
 
     protected $fillable = ['customer_id', 'status', 'notes', 'due_date', 'sent_at', 'emailed_at', 'email_failed_at', 'send_skipped_reason', 'archived_at'];
 
@@ -34,6 +35,7 @@ class Quote extends Model implements HasMedia
             'emailed_at' => 'datetime',
             'email_failed_at' => 'datetime',
             'archived_at' => 'datetime',
+            'ai_touched_at' => 'datetime',
         ];
     }
 

@@ -95,6 +95,7 @@ class UpdateQuoteTool extends McpTool
             QuoteHistory::recordSave($quote->refresh(), $before, 'Saved changes (via AI connection)');
         }
 
+        $quote->markTouchedByAi();
         $this->audit($quote, $agent, "Edited draft quote #{$quote->id}");
 
         return ['updated' => true, 'quote' => $this->presentQuote($quote->refresh(), $agent)];

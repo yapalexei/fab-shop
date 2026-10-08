@@ -73,6 +73,10 @@ class CreateQuoteTool extends McpTool
             return $quote;
         });
 
+        // Notes and line descriptions print on the quote the customer receives:
+        // it can't be sent until a person has reviewed what the AI wrote.
+        $quote->markTouchedByAi();
+
         QuoteHistory::log($quote, 'created', 'Quote created (via AI connection)');
         $this->audit($quote, $agent, "Created draft quote #{$quote->id} for {$customer->name}");
 

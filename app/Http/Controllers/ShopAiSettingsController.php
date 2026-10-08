@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\Feature;
 use App\Http\Requests\UpdateShopAiSettingsRequest;
+use App\Mcp\Tools\McpTool;
+use App\Models\McpRequest;
 use App\Models\Shop;
 use App\Models\ShopAiSetting;
 use App\Services\Ai\AiException;
@@ -13,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Activitylog\Models\Activity;
 
 class ShopAiSettingsController extends Controller
 {
@@ -62,10 +65,29 @@ class ShopAiSettingsController extends Controller
             'tokens' => $agent ? $agent->tokens()->latest()->get()->map(fn ($token) => [
                 'id' => $token->id,
                 'name' => $token->name,
+                'can_change' => $token->can(McpTool::WRITE_ABILITY),
                 'last_used_at' => $token->last_used_at?->toIso8601String(),
                 'expires_at' => $token->expires_at?->toIso8601String(),
                 'created_at' => $token->created_at->toIso8601String(),
             ])->all() : [],
+            // What the connected AI has actually done, newest first - so a
+            // manipulated session is noticed rather than just possible.
+            'recent_activity' => $agent ? Activity::query()
+                ->where('causer_type', $agent->getMorphClass())
+                ->where('causer_id', $agent->id)
+                ->latest()->latest('id')->limit(15)->get()
+                ->map(fn (Activity $activity) => [
+                    'id' => $activity->id,
+                    'description' => $activity->description,
+                    'created_at' => $activity->created_at->toIso8601String(),
+                ])->all() : [],
+            // Attempts the guards stopped (a link in a field, a read-only
+            // token trying to write, the hourly cap): worth a look if it isn't 0.
+            'refused_last_week' => $agent ? McpRequest::query()
+                ->where('agent_id', $agent->id)
+                ->whereIn('status', ['blocked', 'throttled'])
+                ->where('created_at', '>=', now()->subDays(7))
+                ->count() : 0,
             'new_token' => session('new_token'),
             'default_token_days' => config('ai.mcp_token_days'),
         ];

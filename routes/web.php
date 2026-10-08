@@ -142,6 +142,10 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
 
     Route::get('materials/{material}/image', [EntityImageController::class, 'materialImage'])->name('materials.image');
 
+    Route::post('customers/{customer}/ai-review', [CustomerController::class, 'markAiReviewed'])
+        ->name('customers.ai-review')
+        ->middleware(['feature:customers', 'can:customers.update']);
+
     Route::resource('customers', CustomerController::class)
         ->except('show')
         ->middleware('feature:customers');
@@ -174,6 +178,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
             Route::post('send', [QuoteWorkflowController::class, 'send'])->name('send');
             Route::post('skip-send', [QuoteWorkflowController::class, 'skipSend'])->name('skip-send');
             Route::post('resend', [QuoteWorkflowController::class, 'resend'])->name('resend');
+            Route::post('ai-review', [QuoteWorkflowController::class, 'markAiReviewed'])->name('ai-review');
             Route::post('mark-won', [QuoteWorkflowController::class, 'markWon'])->name('mark-won');
             Route::post('mark-lost', [QuoteWorkflowController::class, 'markLost'])->name('mark-lost');
             Route::post('archive', [QuoteWorkflowController::class, 'archive'])->name('archive');
