@@ -1,22 +1,9 @@
 <?php
 
 use App\Actions\CreateShopAgent;
-use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\User;
 use App\Support\AgentAccess;
-use Database\Seeders\PlanSeeder;
-
-function mcpOwnerShop(string $plan = 'pro'): array
-{
-    test()->seed(PlanSeeder::class);
-    $shop = Shop::factory()->create([
-        'plan_id' => Plan::where('key', $plan)->value('id'),
-        'trial_ends_at' => now()->subDay(),
-    ]);
-
-    return [$shop, actingAsShopMember($shop)];
-}
 
 test('the owner turns the connection on and gets a read-only agent', function () {
     [$shop, $owner] = mcpOwnerShop();

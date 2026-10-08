@@ -15,6 +15,7 @@ use App\Support\AgentAccess;
 use App\Support\ShopPermissions;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\TransientToken;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -143,6 +144,18 @@ function mcpShop(array $shopOverrides = []): array
     return [$shop, actingAsShopMember($shop), (new CreateShopAgent)($shop)];
 }
 
+/** A shop on the given plan (default Pro, which includes AI agent access) and its owner, no agent yet. */
+function mcpOwnerShop(string $plan = 'pro'): array
+{
+    test()->seed(PlanSeeder::class);
+    $shop = Shop::factory()->create([
+        'plan_id' => Plan::where('key', $plan)->value('id'),
+        'trial_ends_at' => now()->subDay(),
+    ]);
+
+    return [$shop, actingAsShopMember($shop)];
+}
+
 /** A read-only token, which is what every new token is unless the owner ticks "allow changes". */
 function mcpToken(User $agent, array $abilities = ['mcp']): string
 {
@@ -160,6 +173,24 @@ function mcpGrant(Shop $shop, User $agent, array $permissions): void
 {
     $shop->agents()->updateExistingPivot($agent->id, ['permission_overrides' => AgentAccess::overridesFor($permissions)]);
 }
+
+/** A shop whose agent has been granted exactly these permissions (view is implied by any write). */
+function writeShop(array $permissions): array
+{
+    [$shop, $owner, $agent] = mcpShop();
+    mcpGrant($shop, $agent, $permissions);
+
+    // Called directly (not over HTTP) the agent has no token, so give it the
+    // kind the owner makes by ticking "allow changes" - read-only tokens are
+    // covered by McpSecurityTest.
+    return [$shop, $owner, $agent->fresh()->withAccessToken(new TransientToken)];
+}
+
+const ALL_WRITES = [
+    'customers.create', 'customers.update', 'quotes.create', 'quotes.update', 'jobs.update', 'job-stages.view',
+    'materials.create', 'materials.update', 'services.create', 'services.update', 'equipment.create', 'equipment.update',
+    'tooling.create', 'tooling.update', 'business-partners.create', 'business-partners.update', 'financials.view',
+];
 
 function mcpCall(string $token, string $method, array $params = [])
 {

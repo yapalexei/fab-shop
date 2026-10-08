@@ -34,20 +34,7 @@ use App\Models\Tool;
 use App\Models\User;
 use App\Support\AgentAccess;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
-use Laravel\Sanctum\TransientToken;
 use Spatie\Activitylog\Models\Activity;
-
-/** A shop whose agent has been granted exactly these permissions (view is implied by any write). */
-function writeShop(array $permissions): array
-{
-    [$shop, $owner, $agent] = mcpShop();
-    mcpGrant($shop, $agent, $permissions);
-
-    // Called directly (not over HTTP) the agent has no token, so give it the
-    // kind the owner makes by ticking "allow changes" - read-only tokens are
-    // covered by McpSecurityTest.
-    return [$shop, $owner, $agent->fresh()->withAccessToken(new TransientToken)];
-}
 
 /**
  * A tool call leaves the test authenticated as the agent, and the tenant scope
@@ -59,12 +46,6 @@ function loggedOut(): void
 {
     app('auth')->forgetGuards();
 }
-
-const ALL_WRITES = [
-    'customers.create', 'customers.update', 'quotes.create', 'quotes.update', 'jobs.update', 'job-stages.view',
-    'materials.create', 'materials.update', 'services.create', 'services.update', 'equipment.create', 'equipment.update',
-    'tooling.create', 'tooling.update', 'business-partners.create', 'business-partners.update', 'financials.view',
-];
 
 // --- what can be granted, and what can't ------------------------------------
 
