@@ -20,7 +20,7 @@ jobs:
     if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && secrets.RAILWAY_TOKEN != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: railwayapp/config@v1
         with:
           command: plan
@@ -30,7 +30,7 @@ jobs:
     if: github.event.action == 'closed' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository && secrets.RAILWAY_TOKEN != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
       - uses: railwayapp/config@v1
