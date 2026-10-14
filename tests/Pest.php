@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\CreateShopAgent;
+use App\Enums\ConsentType;
 use App\Enums\JobStageRole;
 use App\Enums\QuoteStatus;
 use App\Models\Customer;
@@ -12,6 +13,7 @@ use App\Models\QuoteLineItem;
 use App\Models\Shop;
 use App\Models\User;
 use App\Support\AgentAccess;
+use App\Support\Consent;
 use App\Support\ShopPermissions;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -74,9 +76,16 @@ expect()->extend('toBeOne', function () {
  * Owner (full access) - tests about restricted access pass 'Admin'/'Staff'.
  * The shop's roles get their real default grants, same as signup.
  */
-function actingAsShopMember(Shop $shop, string $role = 'Owner'): User
+function actingAsShopMember(Shop $shop, string $role = 'Owner', bool $agreedToTerms = true): User
 {
     $user = User::factory()->create(['current_shop_id' => $shop->id]);
+
+    // Subscribing asks anyone who hasn't agreed to the current Terms to do so
+    // (Consent::requireAgreementToSubscribe); pass false to test that.
+    if ($agreedToTerms) {
+        agreeToCurrentTerms($user);
+    }
+
     $shop->members()->attach($user);
 
     ShopPermissions::seedRoles($shop);
@@ -84,6 +93,14 @@ function actingAsShopMember(Shop $shop, string $role = 'Owner'): User
     $user->assignRole(Role::findOrCreate($role));
 
     return $user;
+}
+
+/** Record that $user has agreed to the Terms as they read now. */
+function agreeToCurrentTerms(User $user): void
+{
+    foreach ([ConsentType::TermsOfService, ConsentType::PrivacyPolicy] as $type) {
+        Consent::record($type, true, Consent::AGREEMENT, 'test', request(), user: $user);
+    }
 }
 
 /**

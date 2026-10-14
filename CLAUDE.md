@@ -59,9 +59,9 @@ Read the file when your task touches the area. "Read when" is the trigger.
 | [csv-import](docs/context/csv-import.md) | F9: importers, column mapping, supplier price lists, `ProcessCsvImport` |
 | [quickbooks](docs/context/quickbooks.md) | F4: QuickBooks sync (currently switched off) and re-enabling it |
 | [marketing-and-onboarding](docs/context/marketing-and-onboarding.md) | F8: the public `/` page, registration, email verification, onboarding wizard, team invitations |
-| [plans-and-pricing](docs/context/plans-and-pricing.md) | Plan tiers, prices, seats and extra seats, trial length, what each tier includes; **editing/adding/retiring tiers, tier versions & history, expiry dates, anything that looks a plan up by key or lists plans** |
+| [plans-and-pricing](docs/context/plans-and-pricing.md) | Plan tiers, prices, seats and extra seats, trial length, what each tier includes; **editing/adding/retiring tiers, tier versions & history, expiry dates, what existing shops get when a tier's price/features change (immediate drops, announced increases with an effective date, carried-over features, the before/after notice to owners, discontinuing a feature), the landing-page comparison table and the upgrade-page cost calculator, anything that looks a plan up by key or lists plans** |
 | [platform-admin](docs/context/platform-admin.md) | F10: internal cross-tenant console, suspending shops, plan overrides, potential revenue |
-| [legal-and-consent](docs/context/legal-and-consent.md) | Terms/privacy/SMS pages, consent records, checkbox wording and versions |
+| [legal-and-consent](docs/context/legal-and-consent.md) | Terms/privacy/SMS pages, consent records, checkbox wording and versions, agreeing to the Terms when subscribing, the price-change clause |
 | [seo](docs/context/seo.md) | `robots.txt`, `sitemap.xml`, adding a public page, `->sitemap()` / `->noindex()` |
 | [frontend](docs/context/frontend.md) | shadcn/Tailwind v4 theming, UI components, Prettier policy |
 | [ai-assistant](docs/context/ai-assistant.md) | BYOK AI settings, `AiManager`, quote intake, follow-up drafts, supplier-page intake, `ai_requests` |

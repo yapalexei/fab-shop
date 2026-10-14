@@ -372,6 +372,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
         Route::middleware('can:manage-shop')->group(function () {
             Route::get('/plan', [ShopPlanController::class, 'index'])->name('shop.plan.index');
             Route::post('/plan', [ShopPlanController::class, 'update'])->name('shop.plan.update');
+            Route::delete('/plan/notice', [ShopPlanController::class, 'dismissNotice'])->name('shop.plan.notice.dismiss');
             Route::put('/seats', [ShopSeatController::class, 'update'])->name('shop.seats.update');
             Route::get('/addons', [ShopFeatureSubscriptionController::class, 'index'])->name('shop.addons.index');
             Route::post('/addons/{feature}', [ShopFeatureSubscriptionController::class, 'store'])->name('shop.addons.store');

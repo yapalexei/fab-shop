@@ -59,6 +59,7 @@ interface FeatureOption {
     key: string;
     label: string;
     shipped: boolean;
+    discontinued: boolean;
 }
 
 const dollars = (cents: number | null) =>
@@ -99,8 +100,8 @@ function FeatureRow({
 }) {
     return (
         <li className="flex items-center gap-2 text-sm">
-            {feature.shipped ? (
-                included ? (
+            {feature.shipped || feature.discontinued ? (
+                included && !feature.discontinued ? (
                     <Check className="size-4 shrink-0 text-green-600" />
                 ) : (
                     <Minus className="size-4 shrink-0 text-muted-foreground/50" />
@@ -110,7 +111,7 @@ function FeatureRow({
             )}
             <span
                 className={
-                    feature.shipped
+                    feature.shipped && !feature.discontinued
                         ? included
                             ? 'text-foreground'
                             : 'text-muted-foreground/60'
@@ -118,10 +119,16 @@ function FeatureRow({
                 }
             >
                 {feature.label}
-                {!feature.shipped && (
-                    <span className="ms-1.5 text-xs text-amber-600">
-                        (coming soon)
+                {feature.discontinued ? (
+                    <span className="ms-1.5 text-xs text-red-600">
+                        (discontinued)
                     </span>
+                ) : (
+                    !feature.shipped && (
+                        <span className="ms-1.5 text-xs text-amber-600">
+                            (coming soon)
+                        </span>
+                    )
                 )}
             </span>
         </li>
@@ -234,13 +241,27 @@ function TierCard({
  * The form for one tier, used both to edit an existing tier and to add a new
  * one. Money is typed in dollars and sent in cents.
  */
+/** YYYY-MM-DD for `days` from today, in the admin's own calendar. */
+const inDays = (days: number) => {
+    const day = new Date();
+    day.setDate(day.getDate() + days);
+
+    return [
+        day.getFullYear(),
+        String(day.getMonth() + 1).padStart(2, '0'),
+        String(day.getDate()).padStart(2, '0'),
+    ].join('-');
+};
+
 function TierEditor({
     tier,
     allFeatures,
+    noticeDays,
     onDone,
 }: {
     tier: Tier | null;
     allFeatures: FeatureOption[];
+    noticeDays: number;
     onDone: () => void;
 }) {
     const { data, setData, post, patch, processing, errors, transform } =
@@ -258,7 +279,22 @@ function TierEditor({
             position: tier ? String(tier.position) : '',
             expires_on: tier?.expires_on ?? '',
             show_expiry: tier?.show_expiry ?? false,
+            // Only used when this edit raises the price.
+            apply_to_subscribers: true,
+            effective_on: inDays(noticeDays),
         });
+
+    // Raising the price of a tier that has shops on it is the one change
+    // that needs a decision (and, by the Terms, advance notice).
+    const raisesPrice =
+        tier !== null && toCents(data.price) > tier.monthly_price_cents;
+    const lowersPrice =
+        tier !== null && toCents(data.price) < tier.monthly_price_cents;
+    // Everyone on the tier, whichever version they signed up for.
+    const onTier = tier
+        ? tier.subscribers +
+          tier.history.reduce((sum, v) => sum + v.subscribers, 0)
+        : 0;
 
     transform((form) => ({
         name: form.name,
@@ -272,6 +308,11 @@ function TierEditor({
         position: form.position === '' ? null : Number(form.position),
         expires_on: form.expires_on === '' ? null : form.expires_on,
         show_expiry: form.expires_on === '' ? false : form.show_expiry,
+        apply_to_subscribers: raisesPrice && form.apply_to_subscribers,
+        subscribers_effective_on:
+            raisesPrice && form.apply_to_subscribers && form.effective_on !== ''
+                ? form.effective_on
+                : null,
     }));
 
     const toggleFeature = (key: string, checked: boolean) =>
@@ -444,25 +485,103 @@ function TierEditor({
                             className="flex items-center gap-2 text-sm text-gray-700"
                         >
                             <Checkbox
-                                checked={data.features.includes(feature.key)}
+                                checked={
+                                    !feature.discontinued &&
+                                    data.features.includes(feature.key)
+                                }
+                                disabled={feature.discontinued}
                                 onCheckedChange={(checked) =>
                                     toggleFeature(feature.key, checked === true)
                                 }
                             />
                             <span>{feature.label}</span>
-                            {!feature.shipped && (
-                                <Badge variant="warning">Coming soon</Badge>
+                            {feature.discontinued ? (
+                                <Badge variant="danger">Discontinued</Badge>
+                            ) : (
+                                !feature.shipped && (
+                                    <Badge variant="warning">Coming soon</Badge>
+                                )
                             )}
                         </label>
                     ))}
                 </div>
             </fieldset>
 
+            {raisesPrice && tier && (
+                <fieldset className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                    <legend className="px-1 font-medium">
+                        This raises the price. What about the{' '}
+                        {shops(onTier)} already on this tier?
+                    </legend>
+
+                    <label className="flex items-start gap-2">
+                        <input
+                            type="radio"
+                            name={`${id}-apply`}
+                            className="mt-1"
+                            checked={data.apply_to_subscribers}
+                            onChange={() => setData('apply_to_subscribers', true)}
+                        />
+                        <span>
+                            Move them to the new price on
+                            <TextInput
+                                type="date"
+                                aria-label="Date the new price reaches existing shops"
+                                className="mx-2 inline-block w-44"
+                                min={inDays(0)}
+                                value={data.effective_on}
+                                disabled={!data.apply_to_subscribers}
+                                onChange={(e) =>
+                                    setData('effective_on', e.target.value)
+                                }
+                            />
+                            <span className="block text-xs">
+                                Their owners are emailed when you save, with
+                                this date. Clear the date to apply it
+                                immediately.
+                            </span>
+                        </span>
+                    </label>
+
+                    <label className="flex items-start gap-2">
+                        <input
+                            type="radio"
+                            name={`${id}-apply`}
+                            className="mt-1"
+                            checked={!data.apply_to_subscribers}
+                            onChange={() => setData('apply_to_subscribers', false)}
+                        />
+                        <span>
+                            Let them keep the price they signed up for. Only
+                            new customers pay the new price.
+                        </span>
+                    </label>
+
+                    {data.apply_to_subscribers &&
+                        (data.effective_on === '' ||
+                            data.effective_on < inDays(noticeDays)) && (
+                            <p className="rounded bg-amber-100 p-2 text-xs font-medium">
+                                {data.effective_on === ''
+                                    ? 'Applying it immediately gives no advance notice. '
+                                    : `That is less than ${noticeDays} days from today. `}
+                                The Terms of Service promise at least{' '}
+                                {noticeDays} days' notice of a price increase.
+                            </p>
+                        )}
+                </fieldset>
+            )}
+
             <p className="text-xs text-gray-500">
                 {tier === null
                     ? 'Adds a new tier to the public list.'
                     : publishesNewVersion
-                      ? `Saving publishes version ${tier.version + 1}. The ${shops(tier.subscribers)} on version ${tier.version} keep${tier.subscribers === 1 ? 's' : ''} it, and it moves to the history below.`
+                      ? `Saving publishes version ${tier.version + 1}. Shops already on this tier keep every feature they have and gain any you add.${
+                            lowersPrice
+                                ? ' The lower price reaches them straight away and they are emailed.'
+                                : raisesPrice
+                                  ? ''
+                                  : ' Their price does not change.'
+                        }`
                       : 'Nothing a subscriber bought has changed, so saving updates this version in place.'}
             </p>
 
@@ -562,7 +681,12 @@ function History({
 export default function Plans({
     tiers,
     allFeatures,
-}: PageProps<{ tiers: Tier[]; allFeatures: FeatureOption[] }>) {
+    priceNoticeDays,
+}: PageProps<{
+    tiers: Tier[];
+    allFeatures: FeatureOption[];
+    priceNoticeDays: number;
+}>) {
     // Held as an id (not the object) so the dialog always shows the freshest
     // props; 'new' is the add form.
     const [editing, setEditing] = useState<number | 'new' | null>(null);
@@ -612,10 +736,16 @@ export default function Plans({
                         <p>
                             Tiers are never deleted or overwritten. Changing a
                             tier's name, price, seats or features publishes a
-                            new version: shops already on the old one keep
-                            exactly what they signed up for, and the old
-                            version stays in that tier's history with a count of
-                            the shops still on it.
+                            new version, and the old one stays in that tier's
+                            history with a count of the shops still on it. Shops
+                            already on the tier keep every feature they have and
+                            gain any you add. If you lower the price, it
+                            applies to them straight away and they are emailed.
+                            If you raise it, you choose whether it reaches
+                            them and from which day (the form proposes{' '}
+                            {priceNoticeDays} days out; clear the date to apply
+                            it immediately) - they are emailed when you save,
+                            ahead of the date.
                         </p>
                         <p>
                             Archiving takes a tier off signup and upgrade
@@ -695,6 +825,7 @@ export default function Plans({
                         }
                         tier={editingTier}
                         allFeatures={allFeatures}
+                        noticeDays={priceNoticeDays}
                         onDone={() => setEditing(null)}
                     />
 

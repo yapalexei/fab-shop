@@ -6,6 +6,9 @@ import BillingIntervalToggle, {
 } from '@/Components/BillingIntervalToggle';
 import DangerButton from '@/Components/DangerButton';
 import Modal from '@/Components/Modal';
+import SubscriptionTerms, {
+    SubscriptionTermsProps,
+} from '@/Components/SubscriptionTerms';
 import PageHelp from '@/Components/PageHelp';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
@@ -13,7 +16,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useShopDateTime } from '@/lib/datetime';
 import { formatCents, formatMoney } from '@/lib/money';
 import { PageProps } from '@/types';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
@@ -129,12 +132,14 @@ export default function Index({
     hasBillingPeriod,
     billingInterval,
     annualMonthsCharged,
+    terms,
 }: PageProps<{
     addons: AddonRow[];
     bannerAdvice: PlanAdvice | null;
     hasBillingPeriod: boolean;
     billingInterval: Interval;
     annualMonthsCharged: number;
+    terms: SubscriptionTermsProps;
 }>) {
     const formatDate = useShopDateTime({ dateStyle: 'medium' });
     // One dialog at a time: the cheaper-plan warning, the charge
@@ -144,6 +149,9 @@ export default function Index({
     const [cancelling, setCancelling] = useState<AddonRow | null>(null);
     // Only chosen by a shop with no billing period yet; otherwise it follows theirs.
     const [chosenInterval, setChosenInterval] = useState<Interval>('monthly');
+    // The Terms box in the subscribe dialog (only asked until they've agreed).
+    const [agreed, setAgreed] = useState(false);
+    const termsError = usePage<PageProps>().props.errors?.accepted_terms;
     const interval = hasBillingPeriod ? billingInterval : chosenInterval;
 
     const startSubscribe = (addon: AddonRow) =>
@@ -287,6 +295,12 @@ export default function Index({
                         <BillingDisclosure
                             quote={confirming.quotes[interval]}
                         />
+                        <SubscriptionTerms
+                            terms={terms}
+                            checked={agreed}
+                            onChange={setAgreed}
+                            error={termsError}
+                        />
                         <div className="flex justify-end gap-3">
                             <SecondaryButton
                                 onClick={() => setConfirming(null)}
@@ -294,13 +308,18 @@ export default function Index({
                                 Not now
                             </SecondaryButton>
                             <PrimaryButton
+                                disabled={!terms.accepted && !agreed}
                                 onClick={() => {
                                     router.post(
                                         route(
                                             'shop.addons.store',
                                             confirming.feature,
                                         ),
-                                        { confirm_separate: true, interval },
+                                        {
+                                            confirm_separate: true,
+                                            interval,
+                                            accepted_terms: agreed,
+                                        },
                                         { preserveScroll: true },
                                     );
                                     setConfirming(null);

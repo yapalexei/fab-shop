@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\PropagateTierChange;
 use App\Enums\Feature;
 use App\Http\Requests\SavePlanRequest;
 use App\Models\Plan;
@@ -55,10 +56,13 @@ class PlanSettingController extends Controller
                     ->map(fn (Plan $old) => $this->row($old, $subscribers))
                     ->values(),
             ]),
+            // Proposed as the date a price increase reaches existing shops - what the Terms promise.
+            'priceNoticeDays' => (int) config('shop.price_increase_notice_days'),
             'allFeatures' => collect(Feature::cases())->map(fn (Feature $feature) => [
                 'key' => $feature->value,
                 'label' => $feature->label(),
                 'shipped' => $feature->isShipped(),
+                'discontinued' => $feature->isDiscontinued(),
             ]),
         ]);
     }
@@ -96,9 +100,46 @@ class PlanSettingController extends Controller
             'monthly_price_cents' => $current->monthly_price_cents,
         ]);
 
-        return redirect()->route('platform-admin.plans.index')->with('status', $versioned
-            ? "Published version {$current->version} of {$current->name}. Shops already on the previous version keep it."
-            : "Updated {$current->name}.");
+        if (! $versioned) {
+            return redirect()->route('platform-admin.plans.index')->with('status', "Updated {$current->name}.");
+        }
+
+        $summary = app(PropagateTierChange::class)($current);
+
+        return redirect()->route('platform-admin.plans.index')->with('status', $this->publishedMessage($current, $summary));
+    }
+
+    /**
+     * What publishing a version did to the shops already on the tier.
+     *
+     * @param  array{features: int, moved: int, scheduled: int, kept: int, grandfathered: int}  $summary
+     */
+    private function publishedMessage(Plan $plan, array $summary): string
+    {
+        $shops = fn (int $n) => $n === 1 ? '1 shop' : "{$n} shops";
+        $parts = ["Published version {$plan->version} of {$plan->name}."];
+
+        if ($summary['moved'] > 0) {
+            $parts[] = "{$shops($summary['moved'])} moved to the new price now and have been emailed.";
+        }
+
+        if ($summary['scheduled'] > 0) {
+            $parts[] = "{$shops($summary['scheduled'])} will move to the new price on {$plan->subscribers_effective_on?->format('M j, Y')}; they have been emailed today.";
+        }
+
+        if ($summary['grandfathered'] > 0) {
+            $parts[] = "{$shops($summary['grandfathered'])} keep the lower price they signed up for.";
+        }
+
+        if ($summary['features'] > 0) {
+            $parts[] = "{$shops($summary['features'])} gained the features this version adds.";
+        }
+
+        if ($summary['kept'] > 0) {
+            $parts[] = "{$shops($summary['kept'])} stay on their earlier version because this one would give them fewer seats or dearer extra seats.";
+        }
+
+        return implode(' ', $parts);
     }
 
     /** Take a tier off the public list now. Shops on it keep it. */
@@ -143,6 +184,8 @@ class PlanSettingController extends Controller
             'position' => isset($data['position']) ? (int) $data['position'] : null,
             'expires_on' => $data['expires_on'] ?? null,
             'show_expiry' => (bool) ($data['show_expiry'] ?? false),
+            'apply_to_subscribers' => (bool) ($data['apply_to_subscribers'] ?? false),
+            'subscribers_effective_on' => $data['subscribers_effective_on'] ?? null,
         ];
     }
 
@@ -153,6 +196,9 @@ class PlanSettingController extends Controller
     {
         return collect($request->validated('features') ?? [])
             ->map(fn (string $feature) => Feature::from($feature))
+            // A discontinued feature can't be in a tier (it may still be ticked
+            // on an old form, so it is dropped rather than rejected).
+            ->reject(fn (Feature $feature) => $feature->isDiscontinued())
             ->unique()
             ->values()
             ->all();

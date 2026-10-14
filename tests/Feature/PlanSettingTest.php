@@ -120,7 +120,7 @@ test('changing a tier\'s price publishes a new version and leaves existing subsc
         ->and(Plan::orderedByTier()->where('key', 'start-up')->count())->toBe(1);
 });
 
-test('seats, extra-seat price and features are versioned too, and the old version keeps its own', function () {
+test('seats, extra-seat price and features are versioned too, and the old row keeps its own values', function () {
     $this->seed(PlanSeeder::class);
     $v1 = Plan::offeredByKey('solo');
     $shop = shopOn($v1);
@@ -138,7 +138,8 @@ test('seats, extra-seat price and features are versioned too, and the old versio
         ->and($v2->hasFeature(Feature::JobBoard))->toBeTrue()
         ->and($v1->fresh()->user_limit)->toBe(1)
         ->and($v1->hasFeature(Feature::JobBoard))->toBeFalse()
-        ->and($shop->fresh()->hasFeature(Feature::JobBoard))->toBeFalse()
+        // The shop keeps its own row's seats, and gains the feature added to the tier.
+        ->and($shop->fresh()->hasFeature(Feature::JobBoard))->toBeTrue()
         ->and($shop->fresh()->seatLimit())->toBe(1);
 });
 

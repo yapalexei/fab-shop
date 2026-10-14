@@ -7,6 +7,7 @@ use App\Enums\Feature;
 use App\Models\FeatureSetting;
 use App\Models\ShopFeatureSubscription;
 use App\Support\Billing;
+use App\Support\Consent;
 use App\Support\PlanAdvisor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +30,7 @@ class ShopFeatureSubscriptionController extends Controller
 
         $shop = Auth::user()->currentShop;
         $settings = FeatureSetting::query()->get()->keyBy('feature');
-        $bundled = $shop->onTrial() ? collect(Feature::cases()) : ($shop->plan?->features() ?? collect());
+        $bundled = $shop->onTrial() ? collect(Feature::cases()) : $shop->planFeatures();
         $subscriptions = $shop->featureSubscriptions()->active()->get()->keyBy('feature');
 
         return Inertia::render('Addons/Index', [
@@ -59,6 +60,7 @@ class ShopFeatureSubscriptionController extends Controller
                 ->values(),
             // Existing add-ons that a plan would now cover for less.
             'bannerAdvice' => PlanAdvisor::forExistingAddons($shop),
+            'terms' => Consent::subscriptionTerms(Auth::user()),
             // Whether a billing period is already running (add-ons then share
             // its renewal date) or the next purchase starts one.
             'hasBillingPeriod' => Billing::periodEnd($shop) !== null,
@@ -73,7 +75,7 @@ class ShopFeatureSubscriptionController extends Controller
 
         $shop = Auth::user()->currentShop;
 
-        if ($shop->plan?->hasFeature($feature)) {
+        if ($shop->hasPlanFeature($feature)) {
             return back()->with('error', "{$feature->label()} is already included in your plan.");
         }
 
@@ -92,6 +94,8 @@ class ShopFeatureSubscriptionController extends Controller
         if ($advice !== null && ! $request->boolean('confirm_separate')) {
             return back()->with('error', PlanAdvisor::sentence($advice));
         }
+
+        Consent::requireAgreementToSubscribe($request, Auth::user(), $shop);
 
         $interval = BillingInterval::tryFrom((string) $request->input('interval')) ?? $shop->billingInterval();
         $quote = Billing::addOnQuote($shop, FeatureSetting::priceFor($feature), $interval);

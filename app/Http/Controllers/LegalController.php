@@ -38,6 +38,9 @@ class LegalController extends Controller
             'effectiveDate' => config("legal.versions.{$document}"),
             // The exact checkbox wording, so the SMS page can never differ from the form.
             'smsOptInText' => Consent::smsOptInText(),
+            // The notice period the Terms promise for a price increase - the
+            // same number the admin's tier form proposes, so they can't differ.
+            'priceNoticeDays' => (int) config('shop.price_increase_notice_days'),
         ]);
     }
 }

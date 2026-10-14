@@ -51,7 +51,7 @@ class Plan extends Model
 
     protected $fillable = [
         'key', 'name', 'stripe_price_id', 'user_limit', 'monthly_price_cents', 'extra_seat_price_cents',
-        'position', 'expires_on', 'show_expiry',
+        'position', 'expires_on', 'show_expiry', 'apply_to_subscribers', 'subscribers_effective_on',
     ];
 
     /** Mirrors the column defaults so a just-created row reads the same as a reloaded one. */
@@ -59,6 +59,7 @@ class Plan extends Model
         'position' => 0,
         'version' => 1,
         'show_expiry' => false,
+        'apply_to_subscribers' => false,
     ];
 
     protected function casts(): array
@@ -72,6 +73,8 @@ class Plan extends Model
             'superseded_at' => 'datetime',
             'expires_on' => 'date',
             'show_expiry' => 'boolean',
+            'apply_to_subscribers' => 'boolean',
+            'subscribers_effective_on' => 'date',
         ];
     }
 
@@ -209,6 +212,9 @@ class Plan extends Model
             $next = new static([
                 ...Arr::only($attributes, self::VERSIONED),
                 ...$tierSettings,
+                // What to do about shops already on the tier is decided per
+                // published version, never by an in-place edit.
+                ...Arr::only($attributes, ['apply_to_subscribers', 'subscribers_effective_on']),
                 'key' => $this->key,
                 'stripe_price_id' => $this->stripe_price_id,
             ]);

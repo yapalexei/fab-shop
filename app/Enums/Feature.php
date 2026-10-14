@@ -47,11 +47,28 @@ enum Feature: string
      */
     public function isShipped(): bool
     {
+        if ($this->isDiscontinued()) {
+            return false;
+        }
+
         return match ($this) {
             self::Customers, self::QuoteBuilder, self::JobBoard,
             self::MaterialTracking, self::QualificationRecords, self::QuoteHistory, self::QuoteEmailing, self::AiAssist, self::AiAgent => true,
             self::QuickbooksSync, self::MobileApi => false,
         };
+    }
+
+    /**
+     * A feature we can no longer support, gone from every plan and add-on.
+     * Rare, and a decision made in code (like isShipped()): add its value to
+     * `shop.discontinued_features` (config/shop.php) and deploy. Then no shop has the feature any more (Shop::hasFeature()
+     * says no, whatever its plan row, carried-over features, add-ons or trial
+     * say), it can't be bought or put in a tier, and `app:announce-discontinued-features`
+     * cancels any add-on billing for it and tells each affected owner once.
+     */
+    public function isDiscontinued(): bool
+    {
+        return in_array($this->value, config('shop.discontinued_features', []), true);
     }
 
     /**

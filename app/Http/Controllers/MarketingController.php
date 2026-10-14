@@ -6,6 +6,7 @@ use App\Enums\Feature;
 use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Support\Billing;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -35,6 +36,7 @@ class MarketingController extends Controller
                 'shipped' => $feature->isShipped(),
             ]),
             'trialDays' => PlatformSetting::defaultTrialDays(),
+            'annualMonthsCharged' => Billing::annualMonthsCharged(),
             'tiers' => Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices, $features)),
         ]);
     }

@@ -36,6 +36,10 @@ class SavePlanRequest extends FormRequest
             'position' => ['nullable', 'integer', 'min:0', 'max:999'],
             'expires_on' => ['nullable', 'date_format:Y-m-d'],
             'show_expiry' => ['boolean'],
+            // Only used when the edit raises the price: apply it to shops
+            // already on the tier, and from when (null = immediately).
+            'apply_to_subscribers' => ['boolean'],
+            'subscribers_effective_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:today'],
         ];
     }
 }

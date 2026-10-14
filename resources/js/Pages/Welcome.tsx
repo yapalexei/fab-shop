@@ -3,6 +3,9 @@ import ProductGlimpse from '@/Components/marketing/ProductGlimpse';
 import FlowingBackground from '@/Components/marketing/FlowingBackground';
 import Reveal from '@/Components/marketing/Reveal';
 import LegalLinks from '@/Components/LegalLinks';
+import PlanComparisonTable, {
+    ComparisonPlan,
+} from '@/Components/PlanComparisonTable';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -265,13 +268,34 @@ export default function Welcome({
     features,
     tiers,
     trialDays,
+    annualMonthsCharged,
 }: PageProps<{
     canLogin: boolean;
     canRegister: boolean;
     features: FeatureRow[];
     tiers: Tier[];
     trialDays: number;
+    annualMonthsCharged: number;
 }>) {
+    // The comparison table: one column per tier, a tick for each feature it
+    // includes. The trial-only (Free) column ticks everything - that is what
+    // the trial gives - and seats the same crew as the biggest plan.
+    const seatCaps = tiers.filter((t) => !t.isTrialOnly).map((t) => t.userLimit);
+    const trialSeats = seatCaps.includes(null)
+        ? null
+        : Math.max(1, ...(seatCaps as number[]));
+    const comparison: ComparisonPlan[] = tiers.map((tier) => ({
+        id: tier.key,
+        name: tier.isTrialOnly ? 'Free trial' : tier.name,
+        trialDays: tier.isTrialOnly ? trialDays : undefined,
+        monthlyCents: tier.monthlyPriceCents,
+        seats: tier.isTrialOnly ? trialSeats : tier.userLimit,
+        extraSeatCents: tier.isTrialOnly ? null : tier.extraSeatPriceCents,
+        features: tier.isTrialOnly
+            ? features.map((f) => f.key)
+            : tier.features.filter((f) => f.included).map((f) => f.key),
+    }));
+
     return (
         <>
             <Head title="Quoting, jobs & invoicing for metal fab shops" />
@@ -478,6 +502,28 @@ export default function Welcome({
                                         trialDays={trialDays}
                                     />
                                 ))}
+                            </div>
+
+                            <div className="mt-16">
+                                <h3 className="text-center text-2xl font-bold tracking-tight">
+                                    Compare every plan
+                                </h3>
+                                <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted-foreground">
+                                    What each plan costs, how many people it
+                                    covers, and exactly which features it
+                                    includes.
+                                </p>
+                                <div className="mt-8">
+                                    <PlanComparisonTable
+                                        caption="Plans compared: price, people included and features"
+                                        plans={comparison}
+                                        features={features.map((f) => ({
+                                            key: f.key,
+                                            label: f.label,
+                                        }))}
+                                        annualMonths={annualMonthsCharged}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </section>

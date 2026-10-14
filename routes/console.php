@@ -17,3 +17,9 @@ Schedule::command('app:notify-expired-trials')->hourly();
 Schedule::command('app:purge-deleted-shops')->hourly();
 
 Schedule::command('app:prune-data-exports')->daily();
+
+// A tier price drop reaches subscribers when their paid period ends.
+Schedule::command('app:apply-scheduled-plan-changes')->hourly();
+
+// A feature we can no longer support: stop add-on billing and tell the owners.
+Schedule::command('app:announce-discontinued-features')->daily();
