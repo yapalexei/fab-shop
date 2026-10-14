@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\PublicSsr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
@@ -77,6 +78,9 @@ class HandleInertiaRequests extends Middleware
                     'overdue' => $requirement['overdue'],
                 ]
                 : null,
+            // Route table for the SSR service (it has no window.Ziggy) - only
+            // on the first load of a server-rendered page, never otherwise.
+            'ziggy' => PublicSsr::appliesTo($request) ? PublicSsr::ziggy(...) : null,
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
                 'error' => fn () => $request->session()->get('error'),

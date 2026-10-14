@@ -47,7 +47,7 @@ Read the file when your task touches the area. "Read when" is the trigger.
 | Topic file | Read when |
 |---|---|
 | [dev-environment](docs/context/dev-environment.md) | Starting/stopping the stack, Horizon/scheduler/Reverb problems, a 500 on a status change, `storage:link`, demo data (`demo:seed-team`, `demo:seed-multi-shop`, `APP_MODE=demo`) |
-| [deployment](docs/context/deployment.md) | Railway, Dockerfile, env vars, S3/disk behaviour, anything that differs between Sail and production |
+| [deployment](docs/context/deployment.md) | Railway, Dockerfile(s), env vars, the `ssr` service, S3/disk behaviour, anything that differs between Sail and production |
 | [tenancy-and-permissions](docs/context/tenancy-and-permissions.md) | Any new model/table, scoping bugs, shop switching, roles, `can:` middleware, per-member overrides, markup visibility, delete guards |
 | [security-controls](docs/context/security-controls.md) | Login, two-factor policy, security/audit log, sessions, CSP and headers, shop data export/erasure, security pages (also [docs/security.md](docs/security.md) runbooks) |
 | [shop-settings-timezones](docs/context/shop-settings-timezones.md) | Anything date/time or per-shop setting (timezone, stale-quote days, win-rate window), trial dates |
@@ -62,7 +62,7 @@ Read the file when your task touches the area. "Read when" is the trigger.
 | [plans-and-pricing](docs/context/plans-and-pricing.md) | Plan tiers, prices, seats and extra seats, trial length, what each tier includes; **editing/adding/retiring tiers, tier versions & history, expiry dates, what existing shops get when a tier's price/features change (immediate drops, announced increases with an effective date, carried-over features, the before/after notice to owners, discontinuing a feature), the landing-page comparison table and the upgrade-page cost calculator, anything that looks a plan up by key or lists plans** |
 | [platform-admin](docs/context/platform-admin.md) | F10: internal cross-tenant console, suspending shops, plan overrides, potential revenue |
 | [legal-and-consent](docs/context/legal-and-consent.md) | Terms/privacy/SMS pages, consent records, checkbox wording and versions, agreeing to the Terms when subscribing, the price-change clause |
-| [seo](docs/context/seo.md) | `robots.txt`, `sitemap.xml`, adding a public page, `->sitemap()` / `->noindex()` |
+| [seo](docs/context/seo.md) | `robots.txt`, `sitemap.xml`, adding a public page, `->sitemap()` / `->noindex()`, **server-side rendering (Inertia SSR, hydration), meta/OG/JSON-LD tags, `PageMeta`** |
 | [frontend](docs/context/frontend.md) | shadcn/Tailwind v4 theming, UI components, Prettier policy |
 | [ai-assistant](docs/context/ai-assistant.md) | BYOK AI settings, `AiManager`, quote intake, follow-up drafts, supplier-page intake, `ai_requests` |
 | [ai-mcp-server](docs/context/ai-mcp-server.md) | The `/mcp` endpoint, agent users, MCP tools and permission ceiling (`AgentAccess`), tokens |

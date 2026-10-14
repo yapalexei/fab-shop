@@ -66,6 +66,9 @@ Laravel 13 app  ------ broadcast ----> Reverb
    |   `--- scheduler (hourly trial-expiry notices)
    v
 PostgreSQL (single database, shared schema, every tenant table has shop_id)
+
+Node SSR renderer  <-- Laravel POSTs the public pages' props (marketing, legal) so search
+                       engines get real HTML; optional - pages fall back to client rendering
 ```
 
 ### Stack
@@ -112,6 +115,10 @@ cp .env.example .env
 | Horizon (queues) | http://localhost/horizon |
 
 Run tests with `./vendor/bin/sail test`.
+
+### Server-side rendering (optional locally)
+
+The public pages (marketing, legal) are server-rendered in production by a small Node service so search engines get real HTML. Locally there is no renderer by default and those pages render in the browser as usual. To try it: `npm run build:ssr`, then `./vendor/bin/sail artisan inertia:start-ssr`, and load `/` signed out (rebuild after editing a public page). Hosting it on Railway - the `ssr` service, its variables and how to check it - is in [docs/deploy-railway.md](docs/deploy-railway.md#the-ssr-service-public-pages-for-search-engines).
 
 ### Demo data
 

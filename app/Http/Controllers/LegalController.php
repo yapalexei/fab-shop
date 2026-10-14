@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Consent;
+use App\Support\PageMeta;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,20 +17,20 @@ class LegalController extends Controller
 {
     public function terms(): Response
     {
-        return $this->page('Legal/Terms', 'terms');
+        return $this->page('Legal/Terms', 'terms', 'Terms of Service', 'The terms for using the '.config('app.name').' quoting, job-tracking and invoicing service.');
     }
 
     public function privacy(): Response
     {
-        return $this->page('Legal/Privacy', 'privacy');
+        return $this->page('Legal/Privacy', 'privacy', 'Privacy Policy', 'How '.config('app.name').' collects, uses and protects information about shops, their teams and their customers.');
     }
 
     public function sms(): Response
     {
-        return $this->page('Legal/Sms', 'sms');
+        return $this->page('Legal/Sms', 'sms', 'SMS Terms', 'How '.config('app.name').' sends text messages on behalf of shops, and how to opt out or get help.');
     }
 
-    private function page(string $component, string $document): Response
+    private function page(string $component, string $document, string $title, string $description): Response
     {
         return Inertia::render($component, [
             'company' => config('legal.company'),
@@ -41,6 +42,6 @@ class LegalController extends Controller
             // The notice period the Terms promise for a price increase - the
             // same number the admin's tier form proposes, so they can't differ.
             'priceNoticeDays' => (int) config('shop.price_increase_notice_days'),
-        ]);
+        ])->withViewData(['seo' => new PageMeta($title, $description)]);
     }
 }

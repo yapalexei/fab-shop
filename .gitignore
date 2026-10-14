@@ -16,6 +16,7 @@
 /auth.json
 /node_modules
 /public/build
+/bootstrap/ssr
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage

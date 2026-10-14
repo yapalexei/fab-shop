@@ -21,7 +21,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# tsconfig/vite resolve ziggy-js from vendor/.
+# tsconfig resolves ziggy-js's types from vendor/. `npm run build` also builds
+# the SSR bundle (bootstrap/ssr) the public pages are rendered from - see
+# Dockerfile.ssr for the service that runs it.
 COPY --from=vendor /var/www/html/vendor ./vendor
 # VITE_* values are baked into the JS bundle at build time, so Railway must
 # pass them as build args (any service variable declared as ARG is available).
@@ -38,5 +40,8 @@ WORKDIR /var/www/html
 COPY --chown=www-data:www-data . .
 COPY --chown=www-data:www-data --from=vendor /var/www/html/vendor ./vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build ./public/build
+# Laravel only calls the SSR service while this bundle exists (Inertia's
+# ensure_bundle_exists), so the web image needs it too even though it never runs it.
+COPY --chown=www-data:www-data --from=assets /app/bootstrap/ssr ./bootstrap/ssr
 RUN composer dump-autoload --optimize --no-dev \
     && php artisan package:discover --ansi

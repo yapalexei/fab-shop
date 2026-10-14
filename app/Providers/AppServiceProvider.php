@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Listeners\LogAuthenticationEvents;
 use App\Models\User;
 use App\Support\ShopPermissions;
+use App\Support\Ssr\PublicPagesGateway;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Ssr\Gateway;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,7 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Server-render only the public pages, with a short timeout - see the class.
+        $this->app->bind(Gateway::class, PublicPagesGateway::class);
     }
 
     /**

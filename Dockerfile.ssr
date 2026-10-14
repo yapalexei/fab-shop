@@ -1,0 +1,30 @@
+# Inertia SSR renderer for Railway - the `ssr` service. It server-renders the
+# public pages (marketing, legal) so search engines get real HTML; Laravel
+# (`web`) POSTs each page's props to it over Railway's private network. See
+# docs/deploy-railway.md. Local dev doesn't use this file.
+#
+# Separate from the root Dockerfile because Railway can't pick a build stage
+# per service, and the runtime here is plain Node, not PHP.
+
+# ---- Build the SSR bundle ---------------------------------------------------
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+# Must match what `web` bakes into the browser bundle: it is the <title> suffix.
+ARG VITE_APP_NAME="Fab Shop"
+# Only the server bundle - the browser assets are built by the root Dockerfile.
+RUN npm run build:ssr
+
+# ---- Run it -----------------------------------------------------------------
+# vite.config.js bundles every dependency into bootstrap/ssr/ssr.js
+# (ssr.noExternal), so no node_modules is needed here.
+FROM node:24-alpine
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /app/bootstrap/ssr ./
+USER node
+# Inertia's server listens on $PORT (13714 if unset) and answers GET /health.
+EXPOSE 13714
+CMD ["node", "ssr.js"]

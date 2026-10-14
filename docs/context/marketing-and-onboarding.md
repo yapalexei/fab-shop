@@ -2,6 +2,8 @@
 
 `/` (`MarketingController`, page component `Welcome.tsx`) is the public marketing/pricing page — not the authenticated `/dashboard`. Tier contents are read live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`), never hardcoded copy, so what a tier claims to include can't drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks unshipped features "Coming soon" on the page regardless of which plan grants them — flip it to `true` per feature the day each one ships, or the page will start silently overclaiming. Only `mobile-api` (F6) is still unshipped; `material-tracking` (F5) and `qualification-records` (F7) both ship. The Free plan is rendered specially ("every feature, free for 14 days") rather than as a checklist of all-false rows, since its real access comes from `Shop::onTrial()`, not from any features attached to the `free` Plan row itself.
 
+The page is server-rendered for search engines and ships its own meta tags and pricing JSON-LD - read [seo](seo.md) before changing `Welcome.tsx`'s components (they must hydrate cleanly) or adding a page it links to.
+
 F8b and F8c (below) are now built too - F8 as a whole is complete.
 
 ## Signup and onboarding (F8b/F8c)
