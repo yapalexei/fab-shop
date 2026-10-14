@@ -1,0 +1,25 @@
+# Caddy is the front door: it terminates HTTPS (automatic certificates when
+# SITE_ADDRESS is a real domain), and sends the job board's WebSocket to
+# Reverb on the same address as the site, so the browser needs one hostname
+# and one certificate. SITE_ADDRESS comes from .env:
+#   :80                  plain http on any hostname or IP (a LAN install)
+#   shop.example.com     https with a Let's Encrypt certificate (needs ports
+#                        80 and 443 reachable from the internet)
+{
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# Browser <-> Reverb (the Pusher protocol). /apps/* - how the app pushes
+	# events to Reverb - is deliberately NOT proxied; that stays on the
+	# internal network.
+	handle /app/* {
+		reverse_proxy reverb:8080
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+}

@@ -71,4 +71,18 @@ return [
     */
     'discontinued_features' => [],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Self-hosted setup key
+    |--------------------------------------------------------------------------
+    |
+    | /setup is first come, first served, which is fine on a laptop but not on
+    | a server that is already reachable from the internet. When this is set,
+    | /setup answers 404 unless the visitor brings it (/setup?key=...) - the
+    | install script generates one and prints the link. Unset = open (local
+    | installs, tests). See App\Http\Controllers\SelfHostedSetupController.
+    |
+    */
+    'selfhosted_setup_key' => env('SELFHOSTED_SETUP_KEY'),
+
 ];

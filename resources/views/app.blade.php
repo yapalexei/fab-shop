@@ -29,6 +29,12 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+        {{-- Public by design (the secret stays on the server). Read at runtime by
+        resources/js/echo.ts so one prebuilt image works on any install. --}}
+        @if (config('broadcasting.default') === 'reverb' && filled(config('broadcasting.connections.reverb.key')))
+            <meta name="reverb-key" content="{{ config('broadcasting.connections.reverb.key') }}">
+        @endif
+
         <!-- Scripts -->
         @routes(null, Vite::cspNonce())
         @viteReactRefresh

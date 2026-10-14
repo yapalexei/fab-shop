@@ -7,7 +7,9 @@ use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
 use App\Support\Billing;
+use App\Support\Edition;
 use App\Support\PageMeta;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -22,8 +24,14 @@ use Inertia\Response;
  */
 class MarketingController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(): Response|RedirectResponse
     {
+        // No marketing page on your own server: first visit goes to setup,
+        // after that to the app (which sends signed-out visitors to sign in).
+        if (Edition::selfHosted()) {
+            return redirect()->route(Edition::installed() ? 'dashboard' : 'setup');
+        }
+
         $prices = FeatureSetting::priceMap();
         $features = $this->shippedFeatures();
         $trialDays = PlatformSetting::defaultTrialDays();

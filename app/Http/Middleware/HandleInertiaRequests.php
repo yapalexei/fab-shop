@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Edition;
 use App\Support\PublicSsr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -35,6 +36,9 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            // The UI hides everything that only exists in the cloud edition
+            // (plans, legal pages, add-ons...) - the server refuses it anyway.
+            'selfHosted' => Edition::selfHosted(),
             'auth' => [
                 'user' => $request->user()
                     ? [...$request->user()->toArray(), 'avatar_url' => $request->user()->avatarUrl()]

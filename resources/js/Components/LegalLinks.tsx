@@ -1,11 +1,19 @@
-import { Link } from '@inertiajs/react';
+import { PageProps } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
 
 /**
  * Terms / Privacy / SMS Terms links - the one place the public legal pages
  * are linked from (marketing page, sign-in and registration, the app footer,
  * onboarding), so they're reachable from everywhere a person might look.
+ * Renders nothing on a self-hosted install: they are our service's terms.
  */
 export default function LegalLinks({ className = '' }: { className?: string }) {
+    const { selfHosted } = usePage<PageProps>().props;
+
+    if (selfHosted) {
+        return null;
+    }
+
     const link =
         'underline-offset-2 hover:text-foreground hover:underline focus:outline-hidden focus:underline';
 

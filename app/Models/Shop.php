@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\BillingInterval;
 use App\Enums\Feature;
 use App\Notifications\PlanUpdated;
+use App\Support\Edition;
 use App\Support\JobStages;
 use App\Support\MaterialTypes;
 use Carbon\CarbonImmutable;
@@ -280,6 +281,11 @@ class Shop extends Model
      */
     public function seatLimit(): ?int
     {
+        // A self-hosted install has no plan to buy seats on.
+        if (Edition::selfHosted()) {
+            return null;
+        }
+
         if ($this->seat_limit_override !== null) {
             return $this->seat_limit_override;
         }
@@ -505,6 +511,12 @@ class Shop extends Model
             return false;
         }
 
+        // A self-hosted install owns the whole product: no plans, trials or
+        // add-ons, so everything that ships is on.
+        if (Edition::selfHosted()) {
+            return $feature->isShipped();
+        }
+
         return $this->onTrialFor($feature)
             || $this->hasPlanFeature($feature)
             || $this->hasActiveFeatureSubscription($feature);
@@ -529,7 +541,7 @@ class Shop extends Model
      */
     public function readOnlyFeatures(): Collection
     {
-        if ($this->trial_ends_at === null) {
+        if (Edition::selfHosted() || $this->trial_ends_at === null) {
             return collect();
         }
 
@@ -546,6 +558,10 @@ class Shop extends Model
      */
     public function canUpgrade(): bool
     {
+        if (Edition::selfHosted()) {
+            return false;
+        }
+
         $rank = $this->plan?->rank();
 
         return Plan::orderedByTier()->contains(fn (Plan $plan) => $rank === null || $plan->position > $rank);
@@ -572,6 +588,12 @@ class Shop extends Model
      */
     public function enabledFeatures(): Collection
     {
+        if (Edition::selfHosted()) {
+            return collect(Feature::cases())
+                ->filter(fn (Feature $feature) => $this->hasFeature($feature))
+                ->values();
+        }
+
         $trialDays = FeatureSetting::trialDaysMap();
 
         $trialFeatures = $this->trial_ends_at === null

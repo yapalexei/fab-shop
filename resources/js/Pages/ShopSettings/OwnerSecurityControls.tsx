@@ -4,7 +4,8 @@ import InputLabel from '@/Components/InputLabel';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import { useShopDateTime } from '@/lib/datetime';
-import { router, useForm } from '@inertiajs/react';
+import { PageProps } from '@/types';
+import { router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useEffect } from 'react';
 
 export interface OwnerControls {
@@ -49,7 +50,8 @@ const megabytes = (bytes: number | null) =>
 
 /**
  * The owner-only part of Shop settings: getting the shop's data out or having
- * it erased. (The two-factor requirement lives under Security.)
+ * it erased (not on a self-hosted install - it is your server). The
+ * two-factor requirement lives under Security.
  */
 export default function OwnerSecurityControls({
     controls,
@@ -57,6 +59,7 @@ export default function OwnerSecurityControls({
     controls: OwnerControls;
 }) {
     const formatDate = useShopDateTime({ dateStyle: 'medium' });
+    const { selfHosted } = usePage<PageProps>().props;
     const { exports, deletion } = controls;
     const deleteForm = useForm({ password: '', confirm_name: '' });
     const waiting = exports.some((e) => e.status === 'pending');
@@ -132,83 +135,86 @@ export default function OwnerSecurityControls({
                 )}
             </Card>
 
-            <Card
-                title="Delete this shop"
-                description={`Permanently erases the shop and all its data - customers, quotes, jobs, catalog and files. It is scheduled ${deletion.grace_days} days out, so you can export first or change your mind; until then the shop works as normal. Everyone in the shop is emailed. People's own accounts are not deleted. A record that the shop was deleted is kept.`}
-            >
-                {deletion.scheduled_for ? (
-                    <div className="space-y-3">
-                        <p className="text-sm text-red-700">
-                            Scheduled for permanent deletion on{' '}
-                            {formatDate(deletion.scheduled_for)}.
-                        </p>
-                        <SecondaryButton
-                            onClick={() =>
-                                router.delete(
-                                    route('shop.data.deletion.cancel'),
-                                    { preserveScroll: true },
-                                )
-                            }
+            {/* Erasure is how a cloud shop leaves us; on your own server you own the data. */}
+            {!selfHosted && (
+                <Card
+                    title="Delete this shop"
+                    description={`Permanently erases the shop and all its data - customers, quotes, jobs, catalog and files. It is scheduled ${deletion.grace_days} days out, so you can export first or change your mind; until then the shop works as normal. Everyone in the shop is emailed. People's own accounts are not deleted. A record that the shop was deleted is kept.`}
+                >
+                    {deletion.scheduled_for ? (
+                        <div className="space-y-3">
+                            <p className="text-sm text-red-700">
+                                Scheduled for permanent deletion on{' '}
+                                {formatDate(deletion.scheduled_for)}.
+                            </p>
+                            <SecondaryButton
+                                onClick={() =>
+                                    router.delete(
+                                        route('shop.data.deletion.cancel'),
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Cancel deletion
+                            </SecondaryButton>
+                        </div>
+                    ) : (
+                        <form
+                            onSubmit={submitDelete}
+                            className="max-w-sm space-y-4"
                         >
-                            Cancel deletion
-                        </SecondaryButton>
-                    </div>
-                ) : (
-                    <form
-                        onSubmit={submitDelete}
-                        className="max-w-sm space-y-4"
-                    >
-                        <div>
-                            <InputLabel
-                                htmlFor="confirm_name"
-                                value={`Type "${deletion.shop_name}" to confirm`}
-                            />
-                            <TextInput
-                                id="confirm_name"
-                                value={deleteForm.data.confirm_name}
-                                onChange={(e) =>
-                                    deleteForm.setData(
-                                        'confirm_name',
-                                        e.target.value,
-                                    )
-                                }
-                                className="mt-1 block w-full"
-                                autoComplete="off"
-                            />
-                            <InputError
-                                message={deleteForm.errors.confirm_name}
-                                className="mt-2"
-                            />
-                        </div>
-                        <div>
-                            <InputLabel
-                                htmlFor="delete_password"
-                                value="Your password"
-                            />
-                            <TextInput
-                                id="delete_password"
-                                type="password"
-                                autoComplete="current-password"
-                                value={deleteForm.data.password}
-                                onChange={(e) =>
-                                    deleteForm.setData(
-                                        'password',
-                                        e.target.value,
-                                    )
-                                }
-                                className="mt-1 block w-full"
-                            />
-                            <InputError
-                                message={deleteForm.errors.password}
-                                className="mt-2"
-                            />
-                        </div>
-                        <DangerButton disabled={deleteForm.processing}>
-                            Schedule deletion
-                        </DangerButton>
-                    </form>
-                )}
-            </Card>
+                            <div>
+                                <InputLabel
+                                    htmlFor="confirm_name"
+                                    value={`Type "${deletion.shop_name}" to confirm`}
+                                />
+                                <TextInput
+                                    id="confirm_name"
+                                    value={deleteForm.data.confirm_name}
+                                    onChange={(e) =>
+                                        deleteForm.setData(
+                                            'confirm_name',
+                                            e.target.value,
+                                        )
+                                    }
+                                    className="mt-1 block w-full"
+                                    autoComplete="off"
+                                />
+                                <InputError
+                                    message={deleteForm.errors.confirm_name}
+                                    className="mt-2"
+                                />
+                            </div>
+                            <div>
+                                <InputLabel
+                                    htmlFor="delete_password"
+                                    value="Your password"
+                                />
+                                <TextInput
+                                    id="delete_password"
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={deleteForm.data.password}
+                                    onChange={(e) =>
+                                        deleteForm.setData(
+                                            'password',
+                                            e.target.value,
+                                        )
+                                    }
+                                    className="mt-1 block w-full"
+                                />
+                                <InputError
+                                    message={deleteForm.errors.password}
+                                    className="mt-2"
+                                />
+                            </div>
+                            <DangerButton disabled={deleteForm.processing}>
+                                Schedule deletion
+                            </DangerButton>
+                        </form>
+                    )}
+                </Card>
+            )}
         </>
     );
 }

@@ -39,6 +39,10 @@ return [
     | so a stray env misconfiguration can't run demo-data commands somewhere
     | real data lives.
     |
+    | APP_MODE=selfhosted is different: it switches the whole app into its
+    | single-shop edition (no plans, trials, platform admin or public
+    | sign-up) - see App\Support\Edition and docs/context/self-hosted.md.
+    |
     */
 
     'mode' => env('APP_MODE'),

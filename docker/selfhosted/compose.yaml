@@ -1,0 +1,123 @@
+# Fab Shop - self-hosted stack. Run from this directory (see README.md):
+#
+#   ./install.sh        first time: writes .env with fresh secrets, builds, starts
+#   docker compose up -d --build    later: apply an update
+#
+# One application image runs as four containers (web, horizon, scheduler,
+# reverb); Caddy is the only thing exposed to the network. Nothing here is the
+# development setup - that is the Sail stack in the repo root.
+name: fabshop
+
+x-app: &app
+  image: ${FABSHOP_IMAGE:-fab-shop:selfhosted}
+  restart: unless-stopped
+  env_file: .env
+  volumes:
+    # Job photos, generated PDFs, CSV uploads: written by one container, read
+    # by another, so they share one volume (in the cloud this is the bucket).
+    - storage:/var/www/html/storage/app
+  depends_on:
+    pgsql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # certificates - losing this means re-issuing them
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      reverb:
+        condition: service_started
+
+  web:
+    <<: *app
+    # The one place the image is built (the other three reuse it - building it
+    # four times under one tag fails). With a prebuilt image, set FABSHOP_IMAGE
+    # and use `docker compose pull` instead of --build.
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      # Runs migrations (and storage:link, config/route/view caching) before
+      # nginx starts, so "healthy" means "database is up to date". Only web
+      # does this - the other containers wait for it.
+      AUTORUN_ENABLED: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  horizon:
+    <<: *app
+    command: ["php", "artisan", "horizon"]
+    healthcheck:
+      disable: true # the image's own check looks for nginx, which this container doesn't run
+    depends_on:
+      web:
+        condition: service_healthy
+
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck:
+      disable: true # the image's own check looks for nginx, which this container doesn't run
+    depends_on:
+      web:
+        condition: service_healthy
+
+  reverb:
+    <<: *app
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    healthcheck:
+      disable: true # the image's own check looks for nginx, which this container doesn't run
+    depends_on:
+      web:
+        condition: service_healthy
+
+  pgsql:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
+  storage:
+  caddy-data:
+  caddy-config:

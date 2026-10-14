@@ -28,10 +28,12 @@ COPY --from=vendor /var/www/html/vendor ./vendor
 # VITE_* values are baked into the JS bundle at build time, so Railway must
 # pass them as build args (any service variable declared as ARG is available).
 ARG VITE_APP_NAME="Fab Shop"
+# Left empty (self-hosted builds pass none of them), resources/js/echo.ts
+# connects to the page's own origin; the cloud passes all four.
 ARG VITE_REVERB_APP_KEY
 ARG VITE_REVERB_HOST
-ARG VITE_REVERB_PORT=443
-ARG VITE_REVERB_SCHEME=https
+ARG VITE_REVERB_PORT
+ARG VITE_REVERB_SCHEME
 RUN npm run build
 
 # ---- Final image ------------------------------------------------------------

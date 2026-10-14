@@ -27,3 +27,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Self-hosted bundle: backups hold customer data; .env is already ignored.
+docker/selfhosted/backups/

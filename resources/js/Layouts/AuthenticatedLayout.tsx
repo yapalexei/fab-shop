@@ -267,7 +267,7 @@ export default function Authenticated({
             active: route().current('shop.addons.*'),
             enabled: true,
             locked: false,
-            visible: auth.isOwner,
+            visible: auth.isOwner && !page.props.selfHosted,
         },
         {
             label: 'Security',

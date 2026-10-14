@@ -4,17 +4,35 @@ import Pusher, { AuthorizerCallback } from 'pusher-js';
 
 window.Pusher = Pusher;
 
+// Where to connect. The cloud build bakes these in (VITE_REVERB_*); a build
+// without them - the self-hosted image, which can't know its customer's
+// hostname - connects to the page's own origin, where the reverse proxy sends
+// /app/* to Reverb. The app key is public by design (the secret never leaves
+// the server), so the server hands it over in a <meta> tag at runtime.
+const sameOrigin = !import.meta.env.VITE_REVERB_HOST;
+const secure =
+    (import.meta.env.VITE_REVERB_SCHEME ||
+        (sameOrigin ? window.location.protocol.replace(':', '') : 'https')) ===
+    'https';
+const port = Number(
+    import.meta.env.VITE_REVERB_PORT ||
+        (sameOrigin ? window.location.port : '') ||
+        (secure ? 443 : 80),
+);
+
 // Private channels authorize over /broadcasting/auth. Routed through axios
 // (already configured with the app's session/XSRF cookies for every other
 // request) instead of Pusher's own authorizer, which doesn't know about
 // Laravel's CSRF cookie.
 window.Echo = new Echo({
     broadcaster: 'reverb',
-    key: import.meta.env.VITE_REVERB_APP_KEY,
-    wsHost: import.meta.env.VITE_REVERB_HOST,
-    wsPort: import.meta.env.VITE_REVERB_PORT ?? 80,
-    wssPort: import.meta.env.VITE_REVERB_PORT ?? 443,
-    forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+    key:
+        document.querySelector<HTMLMetaElement>('meta[name="reverb-key"]')
+            ?.content || import.meta.env.VITE_REVERB_APP_KEY,
+    wsHost: import.meta.env.VITE_REVERB_HOST || window.location.hostname,
+    wsPort: port,
+    wssPort: port,
+    forceTLS: secure,
     enabledTransports: ['ws', 'wss'],
     authorizer: (channel: { name: string }) => ({
         authorize: (socketId: string, callback: AuthorizerCallback) => {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Edition;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
@@ -43,7 +44,7 @@ class SecurityHeaders
 
         if ($mode !== 'off') {
             $headers[$mode === 'report-only' ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy']
-                = $this->policy($nonce, $request->isSecure());
+                = $this->policy($nonce, $request->isSecure(), $request->getHttpHost());
         }
 
         foreach ($headers as $name => $value) {
@@ -55,7 +56,7 @@ class SecurityHeaders
         return $response;
     }
 
-    private function policy(string $nonce, bool $secure): string
+    private function policy(string $nonce, bool $secure, string $host): string
     {
         $self = ["'self'"];
         $scripts = [...$self, "'nonce-{$nonce}'"];
@@ -76,6 +77,13 @@ class SecurityHeaders
 
         if (filled($reverb['host'])) {
             $connect[] = ($reverb['scheme'] === 'http' ? 'ws' : 'wss').'://'.$reverb['host'].(filled($reverb['port']) ? ':'.$reverb['port'] : '');
+        }
+
+        // Self-hosted: the browser connects to this site's own origin, where
+        // the reverse proxy forwards /app/* to Reverb (resources/js/echo.ts).
+        // Older Safari doesn't count 'self' as covering ws:/wss:, so say it.
+        if (Edition::selfHosted()) {
+            $connect[] = ($secure ? 'wss' : 'ws').'://'.$host;
         }
 
         $directives = [

@@ -1,5 +1,7 @@
 # Marketing page (F8a)
 
+Cloud edition only. A self-hosted install redirects `/` to `/setup` (first run) or the app, has no `/register`, and reuses the onboarding wizard's team and catalog steps after `/setup` - see [self-hosted](self-hosted.md).
+
 `/` (`MarketingController`, page component `Welcome.tsx`) is the public marketing/pricing page — not the authenticated `/dashboard`. Tier contents are read live from `Plan`/`Feature`/`plan_feature` (seeded by `PlanSeeder`), never hardcoded copy, so what a tier claims to include can't drift from what `Shop::hasFeature()` actually enforces. `Feature::isShipped()` marks unshipped features "Coming soon" on the page regardless of which plan grants them — flip it to `true` per feature the day each one ships, or the page will start silently overclaiming. Only `mobile-api` (F6) is still unshipped; `material-tracking` (F5) and `qualification-records` (F7) both ship. The Free plan is rendered specially ("every feature, free for 14 days") rather than as a checklist of all-false rows, since its real access comes from `Shop::onTrial()`, not from any features attached to the `free` Plan row itself.
 
 The page is server-rendered for search engines and ships its own meta tags and pricing JSON-LD - read [seo](seo.md) before changing `Welcome.tsx`'s components (they must hydrate cleanly) or adding a page it links to.

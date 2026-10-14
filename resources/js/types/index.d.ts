@@ -10,6 +10,8 @@ export interface User {
 export type PageProps<
     T extends Record<string, unknown> = Record<string, unknown>,
 > = T & {
+    /** True on a self-hosted install: no plans, trials, add-ons or legal pages. */
+    selfHosted: boolean;
     auth: {
         user: User;
         permissions: string[];

@@ -17,3 +17,16 @@ docs
 .idea
 .vscode
 bootstrap/ssr
+
+docker
+# Local working-copy files that must never ship in an image: uploads and import
+# files from a developer machine (the self-hosted stack mounts a volume here),
+# the storage symlink (storage:link recreates it), and tooling config.
+storage/app/private/*
+storage/app/public/*
+!storage/app/private/.gitignore
+!storage/app/public/.gitignore
+public/storage
+.mcp.json
+.github
+.railway

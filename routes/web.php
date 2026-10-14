@@ -41,6 +41,7 @@ use App\Http\Controllers\QuoteFollowUpController;
 use App\Http\Controllers\QuoteWorkflowController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SampleDataController;
+use App\Http\Controllers\SelfHostedSetupController;
 use App\Http\Controllers\SeoController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ShopAiAgentController;
@@ -70,9 +71,19 @@ Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap
 
 // Public legal pages - linked from the marketing page, sign-in/registration,
 // emails and the app footer.
-Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms')->sitemap('legal.versions.terms');
-Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy')->sitemap('legal.versions.privacy');
-Route::get('/sms-terms', [LegalController::class, 'sms'])->name('legal.sms')->sitemap('legal.versions.sms');
+// They are our service's terms, so a self-hosted install doesn't serve them.
+Route::middleware('cloud')->group(function () {
+    Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms')->sitemap('legal.versions.terms');
+    Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy')->sitemap('legal.versions.privacy');
+    Route::get('/sms-terms', [LegalController::class, 'sms'])->name('legal.sms')->sitemap('legal.versions.sms');
+});
+
+// First-run page of a self-hosted install (404 in the cloud edition); closes
+// itself once an account exists - see SelfHostedSetupController.
+Route::middleware(['selfhosted', 'guest'])->group(function () {
+    Route::get('/setup', [SelfHostedSetupController::class, 'create'])->name('setup')->noindex();
+    Route::post('/setup', [SelfHostedSetupController::class, 'store'])->middleware('throttle:6,1')->name('setup.store');
+});
 
 // No auth/guest middleware - the visitor may have no account yet, an
 // account under a different email, or already be exactly who's invited.
@@ -102,7 +113,7 @@ Route::get('/shop-suspended', [ShopSuspendedController::class, 'show'])
 // Internal-only, cross-tenant - see PlatformAdminController's class doc.
 // Deliberately outside 'active'/'onboarded': platform staff aren't acting
 // within a shop here, and may not even belong to one.
-Route::middleware(['auth', 'verified', 'can:platform-admin'])->prefix('platform-admin')->name('platform-admin.')->group(function () {
+Route::middleware(['cloud', 'auth', 'verified', 'can:platform-admin'])->prefix('platform-admin')->name('platform-admin.')->group(function () {
     Route::get('/', [PlatformAdminController::class, 'index'])->name('index');
     Route::post('/shops/{shop}/suspend', [PlatformAdminController::class, 'suspend'])->name('shops.suspend');
     Route::post('/shops/{shop}/unsuspend', [PlatformAdminController::class, 'unsuspend'])->name('shops.unsuspend');
@@ -136,7 +147,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
     Route::delete('/profile/avatar', [UserAvatarController::class, 'destroy'])->name('profile.avatar.destroy');
     Route::get('/users/{user}/avatar', [UserAvatarController::class, 'show'])->name('users.avatar');
 
-    Route::post('/trial-ended-notice/dismiss', TrialEndedNoticeController::class)->name('trial-ended-notice.dismiss');
+    Route::post('/trial-ended-notice/dismiss', TrialEndedNoticeController::class)->name('trial-ended-notice.dismiss')->middleware('cloud');
     Route::post('/current-shop/{shop}', [ShopSwitchController::class, 'update'])->name('current-shop.update');
 
     Route::get('customers/{customer}/logo', [EntityImageController::class, 'customerLogo'])->name('customers.logo');
@@ -342,8 +353,12 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
             Route::put('/security/two-factor', [ShopSecurityController::class, 'updatePolicy'])->name('shop.security.two-factor');
             Route::post('/data/export', [ShopDataController::class, 'export'])->name('shop.data.export');
             Route::get('/data/export/{export}', [ShopDataController::class, 'download'])->name('shop.data.download');
-            Route::post('/data/deletion', [ShopDataController::class, 'requestDeletion'])->name('shop.data.deletion');
-            Route::delete('/data/deletion', [ShopDataController::class, 'cancelDeletion'])->name('shop.data.deletion.cancel');
+            // Erasure is how a cloud shop leaves us; on your own server you
+            // own the data and can drop the database yourself.
+            Route::middleware('cloud')->group(function () {
+                Route::post('/data/deletion', [ShopDataController::class, 'requestDeletion'])->name('shop.data.deletion');
+                Route::delete('/data/deletion', [ShopDataController::class, 'cancelDeletion'])->name('shop.data.deletion.cancel');
+            });
         });
 
         // The page is viewable after a trial ends (it explains that AI is
@@ -369,7 +384,7 @@ Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function (
             Route::patch('/settings', [ShopSettingsController::class, 'update'])->name('shop.settings.update');
         });
 
-        Route::middleware('can:manage-shop')->group(function () {
+        Route::middleware(['cloud', 'can:manage-shop'])->group(function () {
             Route::get('/plan', [ShopPlanController::class, 'index'])->name('shop.plan.index');
             Route::post('/plan', [ShopPlanController::class, 'update'])->name('shop.plan.update');
             Route::delete('/plan/notice', [ShopPlanController::class, 'dismissNotice'])->name('shop.plan.notice.dismiss');

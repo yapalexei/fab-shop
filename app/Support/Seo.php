@@ -97,8 +97,9 @@ class Seo
     {
         $lines = ['User-agent: *'];
 
-        // Staging, demo and local copies shouldn't end up in a search index.
-        if (! app()->isProduction()) {
+        // Staging, demo and local copies shouldn't end up in a search index,
+        // and neither should a shop's private install.
+        if (! app()->isProduction() || Edition::selfHosted()) {
             $lines[] = 'Disallow: /';
 
             return implode("\n", $lines)."\n";

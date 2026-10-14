@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Middleware\AuthenticateMcpAgent;
+use App\Http\Middleware\CloudOnly;
 use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\EnsureShopIsActive;
 use App\Http\Middleware\EnsureShopIsOnboarded;
 use App\Http\Middleware\EnsureTwoFactorSetup;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SelfHostedOnly;
 use App\Http\Middleware\SetPermissionsTeamFromCurrentShop;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -45,6 +47,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'mcp.agent' => AuthenticateMcpAgent::class,
             'onboarded' => EnsureShopIsOnboarded::class,
             'active' => EnsureShopIsActive::class,
+            'cloud' => CloudOnly::class,
+            'selfhosted' => SelfHostedOnly::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
