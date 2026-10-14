@@ -106,3 +106,41 @@ test('a plan priced above its bundled features\' standalone value shows no savin
 
     $this->get('/')->assertInertia(fn ($page) => $page->where('tiers.0.savingsCents', 0));
 });
+
+test('the marketing page ships its description, canonical, social tags and pricing structured data in the HTML shell', function () {
+    $this->seed(PlanSeeder::class);
+
+    $html = $this->get('/')->assertOk()->getContent();
+
+    expect($html)
+        ->toContain('<meta name="description" content="Quoting, job tracking and invoicing')
+        ->toContain('<link rel="canonical" href="'.url('/').'">')
+        ->toContain('<meta property="og:title"')
+        ->toContain('<meta name="twitter:card" content="summary">')
+        ->toContain('<script type="application/ld+json" nonce="');
+
+    preg_match('#<script type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $match);
+    $data = json_decode($match[1], true);
+
+    expect($data['@type'])->toBe('SoftwareApplication')
+        ->and(collect($data['offers'])->pluck('name')->all())->toBe(['Free trial', 'Solo', 'Shop', 'Pro'])
+        ->and($data['offers'][0]['price'])->toBe('0.00');
+});
+
+test('the legal pages carry a description and canonical link', function () {
+    $html = $this->get('/terms')->assertOk()->getContent();
+
+    expect($html)
+        ->toContain('<meta name="description" content="The terms for using')
+        ->toContain('<link rel="canonical" href="'.url('/terms').'">');
+});
+
+test('pages without SEO data keep the plain app-name title and add no meta', function () {
+    $user = actingAsShopMember(Shop::factory()->create());
+
+    $html = $this->actingAs($user)->get('/dashboard')->assertOk()->getContent();
+
+    expect($html)->toContain('<title inertia>'.config('app.name').'</title>')
+        ->not->toContain('name="description"')
+        ->not->toContain('rel="canonical"');
+});

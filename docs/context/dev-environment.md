@@ -16,6 +16,8 @@ Splitting Reverb into its own container broke server-to-server broadcasting unti
 
 `./vendor/bin/sail artisan storage:link` is required once per environment for anything served off the `public` disk (job photos) — quote PDFs don't need it since they're streamed through a controller route instead.
 
+**SSR** is off locally unless you build the bundle: no `bootstrap/ssr`, no server rendering, and the public pages render in the browser as always. To try it, `npm run build:ssr` on the host then `./vendor/bin/sail artisan inertia:start-ssr` (rebuild after editing a public page; `npm run dev` hot reload does not reach the renderer). Details: [seo](seo.md).
+
 ## Demo data
 
 `demo:seed-team` and `demo:seed-multi-shop` build realistic, fully interconnected data for manual testing — a shop with a full team + catalog (incl. tooling - the same 1/4in bit for steel and for aluminum) + an in-progress job, plus six months of invoiced jobs and open/stale/lost quotes so the dashboard has real numbers (first command), and two isolated shops plus a user who belongs to both, to click through tenant isolation and the shop switcher (second command). Both print login credentials (password `password` for every seeded user) and accept `--fresh` to replace their own data on a rerun.

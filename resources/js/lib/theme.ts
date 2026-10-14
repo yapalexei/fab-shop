@@ -32,11 +32,24 @@ export function applyTheme(theme: Theme): void {
  * makes it "adjustable" rather than always light.
  */
 export function useTheme() {
-    const [theme, setTheme] = useState<Theme>(() => currentTheme());
+    // Always starts light: the server can't read localStorage, and a first
+    // client render that disagreed with the server's HTML would break
+    // hydration. The stored choice is read right after mount instead (the
+    // inline script in app.blade.php has already put the right class on
+    // <html>, so nothing flashes - only the toggle's icon catches up).
+    const [theme, setTheme] = useState<Theme>('light');
+    const [synced, setSynced] = useState(false);
 
     useEffect(() => {
-        applyTheme(theme);
-    }, [theme]);
+        setTheme(currentTheme());
+        setSynced(true);
+    }, []);
+
+    useEffect(() => {
+        // Not before the stored choice is read, or this would strip the
+        // `dark` class the inline script set.
+        if (synced) applyTheme(theme);
+    }, [theme, synced]);
 
     const toggleTheme = () => {
         const next: Theme = theme === 'dark' ? 'light' : 'dark';

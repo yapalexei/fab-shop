@@ -1,12 +1,21 @@
 import { cn } from '@/lib/utils';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Check, FileText, Hammer, LucideIcon, Receipt } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 
 /** Advances 0..length-1 on an interval; stays on the last frame under reduced motion. */
 function useLoop(length: number, ms: number): number {
-    const reduce = useReducedMotion();
+    // Read after mount, not during render: the server can't know the
+    // preference, and a first client render that differs from the server's
+    // HTML would break hydration.
+    const [reduce, setReduce] = useState(false);
     const [tick, setTick] = useState(0);
+
+    useEffect(() => {
+        setReduce(
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+        );
+    }, []);
 
     useEffect(() => {
         if (reduce) return;

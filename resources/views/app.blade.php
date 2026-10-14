@@ -18,8 +18,6 @@
             })();
         </script>
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
-
         <!-- Favicons -->
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -36,6 +34,18 @@
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/Pages/{$page['component']}.tsx"])
         @inertiaHead
+
+        {{-- A server-rendered page's head (above) already carries its own
+        <title>; this one is for client-rendered pages and for when the SSR
+        service is down. Two <title>s would leave the browser and crawlers
+        with the first, wrong one. --}}
+        @if (empty($__inertiaSsrResponse))
+            <title inertia>{{ isset($seo) ? $seo->documentTitle() : config('app.name', 'Laravel') }}</title>
+        @endif
+
+        @isset($seo)
+            @include('partials.seo', ['seo' => $seo])
+        @endisset
     </head>
     <body class="font-sans antialiased">
         @inertia

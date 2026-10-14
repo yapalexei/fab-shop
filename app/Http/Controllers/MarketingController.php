@@ -7,6 +7,7 @@ use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
 use App\Support\Billing;
+use App\Support\PageMeta;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -25,6 +26,8 @@ class MarketingController extends Controller
     {
         $prices = FeatureSetting::priceMap();
         $features = $this->shippedFeatures();
+        $trialDays = PlatformSetting::defaultTrialDays();
+        $tiers = Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices, $features));
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
@@ -35,10 +38,43 @@ class MarketingController extends Controller
                 'tagline' => $feature->tagline(),
                 'shipped' => $feature->isShipped(),
             ]),
-            'trialDays' => PlatformSetting::defaultTrialDays(),
+            'trialDays' => $trialDays,
             'annualMonthsCharged' => Billing::annualMonthsCharged(),
-            'tiers' => Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices, $features)),
-        ]);
+            'tiers' => $tiers,
+        ])->withViewData(['seo' => $this->meta($trialDays, $tiers)]);
+    }
+
+    /**
+     * Search/link-preview metadata, with the tiers as schema.org offers - the
+     * same rows the page lists, so the structured data can't claim a price
+     * the page doesn't show.
+     *
+     * @param  Collection<int, array<string, mixed>>  $tiers
+     */
+    private function meta(int $trialDays, Collection $tiers): PageMeta
+    {
+        $description = "Quoting, job tracking and invoicing for small metal fabrication and welding shops. Replace the spreadsheets and paper travelers - free for {$trialDays} days.";
+
+        return new PageMeta(
+            title: 'Quoting, jobs & invoicing for metal fab shops',
+            description: $description,
+            structuredData: [[
+                '@context' => 'https://schema.org',
+                '@type' => 'SoftwareApplication',
+                'name' => config('app.name'),
+                'url' => route('marketing'),
+                'description' => $description,
+                'applicationCategory' => 'BusinessApplication',
+                'operatingSystem' => 'Web',
+                'offers' => $tiers->map(fn (array $tier) => [
+                    '@type' => 'Offer',
+                    'name' => $tier['isTrialOnly'] ? 'Free trial' : $tier['name'],
+                    'price' => number_format($tier['monthlyPriceCents'] / 100, 2, '.', ''),
+                    'priceCurrency' => 'USD',
+                    'url' => route('register'),
+                ])->values()->all(),
+            ]],
+        );
     }
 
     /**

@@ -1,3 +1,19 @@
-# robots.txt and sitemap.xml
+# SEO: robots.txt, sitemap.xml, head tags and server rendering
 
 Both are generated from the route table by `App\Support\Seo` (served by `SeoController`), not static files - **there must be no `public/robots.txt`**, the web server would serve it before Laravel. Two Route macros (`AppServiceProvider`) are the whole interface: `->sitemap('config.key.holding.a.date')` lists a parameterless GET route in `sitemap.xml` (the optional config key becomes `<lastmod>`; the legal pages use `legal.versions.*`), and `->noindex()` keeps a public route out (invitation links). `robots.txt` disallows the first path segment of every route behind `auth`/`guest` middleware plus `noindex` ones, so new private pages are hidden automatically. Anything outside production gets `Disallow: /`. A new public marketing/legal page = add `->sitemap()`; `SeoTest` fails if a sitemap page ends up blocked by robots.
+
+## Server rendering and head tags
+
+The marketing and legal pages must be crawlable without running JavaScript, so two things are layered on top of the sitemap:
+
+- **Head tags in the HTML shell** - `App\Support\PageMeta` (title, description, structured data) passed as `Inertia::render(...)->withViewData(['seo' => ...])` and rendered by `resources/views/partials/seo.blade.php`: description, canonical (query string stripped), Open Graph/Twitter, and JSON-LD (the marketing page lists the live `Plan` rows as `Offer`s - same data the page shows, so it can't advertise a price the page doesn't). Deliberately Blade, not React `<Head>`: it's present for non-JS scrapers even when the SSR service is down. The JSON-LD `<script>` carries the CSP nonce. A new public page = pass a `PageMeta` too. `og:image` is the 180px `apple-touch-icon.png` (a `summary` card); a 1200x630 image would be better.
+- **Inertia SSR for the same routes** - `App\Support\PublicSsr::appliesTo()` is true for the first load of any route marked `->sitemap()`, so *a page is server-rendered exactly when it is in sitemap.xml* and nothing behind a login ever depends on the Node renderer. `App\Support\Ssr\PublicPagesGateway` (bound over Inertia's `HttpGateway` in `AppServiceProvider`) enforces that, with a 1s connect / 3s total timeout, and falls back to a client-rendered page - logging `Inertia SSR unavailable`, throttled to once a minute - if the renderer is down. `resources/js/ssr.tsx` is the Node entry (`npm run build:ssr` -> `bootstrap/ssr/ssr.js`, a self-contained bundle: `ssr.noExternal` in `vite.config.js`); it bundles only `Pages/Welcome.tsx` and `Pages/Legal/*`, so a new public page must be added to that `import.meta.glob`, or it will quietly stay client-rendered (the renderer 500s on an unknown component and the gateway falls back). `app.tsx` hydrates when the root has children and renders from scratch otherwise.
+
+Things that bite:
+
+- **`route()` has no `window.Ziggy` in Node.** `HandleInertiaRequests` shares a `ziggy` prop (only on a server-rendered first load) built from the `public` group in `config/ziggy.php`, and `ssr.tsx` builds `route` from it. A route name a public page calls but the group lacks makes the renderer throw -> silent client-render fallback; `PublicSsrTest` scans the public pages' TSX and fails first.
+- **One `<title>`.** The server-rendered head carries its own, so `app.blade.php` emits its fallback `<title>` only when no SSR response exists (`$__inertiaSsrResponse`, set by `@inertiaHead`). Two would leave the browser with the first, wrong one.
+- **Hydration must match the server HTML.** Anything on a public page that reads `window`/`localStorage`/`matchMedia` during render breaks hydration: `useTheme`, `ProductGlimpse`'s loop and `Reveal` all read their client-only state in an effect after mount instead. `Reveal` leaves content visible in the HTML and only hides below-the-fold blocks after mount - it must never start at `opacity-0`, or the server HTML ships invisible.
+- Tests force `INERTIA_SSR_ENABLED=false` (`phpunit.xml`); `PublicSsrTest` turns it on against `Http::fake()`.
+
+Hosting the renderer (the `ssr` Railway service, `Dockerfile.ssr`): [deployment](deployment.md).

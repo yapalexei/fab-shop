@@ -1,9 +1,10 @@
-import { bucket, defineRailway, github, postgres, preserve, project, redis, service } from 'railway/iac';
+import { bucket, defineRailway, github, group, image, postgres, preserve, project, redis, service, volume } from 'railway/iac';
 
 // Whole Railway project as code. `railway config plan` previews the diff
 // against the live environment, `railway config apply` (or the GitHub Action
 // in .github/workflows/railway.yml) applies it. Every service builds from the
-// root Dockerfile; they differ only in start command. See docs/deploy-railway.md.
+// root Dockerfile; they differ only in start command - except `ssr`, a plain
+// Node service built from Dockerfile.ssr. See docs/deploy-railway.md.
 export default defineRailway((ctx) => {
     const db = postgres('postgres');
     const cache = redis('redis');
@@ -81,6 +82,23 @@ export default defineRailway((ctx) => {
         VITE_REVERB_SCHEME: 'https',
     };
 
+    // Server-side renderer for the public pages (marketing, legal), so search
+    // engines get real HTML. Private only: no public domain, ever - its
+    // /shutdown endpoint is unauthenticated. `web` reaches it over Railway's
+    // private network (INERTIA_SSR_HOST below); if it is down, `web` just serves
+    // those pages client-rendered, so a failed deploy here never takes the site down.
+    const ssr = service('ssr', {
+        source,
+        build: { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile.ssr' },
+        healthcheck: '/health',
+        healthcheckTimeout: 60,
+        env: {
+            PORT: '13714',
+            // Build-time: the <title> suffix, kept the same as `web`'s.
+            VITE_APP_NAME: 'Fab Shop',
+        },
+    });
+
     const web = service('web', {
         source,
         build,
@@ -88,7 +106,16 @@ export default defineRailway((ctx) => {
         preDeploy: ["sh -c 'php artisan migrate --force && php artisan db:seed --class=PlanSeeder --force'"],
         healthcheck: '/up',
         healthcheckTimeout: 120,
-        env: { ...shared, ...reverbEnv, PORT: '8080', PHP_OPCACHE_ENABLE: '1', VITE_APP_NAME: 'Fab Shop' },
+        env: {
+            ...shared,
+            ...reverbEnv,
+            PORT: '8080',
+            PHP_OPCACHE_ENABLE: '1',
+            VITE_APP_NAME: 'Fab Shop',
+            // Host/port split like REVERB_INTERNAL_*: config/inertia.php builds the URL.
+            INERTIA_SSR_HOST: ssr.env.RAILWAY_PRIVATE_DOMAIN,
+            INERTIA_SSR_PORT: '13714',
+        },
     });
 
     const horizon = service('horizon', {
@@ -105,5 +132,65 @@ export default defineRailway((ctx) => {
         env: { ...shared, ...reverbEnv },
     });
 
-    return project('fab-shop', { resources: [db, cache, storage, web, horizon, scheduler, reverb] });
+    // Quackback (user feedback board, https://quackback-production-59a0.up.railway.app) shares this
+    // project but not the app: its own Postgres (pgvector - not the app's `postgres` above), Dragonfly
+    // (Redis-compatible) and bucket. Declared here only so `railway config apply` doesn't delete them as
+    // undeclared; their secrets and wiring (DATABASE_URL, S3_*, SECRET_KEY...) are set in the dashboard
+    // and kept with preserve(). Captured from the live project with `railway config pull`.
+    const quackbackDb = service('Postgres', {
+        source: image('pgvector/pgvector:pg18'),
+        replicas: { sfo: 1 },
+        networking: { privateNetworkEndpoint: 'postgres-14666529' },
+        volumeMounts: {
+            '/var/lib/postgresql/data': volume('postgres-volume-JIjG', {
+                alerts: { usage: { '80': {}, '95': {}, '100': {} } },
+                allowOnlineResize: true,
+                region: 'sfo',
+                sizeMB: 5000,
+            }),
+        },
+        env: { PGDATA: preserve(), POSTGRES_DB: preserve(), POSTGRES_PASSWORD: preserve(), POSTGRES_USER: preserve() },
+    });
+
+    const quackbackCache = service('Dragonfly', {
+        source: image('ghcr.io/dragonflydb/dragonfly:v1.37.0'),
+        start: 'dragonfly --cluster_mode=emulated --lock_on_hashtags',
+        replicas: { sfo: 1 },
+        networking: { privateNetworkEndpoint: 'dragonfly' },
+    });
+
+    const quackbackStorage = bucket('Bucket', { region: 'sjc' });
+
+    const quackbackApp = service('Quackback', {
+        source: image('ghcr.io/quackbackio/quackback:latest', {
+            // Patch releases only, weekends only.
+            autoUpdates: {
+                schedule: [
+                    { day: 0, endHour: 24, startHour: 0 },
+                    { day: 6, endHour: 24, startHour: 0 },
+                ],
+                type: 'patch',
+            },
+        }),
+        replicas: { sfo: 1 },
+        networking: { privateNetworkEndpoint: 'quackback' },
+        env: {
+            BASE_URL: preserve(),
+            DATABASE_URL: preserve(),
+            NODE_ENV: preserve(),
+            PORT: preserve(),
+            REDIS_URL: preserve(),
+            S3_ACCESS_KEY_ID: preserve(),
+            S3_BUCKET: preserve(),
+            S3_ENDPOINT: preserve(),
+            S3_FORCE_PATH_STYLE: preserve(),
+            S3_REGION: preserve(),
+            S3_SECRET_ACCESS_KEY: preserve(),
+            SECRET_KEY: preserve(),
+        },
+    });
+
+    const quackback = group('Quackback', [quackbackApp, quackbackDb, quackbackCache, quackbackStorage]);
+
+    return project('fab-shop', { resources: [db, cache, storage, web, horizon, scheduler, reverb, ssr, quackback] });
 });
