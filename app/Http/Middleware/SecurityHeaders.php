@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Quackback;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
@@ -78,6 +79,17 @@ class SecurityHeaders
             $connect[] = ($reverb['scheme'] === 'http' ? 'ws' : 'wss').'://'.$reverb['host'].(filled($reverb['port']) ? ':'.$reverb['port'] : '');
         }
 
+        // The feedback widget loads its script, talks to its API and shows its
+        // panel in a frame, all from the one instance origin.
+        $widget = Quackback::url();
+        $frames = [...$self, 'blob:'];
+
+        if ($widget !== null) {
+            array_push($scripts, $widget);
+            array_push($connect, $widget);
+            array_push($frames, $widget);
+        }
+
         $directives = [
             'default-src' => $self,
             'script-src' => $scripts,
@@ -85,10 +97,10 @@ class SecurityHeaders
             // Photos and logos come from this site or, on S3, from signed
             // https URLs; data:/blob: cover inline previews before upload.
             'img-src' => [...$self, 'data:', 'blob:', 'https:'],
-            'font-src' => [...$self, 'data:', 'https://fonts.bunny.net'],
+            'font-src' => [...$self, 'data:', 'https://fonts.bunny.net', ...($widget !== null ? [$widget] : [])],
             'connect-src' => $connect,
             'media-src' => [...$self, 'blob:', 'https:'],
-            'frame-src' => [...$self, 'blob:'],
+            'frame-src' => $frames,
             'object-src' => $self,
             'worker-src' => [...$self, 'blob:'],
             'manifest-src' => $self,

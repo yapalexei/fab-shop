@@ -33,6 +33,7 @@ VITE_REVERB_APP_KEY=<same as REVERB_APP_KEY>         # web, horizon, scheduler (
 RESEND_API_KEY                # web + horizon (mail is sent from queued jobs too)
 MAIL_FROM_ADDRESS             # must be on a domain verified in Resend
 LEGAL_*                       # see .env.example
+QUACKBACK_URL / QUACKBACK_SIGNING_SECRET   # web only; feedback widget (docs/context/feedback-widget.md). Secret is server-only; leave both unset to run without the widget
 ```
 
 QuickBooks variables stay unset - the feature is switched off.

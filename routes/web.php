@@ -33,6 +33,7 @@ use App\Http\Controllers\PlatformAdminController;
 use App\Http\Controllers\PlatformSecurityController;
 use App\Http\Controllers\ProcedureController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\QuackbackTokenController;
 use App\Http\Controllers\QuickBooksConnectionController;
 use App\Http\Controllers\QuoteAiDraftController;
 use App\Http\Controllers\QuoteAttachmentController;
@@ -98,6 +99,12 @@ Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verif
 Route::get('/shop-suspended', [ShopSuspendedController::class, 'show'])
     ->middleware(['auth', 'verified'])
     ->name('shop.suspended');
+
+// The feedback widget asks this who is signed in. 401 for a guest, so no 'auth'.
+Route::get('/quackback/token', QuackbackTokenController::class)
+    ->middleware('throttle:30,1')
+    ->name('quackback.token')
+    ->noindex();
 
 // Internal-only, cross-tenant - see PlatformAdminController's class doc.
 // Deliberately outside 'active'/'onboarded': platform staff aren't acting

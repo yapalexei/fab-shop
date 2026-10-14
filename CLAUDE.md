@@ -62,6 +62,7 @@ Read the file when your task touches the area. "Read when" is the trigger.
 | [plans-and-pricing](docs/context/plans-and-pricing.md) | Plan tiers, prices, seats and extra seats, trial length, what each tier includes; **editing/adding/retiring tiers, tier versions & history, expiry dates, anything that looks a plan up by key or lists plans** |
 | [platform-admin](docs/context/platform-admin.md) | F10: internal cross-tenant console, suspending shops, plan overrides, potential revenue |
 | [legal-and-consent](docs/context/legal-and-consent.md) | Terms/privacy/SMS pages, consent records, checkbox wording and versions |
+| [feedback-widget](docs/context/feedback-widget.md) | The Quackback feedback launcher, `QUACKBACK_*` env vars, the SSO token endpoint, the CSP additions for it |
 | [seo](docs/context/seo.md) | `robots.txt`, `sitemap.xml`, adding a public page, `->sitemap()` / `->noindex()` |
 | [frontend](docs/context/frontend.md) | shadcn/Tailwind v4 theming, UI components, Prettier policy |
 | [ai-assistant](docs/context/ai-assistant.md) | BYOK AI settings, `AiManager`, quote intake, follow-up drafts, supplier-page intake, `ai_requests` |

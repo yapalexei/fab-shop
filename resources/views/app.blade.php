@@ -18,6 +18,25 @@
             })();
         </script>
 
+        {{-- Feedback widget: the launcher for every visitor, signed in or not.
+        Who is signed in is handled by resources/js/lib/quackback.ts. Only
+        rendered when QUACKBACK_URL is set; the CSP is extended to match. --}}
+        @if ($quackbackUrl = \App\Support\Quackback::url())
+            <script nonce="{{ Vite::cspNonce() }}">
+                (function (w, d) {
+                    if (w.Quackback) return;
+                    w.Quackback = function () {
+                        (w.Quackback.q = w.Quackback.q || []).push(arguments);
+                    };
+                    var s = d.createElement('script');
+                    s.async = true;
+                    s.src = {{ Illuminate\Support\Js::from($quackbackUrl.'/api/widget/sdk.js') }};
+                    d.head.appendChild(s);
+                })(window, document);
+                Quackback('init');
+            </script>
+        @endif
+
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
         <!-- Favicons -->

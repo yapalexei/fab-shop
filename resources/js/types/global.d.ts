@@ -10,6 +10,8 @@ declare global {
         axios: AxiosInstance;
         Pusher: typeof Pusher;
         Echo: Echo<'reverb'>;
+        /** Feedback widget stub; only defined when QUACKBACK_URL is set. */
+        Quackback?: (...args: unknown[]) => void;
     }
 
     /* eslint-disable no-var */

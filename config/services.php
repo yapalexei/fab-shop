@@ -45,4 +45,12 @@ return [
         'environment' => env('QUICKBOOKS_ENVIRONMENT', 'sandbox'),
     ],
 
+    // Feedback widget (Quackback). The URL turns the launcher on for every
+    // visitor; the signing secret is server-only and signs the ssoToken that
+    // identifies signed-in users - it must never reach the browser.
+    'quackback' => [
+        'url' => env('QUACKBACK_URL'),
+        'signing_secret' => env('QUACKBACK_SIGNING_SECRET'),
+    ],
+
 ];

@@ -88,7 +88,17 @@ export default defineRailway((ctx) => {
         preDeploy: ["sh -c 'php artisan migrate --force && php artisan db:seed --class=PlanSeeder --force'"],
         healthcheck: '/up',
         healthcheckTimeout: 120,
-        env: { ...shared, ...reverbEnv, PORT: '8080', PHP_OPCACHE_ENABLE: '1', VITE_APP_NAME: 'Fab Shop' },
+        env: {
+            ...shared,
+            ...reverbEnv,
+            PORT: '8080',
+            PHP_OPCACHE_ENABLE: '1',
+            VITE_APP_NAME: 'Fab Shop',
+            // Feedback widget: web only (the launcher and the token endpoint
+            // are web requests). Set by hand; the secret is server-only.
+            QUACKBACK_URL: preserve(),
+            QUACKBACK_SIGNING_SECRET: preserve(),
+        },
     });
 
     const horizon = service('horizon', {
