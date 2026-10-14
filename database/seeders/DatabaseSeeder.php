@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
         $shop = Shop::create([
             'name' => "Test User's Shop",
             'owner_id' => $user->id,
-            'plan_id' => Plan::where('key', 'free')->value('id'),
+            'plan_id' => Plan::current()->where('key', 'free')->value('id'),
             'trial_ends_at' => now()->addMinutes(5),
             'onboarded_at' => now(),
         ]);

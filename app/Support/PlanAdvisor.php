@@ -55,17 +55,19 @@ class PlanAdvisor
         $addonCost = fn (Collection $features): int => $features->sum(fn (Feature $f) => $prices[$f->value]);
 
         $tiers = Plan::orderedByTier();
-        $currentIndex = $tiers->search(fn (Plan $plan) => $plan->id === $shop->plan_id);
-        $currentPlan = $currentIndex === false ? null : $tiers[$currentIndex];
+        // The plan the shop is actually on - maybe an older version of a tier
+        // (or one since removed from the list), priced as it signed up.
+        $currentPlan = $shop->plan;
+        $currentRank = $currentPlan?->rank();
         $separateCents = ($currentPlan?->monthly_price_cents ?? 0) + $addonCost($addons);
         $memberCount = $shop->members()->count();
 
         $candidates = $tiers
-            ->filter(fn (Plan $plan, int $index) => $currentIndex === false || $index > $currentIndex)
+            ->filter(fn (Plan $plan) => $currentRank === null || $plan->position > $currentRank)
             ->filter(fn (Plan $plan) => $shop->seat_limit_override !== null
                 || $plan->user_limit === null
                 || $plan->user_limit >= $memberCount)
-            ->map(function (Plan $plan) use ($addons, $mustCover, $addonCost, $currentPlan) {
+            ->map(function (Plan $plan) use ($addons, $mustCover, $addonCost, $shop) {
                 $bundled = $plan->features();
                 $covered = $addons->filter(fn (Feature $f) => $bundled->contains($f));
 
@@ -75,7 +77,7 @@ class PlanAdvisor
 
                 $leftover = $addons->reject(fn (Feature $f) => $bundled->contains($f));
                 // What the plan adds beyond what the shop would have had anyway.
-                $currentFeatures = ($currentPlan?->features() ?? collect())->merge($addons)->unique();
+                $currentFeatures = $shop->planFeatures()->merge($addons)->unique();
                 $extras = $bundled
                     ->filter(fn (Feature $f) => $f->isShipped() && ! $currentFeatures->contains($f))
                     ->values();
@@ -124,7 +126,7 @@ class PlanAdvisor
             ->active()
             ->pluck('feature')
             ->map(fn (string $feature) => Feature::from($feature))
-            ->reject(fn (Feature $f) => $shop->plan?->hasFeature($f) ?? false)
+            ->reject(fn (Feature $f) => $shop->hasPlanFeature($f))
             ->values();
     }
 

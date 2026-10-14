@@ -388,8 +388,8 @@ function Column({
         ? ''
         : isValidTarget
           ? isOver
-              ? 'bg-indigo-100 ring-2 ring-indigo-500'
-              : 'bg-indigo-50 ring-2 ring-indigo-200'
+              ? 'bg-indigo-100 dark:bg-indigo-900 ring-2 ring-indigo-500'
+              : 'bg-indigo-50 dark:bg-indigo-800 ring-2 ring-indigo-200'
           : isSource
             ? ''
             : ' opacity-50';
@@ -807,7 +807,7 @@ export default function Index({
                     {jobs.length === 0 && (
                         // The empty board stays visible behind a message, so
                         // a new shop sees the shape of what it will fill.
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100/70 p-4">
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100/70 p-4 dark:bg-gray-800/70">
                             <div className="max-w-md rounded-lg bg-white p-6 text-center shadow-lg">
                                 <p className="text-sm font-medium text-gray-900">
                                     No jobs yet. This is the job board - every

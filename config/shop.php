@@ -54,4 +54,21 @@ return [
     // How long a finished data export stays downloadable before it is removed.
     'export_retention_days' => (int) env('SHOP_EXPORT_RETENTION_DAYS', 7),
 
+    // Days of notice proposed when a price increase is applied to existing
+    // subscribers, and promised in the Terms of Service (section 4, "Price
+    // changes"). Change the Terms wording version if you change what it says.
+    'price_increase_notice_days' => (int) env('SHOP_PRICE_INCREASE_NOTICE_DAYS', 15),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Discontinued features
+    |--------------------------------------------------------------------------
+    |
+    | Feature values (e.g. 'ai-assist') we can no longer support, gone from
+    | every plan and add-on. Rare, and a decision made here in code: add the
+    | value and deploy. See Feature::isDiscontinued().
+    |
+    */
+    'discontinued_features' => [],
+
 ];

@@ -11,9 +11,15 @@ interface Props {
     };
     appName: string;
     effectiveDate: string;
+    priceNoticeDays: number;
 }
 
-export default function Terms({ company, appName, effectiveDate }: Props) {
+export default function Terms({
+    company,
+    appName,
+    effectiveDate,
+    priceNoticeDays,
+}: Props) {
     const link = 'font-medium text-indigo-600 underline hover:underline';
 
     return (
@@ -108,10 +114,62 @@ export default function Terms({ company, appName, effectiveDate }: Props) {
                         features.
                     </li>
                     <li>
-                        <strong>Changes and taxes.</strong> We may change prices
-                        or plan contents with at least 30 days' notice; changes
-                        apply from your next renewal. Fees exclude taxes, which
-                        you are responsible for unless we state otherwise.
+                        <strong>Price changes.</strong> We may change the price
+                        of a plan, add-on or extra seat. The notice you get
+                        depends on which way the price moves:
+                        <List>
+                            <li>
+                                <em>Decreases</em> apply to your subscription
+                                straight away, from the day we make the change.
+                                You don't need to do anything. We don't adjust
+                                amounts you have already paid; your next payment
+                                is at the lower price.
+                            </li>
+                            <li>
+                                <em>Increases</em> that apply to your existing
+                                subscription take effect only on an effective
+                                date that we tell you about in advance. We give
+                                the shop owner at least {priceNoticeDays} days'
+                                notice, by email to the address on the account
+                                and in the app, stating the old price, the new
+                                price and the effective date. The new price
+                                applies to your first payment on or after the
+                                effective date; it does not change anything you
+                                have already paid for a billing period that
+                                began earlier.
+                            </li>
+                            <li>
+                                If you do not want to continue at an increased
+                                price, you may cancel before the effective date
+                                and you will not be charged the increase; you
+                                keep access until the end of the period you have
+                                paid for. If you do not cancel, you agree to the
+                                new price from the effective date.
+                            </li>
+                            <li>
+                                We may choose not to apply an increase to
+                                existing subscriptions, in which case you keep
+                                the price you signed up for, even though new
+                                customers pay the new price. That is our choice
+                                each time and does not oblige us to do it again.
+                            </li>
+                        </List>
+                    </li>
+                    <li>
+                        <strong>Plan contents and discontinued features.</strong>{' '}
+                        We may add features to a plan at any time, and when we
+                        do, they are included in your subscription at no extra
+                        charge. We will not remove a feature from your
+                        subscription as part of a price or plan change. If we can
+                        no longer support a feature at all, we may discontinue
+                        it for every customer: we will tell you by email, stop
+                        charging for it (including any add-on fee for it), and
+                        you will not be billed for something that is no longer
+                        provided.
+                    </li>
+                    <li>
+                        <strong>Taxes.</strong> Fees exclude taxes, which you
+                        are responsible for unless we state otherwise.
                     </li>
                     <li>
                         <strong>Non-payment.</strong> If a payment fails we may
@@ -289,8 +347,10 @@ export default function Terms({ company, appName, effectiveDate }: Props) {
 
             <Section title="12. Records of your agreement">
                 <p>
-                    When you accept these Terms, the Privacy Policy, or a
-                    request to receive text messages, we keep a record of what
+                    When you accept these Terms (including when you create an
+                    account, accept an invitation, or subscribe to or change a
+                    plan, add-on or seats), the Privacy Policy, or a request to
+                    receive text messages, we keep a record of what
                     you agreed to: the document and its version, the wording you
                     saw, the time, your account, and technical details such as
                     your IP address and browser. We keep these records for as

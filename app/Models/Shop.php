@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\BillingInterval;
 use App\Enums\Feature;
+use App\Notifications\PlanUpdated;
 use App\Support\JobStages;
 use App\Support\MaterialTypes;
 use Carbon\CarbonImmutable;
@@ -27,8 +28,26 @@ class Shop extends Model
     // No longer read directly for gating math - see trialBaselineDays().
     public const TRIAL_DAYS = 14;
 
+    /**
+     * Set only by moveToPlan(): a plan change that is carrying the shop's
+     * entitlements over rather than replacing them.
+     */
+    private bool $carryingOverPlan = false;
+
     protected static function booted(): void
     {
+        // Choosing a different plan (the shop itself, or a platform admin)
+        // starts from that plan: a scheduled price move and any features
+        // carried over from a previous version of the old plan no longer apply.
+        static::saving(function (Shop $shop) {
+            if ($shop->exists && $shop->isDirty('plan_id') && ! $shop->carryingOverPlan) {
+                $shop->pending_plan_id = null;
+                $shop->pending_plan_effective_at = null;
+                $shop->extra_features = null;
+                $shop->plan_notice = null;
+            }
+        });
+
         // Every shop starts with the built-in material types and job board
         // pipeline - at signup, in demo data and in test factories alike.
         static::created(function (Shop $shop) {
@@ -50,6 +69,10 @@ class Shop extends Model
             'trial_ends_at' => 'datetime',
             'trial_ended_notified_at' => 'datetime',
             'subscription_renews_at' => 'datetime',
+            'pending_plan_effective_at' => 'datetime',
+            'extra_features' => 'array',
+            'plan_notice' => 'array',
+            'notified_discontinued_features' => 'array',
             'billing_interval' => BillingInterval::class,
             'onboarded_at' => 'datetime',
             'suspended_at' => 'datetime',
@@ -103,6 +126,106 @@ class Shop extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    /** The plan the shop moves to when its current paid period ends, if a price drop is scheduled. */
+    public function pendingPlan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'pending_plan_id');
+    }
+
+    /**
+     * Features the shop holds on top of its plan row (see the migration that
+     * added `extra_features`).
+     *
+     * @return Collection<int, Feature>
+     */
+    public function extraFeatures(): Collection
+    {
+        return collect($this->extra_features ?? [])
+            ->map(fn (string $feature) => Feature::tryFrom($feature))
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * Everything the plan gives this shop: its plan row's features plus the
+     * ones it keeps or was given beyond that row.
+     *
+     * @return Collection<int, Feature>
+     */
+    public function planFeatures(): Collection
+    {
+        return ($this->plan?->features() ?? collect())
+            ->merge($this->extraFeatures())
+            ->reject(fn (Feature $feature) => $feature->isDiscontinued())
+            ->unique()
+            ->values();
+    }
+
+    public function hasPlanFeature(Feature $feature): bool
+    {
+        return ! $feature->isDiscontinued()
+            && (($this->plan?->hasFeature($feature) ?? false) || $this->extraFeatures()->contains($feature));
+    }
+
+    /**
+     * Record a change to what the shop's plan gives it and tell its owner:
+     * what was added, what was retired for good, a lower price and any seat
+     * change. The summary is kept (merged with an earlier one the owner hasn't
+     * dismissed) for the Plan page; the email carries only this change.
+     *
+     * @param  array{plan_name: string, added?: list<string>, retired?: list<string>, price?: array{from_cents: int, to_cents: int, effective_at: string}|null, seats?: array{from: int|null, to: int|null}|null}  $changes
+     */
+    public function announcePlanChange(array $changes): void
+    {
+        $changes += ['added' => [], 'retired' => [], 'price' => null, 'seats' => null];
+        $previous = $this->plan_notice ?? [];
+
+        $retired = array_values(array_unique([...($previous['retired'] ?? []), ...$changes['retired']]));
+        $added = array_values(array_diff(array_unique([...($previous['added'] ?? []), ...$changes['added']]), $retired));
+
+        $this->forceFill(['plan_notice' => [
+            'at' => now()->toIso8601String(),
+            'plan_name' => $changes['plan_name'],
+            'added' => $added,
+            'retired' => $retired,
+            'price' => $changes['price'] ?? ($previous['price'] ?? null),
+            'seats' => $changes['seats'] ?? ($previous['seats'] ?? null),
+        ]])->save();
+
+        $this->owner?->notify(new PlanUpdated($this, $changes));
+    }
+
+    /**
+     * Move the shop onto $plan (a lower price for the same tier), keeping
+     * every feature it has today: whatever $plan doesn't include is carried
+     * over as extra features, and anything $plan adds comes with it. Clears a
+     * scheduled move, and cancels add-ons the plan now bundles.
+     */
+    public function moveToPlan(Plan $plan): void
+    {
+        $carried = $this->planFeatures()
+            ->reject(fn (Feature $feature) => $plan->hasFeature($feature))
+            ->map(fn (Feature $feature) => $feature->value)
+            ->values()
+            ->all();
+
+        $this->carryingOverPlan = true;
+
+        try {
+            $this->forceFill([
+                'plan_id' => $plan->id,
+                'pending_plan_id' => null,
+                'pending_plan_effective_at' => null,
+                'extra_features' => $carried === [] ? null : $carried,
+            ])->save();
+        } finally {
+            $this->carryingOverPlan = false;
+        }
+
+        $this->unsetRelation('plan');
+        $this->cancelSubscriptionsBundledInPlan();
     }
 
     public function quickBooksConnection(): HasOne
@@ -378,8 +501,12 @@ class Shop extends Model
      */
     public function hasFeature(Feature $feature): bool
     {
+        if ($feature->isDiscontinued()) {
+            return false;
+        }
+
         return $this->onTrialFor($feature)
-            || ($this->plan?->hasFeature($feature) ?? false)
+            || $this->hasPlanFeature($feature)
             || $this->hasActiveFeatureSubscription($feature);
     }
 
@@ -419,10 +546,9 @@ class Shop extends Model
      */
     public function canUpgrade(): bool
     {
-        $tiers = Plan::orderedByTier();
-        $current = $tiers->search(fn (Plan $plan) => $plan->id === $this->plan_id);
+        $rank = $this->plan?->rank();
 
-        return $tiers->isNotEmpty() && ($current === false || $current < $tiers->count() - 1);
+        return Plan::orderedByTier()->contains(fn (Plan $plan) => $rank === null || $plan->position > $rank);
     }
 
     /**
@@ -456,7 +582,7 @@ class Shop extends Model
                 return $this->trial_ends_at->copy()->addDays($offsetDays)->isFuture();
             });
 
-        $bundled = $this->plan?->features() ?? collect();
+        $bundled = $this->planFeatures();
 
         $addons = $this->featureSubscriptions()
             ->withoutGlobalScopes()
@@ -464,7 +590,9 @@ class Shop extends Model
             ->pluck('feature')
             ->map(fn (string $feature) => Feature::from($feature));
 
-        return $trialFeatures->merge($bundled)->merge($addons)->unique();
+        return $trialFeatures->merge($bundled)->merge($addons)
+            ->reject(fn (Feature $feature) => $feature->isDiscontinued())
+            ->unique();
     }
 
     /**
@@ -486,7 +614,7 @@ class Shop extends Model
             return 0;
         }
 
-        $bundledFeatureValues = $plan->features()->map(fn (Feature $feature) => $feature->value);
+        $bundledFeatureValues = $plan->features()->merge($this->extraFeatures())->unique()->map(fn (Feature $feature) => $feature->value)->values();
 
         if ($bundledFeatureValues->isEmpty()) {
             return 0;

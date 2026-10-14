@@ -42,6 +42,7 @@ class OnboardingController extends Controller
                     'key' => $plan->key,
                     'name' => $plan->name,
                     'user_limit' => $plan->user_limit,
+                    'available_until' => $plan->show_expiry ? $plan->expires_on?->toDateString() : null,
                 ]),
                 'timezones' => \DateTimeZone::listIdentifiers(),
             ]);
@@ -75,12 +76,12 @@ class OnboardingController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'timezone' => ['nullable', 'timezone:all'],
-            'plan' => ['required', Rule::in(Plan::pluck('key'))],
+            'plan' => ['required', Rule::in(Plan::query()->offered()->pluck('key'))],
         ]);
 
         $user = Auth::user();
         $shop = $user->currentShop;
-        $planId = Plan::where('key', $validated['plan'])->value('id');
+        $planId = Plan::offeredByKey($validated['plan'])->id;
         $timezone = $validated['timezone'] ?? null;
 
         if ($shop && ! $shop->isOnboarded()) {

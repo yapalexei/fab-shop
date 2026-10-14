@@ -55,6 +55,57 @@ final class Consent
     }
 
     /**
+     * Whether $user has agreed to the Terms of Service *as they read now*:
+     * their most recent Terms consent is a grant recorded against the current
+     * version. A person who agreed to an earlier version (or, before records
+     * existed, to none) is asked again the next time they subscribe.
+     */
+    public static function hasAcceptedCurrentTerms(User $user): bool
+    {
+        $latest = ConsentRecord::query()
+            ->where('user_id', $user->id)
+            ->where('type', ConsentType::TermsOfService)
+            ->latest('id')
+            ->first();
+
+        return $latest !== null
+            && $latest->granted
+            && $latest->document_version === self::version(ConsentType::TermsOfService);
+    }
+
+    /**
+     * Before anything that commits a shop to paying (a plan, an add-on, extra
+     * seats): the person must have agreed to the current Terms. If they
+     * haven't, the request has to carry the ticked `accepted_terms` box - the
+     * same wording as at registration - and it is recorded on the spot. If
+     * they have, nothing more is asked. Throws a validation error otherwise.
+     */
+    public static function requireAgreementToSubscribe(Request $request, User $user, ?Shop $shop = null): void
+    {
+        if (self::hasAcceptedCurrentTerms($user)) {
+            return;
+        }
+
+        $request->validate(
+            ['accepted_terms' => ['accepted']],
+            ['accepted_terms.accepted' => 'You need to agree to the Terms of Service and Privacy Policy before you subscribe.'],
+        );
+
+        self::recordAgreement($user, 'subscription', $request, $shop);
+    }
+
+    /**
+     * What the confirmation dialogs need: whether to ask, and the exact
+     * wording to show beside the box.
+     *
+     * @return array{accepted: bool, text: string}
+     */
+    public static function subscriptionTerms(User $user): array
+    {
+        return ['accepted' => self::hasAcceptedCurrentTerms($user), 'text' => self::AGREEMENT];
+    }
+
+    /**
      * SMS opt-in (or opt-out, with $granted false) for a mobile number. Not
      * wired to any screen yet - call it from whichever form collects the
      * number, passing the exact text that form displayed.

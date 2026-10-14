@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Billing;
+use App\Support\Consent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -44,6 +45,11 @@ class ShopSeatController extends Controller
 
         if ($extra < $needed) {
             throw ValidationException::withMessages(['extra_seats' => "Your team has {$shop->seatsUsed()} people, so you need at least {$needed} extra seat".($needed === 1 ? '' : 's').'.']);
+        }
+
+        // Buying seats commits the shop to paying for them; giving some back doesn't.
+        if ($extra > $shop->extra_seats) {
+            Consent::requireAgreementToSubscribe($request, Auth::user(), $shop);
         }
 
         $shop->update(['extra_seats' => $extra]);

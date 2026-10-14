@@ -15,7 +15,7 @@ test('the sitemap lists the public pages with a lastmod for the legal documents'
 
     expect($xml)
         ->toContain('<loc>'.url('/').'</loc>')
-        ->toContain('<loc>'.url('/terms').'</loc><lastmod>2026-10-01</lastmod>')
+        ->toContain('<loc>'.url('/terms').'</loc><lastmod>'.config('legal.versions.terms').'</lastmod>')
         ->toContain('<loc>'.url('/privacy').'</loc><lastmod>'.config('legal.versions.privacy').'</lastmod>')
         ->toContain('<loc>'.url('/sms-terms').'</loc>')
         // Private and token URLs never appear.

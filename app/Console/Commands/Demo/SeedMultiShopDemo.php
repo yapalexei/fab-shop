@@ -92,7 +92,7 @@ class SeedMultiShopDemo extends DemoSeedCommand
         $shop = Shop::create([
             'name' => $shopName,
             'owner_id' => $owner->id,
-            'plan_id' => Plan::where('key', 'start-up')->value('id'),
+            'plan_id' => Plan::current()->where('key', 'start-up')->value('id'),
             'trial_ends_at' => null,
             'onboarded_at' => now(),
             'timezone' => $timezone,

@@ -64,9 +64,12 @@ class PlanSeeder extends Seeder
         ];
 
         foreach ($plans as $key => $attributes) {
+            // Only ever touches the *current* version of a tier: archived
+            // versions are history (and may still have shops on them).
             $plan = Plan::updateOrCreate(
-                ['key' => $key],
+                ['key' => $key, 'superseded_at' => null],
                 [
+                    'position' => array_search($key, Plan::DEFAULT_ORDER, true),
                     'name' => $attributes['name'],
                     'user_limit' => $attributes['user_limit'],
                     'monthly_price_cents' => $attributes['monthly_price_cents'],

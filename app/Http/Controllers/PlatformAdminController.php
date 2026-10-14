@@ -61,10 +61,7 @@ class PlatformAdminController extends Controller
         return Inertia::render('PlatformAdmin/Index', [
             'shops' => $shops,
             'filters' => $request->only(['search', 'status', 'plan_id', 'trial_within_days', 'subscription']),
-            'plans' => Plan::orderedByTier()->map(fn (Plan $plan) => [
-                'id' => $plan->id,
-                'name' => $plan->name,
-            ]),
+            'plans' => $this->planOptions(),
             // Platform-wide, deliberately independent of the search/filter/
             // pagination above - a filtered view narrowing the table to 3
             // shops shouldn't make the revenue cards look like the platform
@@ -96,6 +93,30 @@ class PlatformAdminController extends Controller
             'target_shop_id' => $shop->id,
             'target_shop' => $shop->name,
         ]);
+    }
+
+    /**
+     * Every plan an admin can filter by or move a shop onto: what's on offer,
+     * plus any older or removed version a shop is still on (labelled, so a
+     * grandfathered shop's plan shows up correctly instead of as blank).
+     *
+     * @return Collection<int, array{id: int, name: string}>
+     */
+    private function planOptions(): Collection
+    {
+        return Plan::query()
+            ->offered()
+            ->orWhereHas('shops')
+            ->orderBy('position')->orderBy('key')->orderByDesc('version')
+            ->get()
+            ->map(fn (Plan $plan) => [
+                'id' => $plan->id,
+                'name' => match (true) {
+                    $plan->isOffered() => $plan->name,
+                    $plan->isCurrent() => "{$plan->name} (removed from public list)",
+                    default => "{$plan->name} (v{$plan->version}, archived)",
+                },
+            ]);
     }
 
     private function filtered(Request $request): Builder

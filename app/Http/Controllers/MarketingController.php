@@ -6,6 +6,7 @@ use App\Enums\Feature;
 use App\Models\FeatureSetting;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Support\Billing;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -35,6 +36,7 @@ class MarketingController extends Controller
                 'shipped' => $feature->isShipped(),
             ]),
             'trialDays' => PlatformSetting::defaultTrialDays(),
+            'annualMonthsCharged' => Billing::annualMonthsCharged(),
             'tiers' => Plan::orderedByTier()->map(fn (Plan $plan) => $this->tier($plan, $prices, $features)),
         ]);
     }
@@ -63,7 +65,7 @@ class MarketingController extends Controller
         // access during its 14-day trial comes from Shop::onTrial(), not
         // from being on this plan (see PlanSeeder's own note). Marketed as
         // "everything, for 14 days" rather than a checklist of zero.
-        $isTrialOnly = $plan->key === 'free';
+        $isTrialOnly = $plan->key === Plan::FALLBACK_KEY;
         $granted = $isTrialOnly ? collect() : $plan->features();
 
         // What the bundled features would cost bought individually as
@@ -83,6 +85,9 @@ class MarketingController extends Controller
             'monthlyPriceCents' => $plan->monthly_price_cents,
             'extraSeatPriceCents' => $plan->extra_seat_price_cents,
             'savingsCents' => $savingsCents,
+            // Only when the admin chose to advertise it; otherwise the date
+            // just quietly takes the tier off this page.
+            'availableUntil' => $plan->show_expiry ? $plan->expires_on?->toDateString() : null,
             'features' => $features->map(fn (Feature $feature) => [
                 'key' => $feature->value,
                 'included' => $granted->contains($feature),
