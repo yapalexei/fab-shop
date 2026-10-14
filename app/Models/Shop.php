@@ -419,10 +419,9 @@ class Shop extends Model
      */
     public function canUpgrade(): bool
     {
-        $tiers = Plan::orderedByTier();
-        $current = $tiers->search(fn (Plan $plan) => $plan->id === $this->plan_id);
+        $rank = $this->plan?->rank();
 
-        return $tiers->isNotEmpty() && ($current === false || $current < $tiers->count() - 1);
+        return Plan::orderedByTier()->contains(fn (Plan $plan) => $rank === null || $plan->position > $rank);
     }
 
     /**

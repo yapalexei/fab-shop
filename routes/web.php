@@ -119,7 +119,9 @@ Route::middleware(['auth', 'verified', 'can:platform-admin'])->prefix('platform-
     Route::put('/security/two-factor', [PlatformSecurityController::class, 'updatePolicy'])->name('security.two-factor');
     Route::get('/security/log', [PlatformSecurityController::class, 'log'])->name('security.log');
     Route::get('/plans', [PlanSettingController::class, 'index'])->name('plans.index');
-    Route::patch('/plans', [PlanSettingController::class, 'update'])->name('plans.update');
+    Route::post('/plans', [PlanSettingController::class, 'store'])->name('plans.store');
+    Route::patch('/plans/{plan}', [PlanSettingController::class, 'update'])->name('plans.update');
+    Route::post('/plans/{plan}/retire', [PlanSettingController::class, 'retire'])->name('plans.retire');
 });
 
 Route::middleware(['auth', 'verified', 'active', 'onboarded'])->group(function () {

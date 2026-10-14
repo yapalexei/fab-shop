@@ -7,6 +7,7 @@ import ThemeToggle from '@/Components/ThemeToggle';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card } from '@/Components/ui/card';
+import { formatCalendarDay } from '@/lib/datetime';
 import { formatCents } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -46,11 +47,13 @@ interface TierFeature {
 interface Tier {
     key: string;
     name: string;
-    userLimit: number;
+    userLimit: number | null;
     isTrialOnly: boolean;
     monthlyPriceCents: number;
     extraSeatPriceCents: number | null;
     savingsCents: number;
+    /** Set only when an admin chose to advertise when the tier leaves the list. */
+    availableUntil: string | null;
     features: TierFeature[];
 }
 
@@ -185,8 +188,15 @@ function TierCard({
         <Card className="flex h-full flex-col p-6">
             <h3 className="text-lg font-semibold">{tier.name}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-                Up to {tier.userLimit} user{tier.userLimit === 1 ? '' : 's'}
+                {tier.userLimit === null
+                    ? 'Unlimited users'
+                    : `Up to ${tier.userLimit} user${tier.userLimit === 1 ? '' : 's'}`}
             </p>
+            {tier.availableUntil && (
+                <p className="mt-1 text-xs font-medium text-amber-700">
+                    Available until {formatCalendarDay(tier.availableUntil)}
+                </p>
+            )}
 
             {!tier.isTrialOnly && (
                 <div className="mt-3">
@@ -209,7 +219,7 @@ function TierCard({
             )}
 
             {tier.isTrialOnly ? (
-                <p className="mt-4 flex-1 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-50">
+                <p className="mt-4 flex-1 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-900 dark:bg-gray-800 dark:text-indigo-50">
                     Every shipped feature, free for {trialDays} days.
                 </p>
             ) : (

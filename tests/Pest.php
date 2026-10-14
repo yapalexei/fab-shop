@@ -136,7 +136,7 @@ function mcpShop(array $shopOverrides = []): array
 {
     test()->seed(PlanSeeder::class);
     $shop = Shop::factory()->create([
-        'plan_id' => Plan::where('key', 'pro')->value('id'),
+        'plan_id' => Plan::current()->where('key', 'pro')->value('id'),
         'trial_ends_at' => now()->subDay(),
         ...$shopOverrides,
     ]);

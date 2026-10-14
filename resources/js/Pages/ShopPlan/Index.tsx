@@ -8,19 +8,22 @@ import Modal from '@/Components/Modal';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { useShopDateTime } from '@/lib/datetime';
+import { formatCalendarDay, useShopDateTime } from '@/lib/datetime';
 import { formatMoney } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 interface PlanRow {
+    id: number;
     key: string;
     name: string;
     user_limit: number | null;
     monthly_price_cents: number;
     annual_price_cents: number;
     features: string[];
+    /** Set only when an admin chose to advertise when the tier leaves the list. */
+    available_until: string | null;
     upgradeable: boolean;
     quotes: Record<Interval, BillingQuote> | null;
 }
@@ -47,7 +50,8 @@ interface Pending {
 
 export default function Index({
     plans,
-    currentPlanKey,
+    currentPlanId,
+    currentPlan,
     billingInterval,
     renewsAt,
     annualMonthsCharged,
@@ -55,7 +59,9 @@ export default function Index({
     seats,
 }: PageProps<{
     plans: PlanRow[];
-    currentPlanKey: string | null;
+    /** The plan the shop is actually on - maybe an older version or a tier since removed from the list, so it can differ from `plans`. */
+    currentPlanId: number | null;
+    currentPlan: PlanRow | null;
     billingInterval: Interval;
     renewsAt: string | null;
     annualMonthsCharged: number;
@@ -65,7 +71,7 @@ export default function Index({
     const formatDate = useShopDateTime({ dateStyle: 'medium' });
     const [interval, setInterval] = useState<Interval>(billingInterval);
     const [pending, setPending] = useState<Pending | null>(null);
-    const current = plans.find((plan) => plan.key === currentPlanKey);
+    const current = currentPlan;
     const [addSeats, setAddSeats] = useState(1);
     const [seatsPending, setSeatsPending] = useState(false);
     const maxAdd = Object.keys(seats.quotes).length;
@@ -150,12 +156,23 @@ export default function Index({
                         </div>
                     )}
 
+                    {currentPlan &&
+                        !plans.some((plan) => plan.id === currentPlan.id) && (
+                            <div className="border-l-4 border-indigo-400 bg-indigo-50 p-4 text-sm text-indigo-900 shadow-sm sm:rounded-lg dark:bg-indigo-900 dark:text-indigo-50">
+                                You're on <strong>{currentPlan.name}</strong> at{' '}
+                                {formatMoney(currentPlan.monthly_price_cents)}
+                                /mo, which is no longer offered to new
+                                customers. Your price and features stay as they
+                                are until you move to another plan.
+                            </div>
+                        )}
+
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         {plans.map((plan) => (
                             <div
                                 key={plan.key}
                                 className={`flex flex-col bg-white p-6 shadow sm:rounded-lg ${
-                                    plan.key === currentPlanKey
+                                    plan.id === currentPlanId
                                         ? 'ring-2 ring-indigo-500'
                                         : ''
                                 }`}
@@ -172,6 +189,12 @@ export default function Index({
                                         ? 'unlimited users'
                                         : `${plan.user_limit} user${plan.user_limit === 1 ? '' : 's'}`}
                                 </div>
+                                {plan.available_until && (
+                                    <div className="mt-1 text-xs font-medium text-amber-700">
+                                        Available until{' '}
+                                        {formatCalendarDay(plan.available_until)}
+                                    </div>
+                                )}
                                 <ul className="mt-4 flex-1 space-y-1 text-sm text-gray-700">
                                     {plan.features.length === 0 ? (
                                         <li className="text-gray-400">
@@ -184,7 +207,7 @@ export default function Index({
                                     )}
                                 </ul>
                                 <div className="mt-4">
-                                    {plan.key === currentPlanKey ? (
+                                    {plan.id === currentPlanId ? (
                                         <span className="text-sm font-medium text-indigo-700">
                                             Current plan
                                         </span>

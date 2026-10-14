@@ -4,6 +4,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SearchableSelect from '@/Components/SearchableSelect';
 import TextInput from '@/Components/TextInput';
+import { formatCalendarDay } from '@/lib/datetime';
 import OnboardingLayout from '@/Layouts/OnboardingLayout';
 import { PageProps } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
@@ -12,7 +13,8 @@ import { FormEventHandler } from 'react';
 interface PlanOption {
     key: string;
     name: string;
-    user_limit: number;
+    user_limit: number | null;
+    available_until: string | null;
 }
 
 export default function ShopStep({
@@ -104,9 +106,18 @@ export default function ShopStep({
                                         {plan.name}
                                     </span>
                                 </span>
-                                <span className="text-xs text-gray-500">
-                                    Up to {plan.user_limit} user
-                                    {plan.user_limit === 1 ? '' : 's'}
+                                <span className="text-end text-xs text-gray-500">
+                                    {plan.user_limit === null
+                                        ? 'Unlimited users'
+                                        : `Up to ${plan.user_limit} user${plan.user_limit === 1 ? '' : 's'}`}
+                                    {plan.available_until && (
+                                        <span className="block text-amber-700">
+                                            Available until{' '}
+                                            {formatCalendarDay(
+                                                plan.available_until,
+                                            )}
+                                        </span>
+                                    )}
                                 </span>
                             </label>
                         ))}

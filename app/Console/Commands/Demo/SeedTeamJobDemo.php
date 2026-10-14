@@ -97,7 +97,7 @@ class SeedTeamJobDemo extends DemoSeedCommand
         $shop = Shop::create([
             'name' => self::SHOP_NAME,
             'owner_id' => $owner->id,
-            'plan_id' => Plan::where('key', 'pro')->value('id'),
+            'plan_id' => Plan::current()->where('key', 'pro')->value('id'),
             'trial_ends_at' => null,
             'onboarded_at' => now(),
             'timezone' => 'America/Los_Angeles',

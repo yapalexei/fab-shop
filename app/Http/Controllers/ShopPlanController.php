@@ -11,7 +11,6 @@ use App\Support\Billing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -33,38 +32,56 @@ class ShopPlanController extends Controller
     {
         $shop = Auth::user()->currentShop;
         $tiers = Plan::orderedByTier();
-        $currentIndex = $this->currentIndex($shop, $tiers);
-        $current = $currentIndex === false ? null : $tiers[$currentIndex];
+        // What the shop is actually on - which may be an older version of a
+        // tier (or one since removed from the list), with its own price.
+        $current = $shop->plan;
+        $currentRank = $current?->rank();
         $interval = $shop->billingInterval();
 
         return Inertia::render('ShopPlan/Index', [
-            'currentPlanKey' => $current?->key,
+            'currentPlanId' => $current?->id,
+            'currentPlan' => $current ? $this->planRow($current, false, null) : null,
             'billingInterval' => $interval->value,
             'renewsAt' => Billing::periodEnd($shop)?->toIso8601String(),
             'annualMonthsCharged' => Billing::annualMonthsCharged(),
-            'plans' => $tiers->map(fn (Plan $plan, int $index) => [
-                'key' => $plan->key,
-                'name' => $plan->name,
-                'user_limit' => $plan->user_limit,
-                'monthly_price_cents' => $plan->monthly_price_cents,
-                'annual_price_cents' => Billing::periodPriceCents($plan->monthly_price_cents, BillingInterval::Annual),
-                'features' => $plan->features()
-                    ->filter(fn (Feature $feature) => $feature->isShipped())
-                    ->map(fn (Feature $feature) => $feature->label())
-                    ->values(),
-                'upgradeable' => $currentIndex === false || $index > $currentIndex,
-                // What switching to this plan costs today, per interval.
-                'quotes' => ($currentIndex === false || $index > $currentIndex) ? [
+            'plans' => $tiers->map(function (Plan $plan) use ($shop, $currentRank) {
+                $upgradeable = $currentRank === null || $plan->position > $currentRank;
+
+                return $this->planRow($plan, $upgradeable, $upgradeable ? [
+                    // What switching to this plan costs today, per interval.
                     'monthly' => Billing::planChangeQuote($shop, $plan, BillingInterval::Monthly),
                     'annual' => Billing::planChangeQuote($shop, $plan, BillingInterval::Annual),
-                ] : null,
-            ])->values(),
+                ] : null);
+            })->values(),
             'seats' => $this->seats($shop),
             // Same plan, billed yearly instead (only offered from monthly).
             'annualSwitch' => $current !== null && $current->monthly_price_cents > 0 && $interval === BillingInterval::Monthly
                 ? Billing::planChangeQuote($shop, $current, BillingInterval::Annual)
                 : null,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $quotes
+     * @return array<string, mixed>
+     */
+    private function planRow(Plan $plan, bool $upgradeable, ?array $quotes): array
+    {
+        return [
+            'id' => $plan->id,
+            'key' => $plan->key,
+            'name' => $plan->name,
+            'user_limit' => $plan->user_limit,
+            'monthly_price_cents' => $plan->monthly_price_cents,
+            'annual_price_cents' => Billing::periodPriceCents($plan->monthly_price_cents, BillingInterval::Annual),
+            'features' => $plan->features()
+                ->filter(fn (Feature $feature) => $feature->isShipped())
+                ->map(fn (Feature $feature) => $feature->label())
+                ->values(),
+            'available_until' => $plan->show_expiry ? $plan->expires_on?->toDateString() : null,
+            'upgradeable' => $upgradeable,
+            'quotes' => $quotes,
+        ];
     }
 
     /**
@@ -102,22 +119,29 @@ class ShopPlanController extends Controller
     {
         $shop = Auth::user()->currentShop;
         $tiers = Plan::orderedByTier();
-        $currentIndex = $this->currentIndex($shop, $tiers);
+        $currentRank = $shop->plan?->rank();
 
+        // A tier the shop is already on is a valid answer even if it has
+        // since been removed from the list (that's how it switches to annual).
+        $ownKey = $shop->plan?->key;
         $validated = $request->validate([
-            'plan' => ['required', 'in:'.$tiers->pluck('key')->implode(',')],
+            'plan' => ['required', 'in:'.$tiers->pluck('key')->push($ownKey)->filter()->unique()->implode(',')],
             'interval' => ['nullable', 'in:monthly,annual'],
         ]);
 
-        $plan = $tiers->firstWhere('key', $validated['plan']);
-        $planIndex = $tiers->search(fn (Plan $p) => $p->id === $plan->id);
         $interval = BillingInterval::tryFrom($validated['interval'] ?? '') ?? $shop->billingInterval();
 
-        // A higher tier, or the same plan moving from monthly to annual.
-        $isUpgrade = $currentIndex === false || $planIndex > $currentIndex;
-        $isAnnualSwitch = $planIndex === $currentIndex
+        // The shop's own plan moving from monthly to annual - billed at the
+        // price it signed up for, not the tier's current price.
+        $isAnnualSwitch = $validated['plan'] === $ownKey
             && $shop->billingInterval() === BillingInterval::Monthly
             && $interval === BillingInterval::Annual;
+
+        $plan = $isAnnualSwitch ? $shop->plan : $tiers->firstWhere('key', $validated['plan']);
+
+        // Otherwise only a higher tier. Picking the tier it's already on is
+        // not a move: its price is what the shop signed up for until it leaves.
+        $isUpgrade = $plan !== null && ($currentRank === null || $plan->position > $currentRank);
 
         if (! $isUpgrade && ! $isAnnualSwitch) {
             throw ValidationException::withMessages(['plan' => 'You can only move to a higher plan, or switch your current plan to annual billing.']);
@@ -143,13 +167,5 @@ class ShopPlanController extends Controller
         return redirect()->route('dashboard')->with('status', $isAnnualSwitch && ! $isUpgrade
             ? "Your {$plan->name} plan now bills annually."
             : "Your shop is now on the {$plan->name} plan.");
-    }
-
-    /**
-     * @param  Collection<int, Plan>  $tiers
-     */
-    private function currentIndex(Shop $shop, Collection $tiers): int|false
-    {
-        return $tiers->search(fn (Plan $plan) => $plan->id === $shop->plan_id);
     }
 }
